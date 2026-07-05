@@ -446,17 +446,9 @@ export default function CheckSheetForm({
     <>
       <div className="flex flex-col" style={{ maxHeight: 'calc(100dvh - 160px)' }}>
         <div className="flex-1 overflow-y-auto space-y-4 pb-4">
-          {/* Thông tin xe - chung cho cả 2 loại */}
-          <CollapsibleCard title="Thông tin xe" subtitle={`${vehicle.plate} - ${vehicle.model}`}>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <ReadonlyField label="Biển số" value={vehicle.plate || '-'} />
-              <ReadonlyField label="Dòng" value={vehicle.model || '-'} />
-              <ReadonlyField label="Năm" value={vehicle.year ? String(vehicle.year) : '-'} />
-              <ReadonlyField label="Màu" value={vehicle.color || '-'} />
-              <ReadonlyField label="Số km" value={vehicle.mileage || '-'} />
-            </div>
-
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {/* Form kiểm tra - Người check, Ngày check, Mức nhiên liệu */}
+          <CollapsibleCard title="Thông tin kiểm tra">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="label">Người check</label>
                 <select className="input" value={checkerId} onChange={(e) => setCheckerId(e.target.value)}>
@@ -677,15 +669,6 @@ export default function CheckSheetForm({
 }
 
 // ====== HELPER COMPONENTS ======
-
-function ReadonlyField({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <div className="text-xs text-slate-400">{label}</div>
-      <div className="mt-0.5 text-sm font-medium text-slate-700">{value}</div>
-    </div>
-  )
-}
 
 function OptionRow<T extends string>({
   label,
