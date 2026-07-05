@@ -1,10 +1,12 @@
+// ====== VEHICLE LIST PAGE ======
+
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, Car, User, ListChecks } from 'lucide-react'
+import { Search, Car, User, ListChecks, X, ClipboardList, Gauge, Fuel, Monitor, Camera, AlertCircle } from 'lucide-react'
 import { useStore } from '../store/useStore'
-import { Badge, EmptyState } from '../components/ui'
-import { formatCurrency } from '../utils/format'
-import { VehicleStatus } from '../types'
+import { Badge, EmptyState, Modal } from '../components/ui'
+import { formatCurrency, formatDateTime } from '../utils/format'
+import { VehicleStatus, FuelLevel } from '../types'
 
 const STATUS_LABEL: Record<VehicleStatus, string> = {
   available: 'Chưa bán',
@@ -17,6 +19,13 @@ const STATUS_TONE: Record<VehicleStatus, 'slate' | 'orange' | 'green'> = {
   sold: 'green',
 }
 
+const FUEL_LABELS: Record<FuelLevel, string> = {
+  empty: 'Cạn',
+  quarter: '1/4',
+  half: '1/2',
+  full: 'Đầy',
+}
+
 export default function VehicleList() {
   const vehicles = useStore((s) => s.vehicles)
   const positions = useStore((s) => s.positions)
@@ -25,6 +34,11 @@ export default function VehicleList() {
   const [query, setQuery] = useState('')
   const [positionFilter, setPositionFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [assigneeFilter, setAssigneeFilter] = useState('all')
+  
+  // CheckSheet Preview Modal
+  const [previewSheet, setPreviewSheet] = useState<typeof checkSheets[0] | null>(null)
+  const [previewType, setPreviewType] = useState<'in' | 'out'>('in')
 
   const filtered = useMemo(() => {
     return vehicles.filter((v) => {
@@ -32,12 +46,30 @@ export default function VehicleList() {
       const matchesQuery = !q || v.plate.toLowerCase().includes(q) || v.model.toLowerCase().includes(q)
       const matchesPosition = positionFilter === 'all' || v.positionId === positionFilter
       const matchesStatus = statusFilter === 'all' || v.status === statusFilter
-      return matchesQuery && matchesPosition && matchesStatus
+      const matchesAssignee = assigneeFilter === 'all' || 
+        (assigneeFilter === 'unassigned' && !v.assigneeId) ||
+        v.assigneeId === assigneeFilter
+      return matchesQuery && matchesPosition && matchesStatus && matchesAssignee
     })
-  }, [vehicles, query, positionFilter, statusFilter])
+  }, [vehicles, query, positionFilter, statusFilter, assigneeFilter])
+
+  // Get latest check sheets for a vehicle
+  const getLatestCheckSheets = (vehicleId: string) => {
+    const vehicleSheets = checkSheets.filter((c) => c.vehicleId === vehicleId)
+    const latestIn = vehicleSheets.filter((c) => c.type === 'in').sort((a, b) => (a.checkDate < b.checkDate ? 1 : -1))[0]
+    const latestOut = vehicleSheets.filter((c) => c.type === 'out').sort((a, b) => (a.checkDate < b.checkDate ? 1 : -1))[0]
+    return { latestIn, latestOut }
+  }
+
+  const handleOpenPreview = (vehicleId: string, type: 'in' | 'out') => {
+    const sheets = getLatestCheckSheets(vehicleId)
+    setPreviewSheet(type === 'in' ? sheets.latestIn : sheets.latestOut)
+    setPreviewType(type)
+  }
 
   return (
     <div>
+      {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900">Danh sách xe</h1>
         <p className="mt-1 text-sm text-slate-500">
@@ -48,8 +80,9 @@ export default function VehicleList() {
         </p>
       </div>
 
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row">
-        <div className="relative flex-1">
+      {/* Filters */}
+      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="relative col-span-2">
           <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             className="input pl-10"
@@ -58,22 +91,28 @@ export default function VehicleList() {
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
-        <select className="input sm:w-52" value={positionFilter} onChange={(e) => setPositionFilter(e.target.value)}>
+        <select className="input" value={positionFilter} onChange={(e) => setPositionFilter(e.target.value)}>
           <option value="all">Tất cả vị trí</option>
           {positions.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
+            <option key={p.id} value={p.id}>{p.name}</option>
           ))}
         </select>
-        <select className="input sm:w-48" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+        <select className="input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="all">Tất cả tình trạng</option>
           <option value="available">Chưa bán</option>
           <option value="deposited">Đã cọc</option>
           <option value="sold">Đã bán</option>
         </select>
+        <select className="input" value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)}>
+          <option value="all">Mọi người</option>
+          <option value="unassigned">Chưa phân công</option>
+          {employees.map((e) => (
+            <option key={e.id} value={e.id}>{e.name}</option>
+          ))}
+        </select>
       </div>
 
+      {/* Vehicle Grid */}
       {filtered.length === 0 ? (
         <div className="card">
           <EmptyState icon={<Car size={36} />} title="Không tìm thấy xe nào" subtitle="Thử thay đổi bộ lọc hoặc từ khoá tìm kiếm" />
@@ -83,12 +122,16 @@ export default function VehicleList() {
           {filtered.map((v) => {
             const position = positions.find((p) => p.id === v.positionId)
             const assignee = employees.find((e) => e.id === v.assigneeId)
+            const { latestIn, latestOut } = getLatestCheckSheets(v.id)
+            const hasCheckSheet = !!latestIn || !!latestOut
+            
             return (
               <Link
                 key={v.id}
                 to={`/xe/${v.id}`}
                 className="card group overflow-hidden transition hover:shadow-md hover:-translate-y-0.5"
               >
+                {/* Vehicle Image */}
                 <div className="aspect-[16/10] w-full overflow-hidden bg-slate-100">
                   {v.images[0] ? (
                     <img src={v.images[0]} alt={v.model} className="h-full w-full object-cover" />
@@ -98,12 +141,14 @@ export default function VehicleList() {
                     </div>
                   )}
                 </div>
+                
+                {/* Vehicle Info */}
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-lg font-bold text-slate-900">{v.plate || '—'}</span>
                     <div className="flex flex-col items-end gap-1">
                       <Badge tone={STATUS_TONE[v.status]}>{STATUS_LABEL[v.status]}</Badge>
-                      {checkSheets.some((c) => c.vehicleId === v.id) && (
+                      {hasCheckSheet && (
                         <div className="flex items-center gap-1 text-xs text-brand-600">
                           <ListChecks size={12} />
                           <span>Đã kiểm tra</span>
@@ -112,19 +157,54 @@ export default function VehicleList() {
                     </div>
                   </div>
                   <div className="mt-0.5 text-sm text-slate-500">{v.model}</div>
+                  
+                  {/* Position */}
                   {position && (
                     <div className="mt-2">
                       <span className="text-xs font-medium text-brand-600">{position.name}</span>
                     </div>
                   )}
-                  {assignee && (
+                  
+                  {/* Assignee */}
+                  {assignee ? (
                     <div className="mt-1 flex items-center gap-1 text-xs font-medium text-amber-600">
                       <User size={12} />
                       {assignee.name}
                     </div>
+                  ) : (
+                    <div className="mt-1 flex items-center gap-1 text-xs text-slate-400">
+                      <User size={12} />
+                      Chưa phân công
+                    </div>
                   )}
+                  
+                  {/* Price */}
                   {v.sellPrice !== undefined && (
                     <div className="mt-2 text-sm font-semibold text-slate-700">{formatCurrency(v.sellPrice)} đ</div>
+                  )}
+                  
+                  {/* Quick CheckSheet Preview */}
+                  {hasCheckSheet && (
+                    <div className="mt-3 flex gap-2 border-t border-slate-100 pt-3">
+                      {latestIn && (
+                        <button
+                          onClick={(e) => { e.preventDefault(); handleOpenPreview(v.id, 'in') }}
+                          className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-blue-50 px-2 py-1.5 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-100"
+                        >
+                          <ClipboardList size={12} />
+                          Đầu vào
+                        </button>
+                      )}
+                      {latestOut && (
+                        <button
+                          onClick={(e) => { e.preventDefault(); handleOpenPreview(v.id, 'out') }}
+                          className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-purple-50 px-2 py-1.5 text-xs font-medium text-purple-600 transition-colors hover:bg-purple-100"
+                        >
+                          <ClipboardList size={12} />
+                          Đầu ra
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               </Link>
@@ -132,6 +212,82 @@ export default function VehicleList() {
           })}
         </div>
       )}
+
+      {/* CheckSheet Preview Modal */}
+      <Modal
+        open={!!previewSheet}
+        onClose={() => setPreviewSheet(null)}
+        title={previewType === 'in' ? 'CheckSheet Đầu vào' : 'CheckSheet Đầu ra'}
+      >
+        {previewSheet ? (
+          <div className="space-y-4">
+            <div className="text-sm text-slate-500">
+              Ngày: {previewSheet.checkDate} • 
+              {previewSheet.checkerId && ` Người kiểm tra: ${employees.find((e) => e.id === previewSheet.checkerId)?.name || '—'}`}
+            </div>
+
+            {/* Fuel Level */}
+            <div className="flex items-center gap-2 rounded-lg bg-slate-50 p-3">
+              <Fuel size={16} className="text-slate-500" />
+              <span className="text-sm font-medium text-slate-700">Nhiên liệu:</span>
+              <span className="text-sm text-slate-600">{FUEL_LABELS[previewSheet.fuelLevel]}</span>
+            </div>
+
+            {/* Status Items */}
+            <div className="space-y-2">
+              {[
+                { label: 'Màn hình/Bluetooth', value: previewSheet.screen, icon: Monitor },
+                { label: 'Camera lùi', value: previewSheet.rearCamera, icon: Camera },
+                { label: 'Hipass', value: previewSheet.hipass, icon: AlertCircle },
+                { label: 'Cảm biến', value: previewSheet.rearSensor, icon: AlertCircle },
+              ].map((item) => (
+                <div key={item.label} className="flex items-center justify-between rounded-lg bg-slate-50 p-3">
+                  <div className="flex items-center gap-2">
+                    <item.icon size={16} className="text-slate-400" />
+                    <span className="text-sm text-slate-700">{item.label}</span>
+                  </div>
+                  <span className={`text-sm font-medium ${
+                    (item.value as string) === 'ok' || (item.value as string) === 'normal' || (item.value as string) === 'android' || (item.value as string) === 'mirror' || (item.value as string) === 'device' || (item.value as string) === 'good' ? 'text-green-600' :
+                    (item.value as string) === 'error' || (item.value as string) === 'broken' || (item.value as string) === 'blurry' ? 'text-red-600' :
+                    'text-slate-400'
+                  }`}>
+                    {(item.value as string) === 'ok' || (item.value as string) === 'normal' || (item.value as string) === 'android' || (item.value as string) === 'mirror' || (item.value as string) === 'device' || (item.value as string) === 'good' ? 'OK' :
+                     (item.value as string) === 'error' || (item.value as string) === 'broken' || (item.value as string) === 'blurry' ? 'Lỗi' : 'Không có'}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* OutCheck if exists */}
+            {previewType === 'out' && previewSheet.outCheck && (
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-slate-700">Kiểm tra đầu ra:</div>
+                {Object.entries(previewSheet.outCheck).map(([key, value]) => (
+                  <div key={key} className="flex items-center justify-between rounded-lg bg-slate-50 p-3">
+                    <span className="text-sm text-slate-700">{key}</span>
+                    <span className={`text-sm font-medium ${
+                      value.status === 'ok' ? 'text-green-600' :
+                      value.status === 'error' ? 'text-red-600' :
+                      'text-slate-400'
+                    }`}>
+                      {value.status === 'ok' ? 'OK' : value.status === 'error' ? 'Lỗi' : 'Không có'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Read-only notice */}
+            <div className="text-center text-xs text-slate-400">
+              Chỉ có thể xem. Không thể chỉnh sửa.
+            </div>
+          </div>
+        ) : (
+          <div className="text-center text-slate-400">
+            Chưa có dữ liệu CheckSheet.
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

@@ -70,26 +70,3 @@ export default function ViewModeToggle({ className = '' }: ViewModeToggleProps) 
     </div>
   )
 }
-
-// Preview Badge Component - shows when in preview mode
-export function PreviewBadge() {
-  const currentUser = useAuthStore((s) => s.currentUser)
-  const viewMode = useViewModeStore((s) => s.viewMode)
-  
-  // Only show for admin and only when in preview mode
-  const isAdmin = currentUser?.role === 'admin'
-  const isPreviewMode = isAdmin && viewMode !== currentUser?.role
-  
-  if (!isPreviewMode) {
-    return null
-  }
-  
-  return (
-    <div className="fixed top-4 right-4 z-50 flex items-center gap-2 rounded-full bg-amber-100 px-4 py-2 text-sm font-medium text-amber-800 shadow-lg ring-2 ring-amber-300">
-      <Eye size={16} className="animate-pulse" />
-      <span>Preview</span>
-      <span className="mx-1 h-4 w-px bg-amber-300" />
-      <span>STAFF VIEW</span>
-    </div>
-  )
-}

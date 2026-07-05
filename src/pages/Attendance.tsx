@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Download, Edit2, LogIn, LogOut, Save, X } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import { EmptyState } from '../components/ui'
-import { useIsAdmin } from '../hooks/useIsAdmin'
+import { useIsAdminMode } from '../hooks/useAuthRole'
 import { formatDateTime } from '../utils/format'
 
 export default function Attendance() {
@@ -12,7 +12,7 @@ export default function Attendance() {
   const checkIn = useStore((s) => s.checkIn)
   const checkOut = useStore((s) => s.checkOut)
   const updateAttendanceEntry = useStore((s) => s.updateAttendanceEntry)
-  const isAdmin = useIsAdmin()
+  const isAdmin = useIsAdminMode()
   const [employeeFilter, setEmployeeFilter] = useState('all')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editCheckIn, setEditCheckIn] = useState('')

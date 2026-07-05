@@ -1,5 +1,5 @@
 import { ChevronDown, GripHorizontal, X } from 'lucide-react'
-import { ReactNode, useEffect, useState } from 'react'
+import { ReactNode, useEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
 
 export function Modal({
@@ -59,6 +59,261 @@ export function Badge({ children, tone = 'slate' }: { children: ReactNode; tone?
     purple: 'bg-violet-100 text-violet-700',
   }
   return <span className={clsx('inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium', tones[tone])}>{children}</span>
+}
+
+export function WheelPicker({
+  value,
+  onChange,
+  min = 0,
+  max = 100,
+  unit = '',
+}: {
+  value: number
+  onChange: (v: number) => void
+  min?: number
+  max?: number
+  unit?: string
+}) {
+  const items = Array.from({ length: max - min + 1 }, (_, i) => min + i)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const isDragging = useRef(false)
+  const lastTouchY = useRef(0)
+  const velocity = useRef(0)
+  const lastMoveTime = useRef(0)
+  const lastMoveY = useRef(0)
+  const animationRef = useRef<number>()
+  const currentOffset = useRef(0)
+  
+  const ITEM_HEIGHT = 32
+  const VISIBLE_ITEMS = 5
+  const CONTAINER_HEIGHT = ITEM_HEIGHT * VISIBLE_ITEMS
+  const PADDING = ITEM_HEIGHT * 2
+
+  // Current selected index
+  const selectedIndex = items.indexOf(value)
+  
+  // Calculate visual transform for each item
+  function getItemStyle(index: number, currentIdx: number) {
+    const offset = index - currentIdx
+    const translateY = offset * ITEM_HEIGHT
+    const absOffset = Math.abs(offset)
+    
+    // 3D perspective effect
+    const scale = Math.max(0.7, 1 - absOffset * 0.1)
+    const opacity = Math.max(0.3, 1 - absOffset * 0.2)
+    const zIndex = 50 - absOffset
+    
+    // Slight tilt
+    const rotateX = offset * -8
+    
+    return {
+      transform: `translateY(${translateY}px) scale(${scale}) rotateX(${rotateX}deg)`,
+      opacity,
+      zIndex,
+    }
+  }
+
+  // Scroll to index with animation
+  function scrollToIndex(targetIndex: number, animated = true) {
+    const container = containerRef.current
+    if (!container) return
+    
+    const clampedIndex = Math.max(0, Math.min(items.length - 1, targetIndex))
+    const targetScrollTop = clampedIndex * ITEM_HEIGHT
+    
+    if (animated) {
+      const startScrollTop = container.scrollTop
+      const startTime = performance.now()
+      const duration = 200
+      
+      function animate(currentTime: number) {
+        if (!container) return
+        const elapsed = currentTime - startTime
+        const progress = Math.min(elapsed / duration, 1)
+        // Ease out cubic
+        const eased = 1 - Math.pow(1 - progress, 3)
+        
+        container.scrollTop = startScrollTop + (targetScrollTop - startScrollTop) * eased
+        
+        if (progress < 1) {
+          animationRef.current = requestAnimationFrame(animate)
+        } else {
+          // Snap to exact position
+          container.scrollTop = targetScrollTop
+          currentOffset.current = targetScrollTop
+          const newValue = items[clampedIndex]
+          if (onChange && newValue !== value) {
+            onChange(newValue)
+          }
+        }
+      }
+      
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current)
+      }
+      animationRef.current = requestAnimationFrame(animate)
+    } else {
+      container.scrollTop = targetScrollTop
+      currentOffset.current = targetScrollTop
+    }
+  }
+
+  // Wheel event (mouse scroll)
+  function handleWheel(e: React.WheelEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    const container = containerRef.current
+    if (!container) return
+    
+    const delta = e.deltaY > 0 ? 1 : -1
+    const newIndex = Math.max(0, Math.min(items.length - 1, selectedIndex + delta))
+    
+    scrollToIndex(newIndex)
+  }
+
+  // Touch events for mobile swipe
+  function handleTouchStart(e: React.TouchEvent) {
+    e.preventDefault()
+    isDragging.current = true
+    lastTouchY.current = e.touches[0].clientY
+    lastMoveTime.current = performance.now()
+    lastMoveY.current = e.touches[0].clientY
+    velocity.current = 0
+    
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current)
+    }
+  }
+
+  function handleTouchMove(e: React.TouchEvent) {
+    if (!isDragging.current) return
+    e.preventDefault()
+    
+    const container = containerRef.current
+    if (!container) return
+    
+    const currentY = e.touches[0].clientY
+    const deltaY = lastTouchY.current - currentY
+    
+    // Calculate velocity
+    const now = performance.now()
+    const dt = now - lastMoveTime.current
+    if (dt > 0) {
+      velocity.current = (lastMoveY.current - currentY) / dt
+    }
+    
+    lastTouchY.current = currentY
+    lastMoveTime.current = now
+    lastMoveY.current = currentY
+    
+    // Apply scroll with resistance
+    container.scrollTop += deltaY
+    currentOffset.current = container.scrollTop
+  }
+
+  function handleTouchEnd() {
+    isDragging.current = false
+    
+    const container = containerRef.current
+    if (!container) return
+    
+    // Momentum scrolling
+    const momentum = velocity.current * 150
+    let targetScrollTop = container.scrollTop + momentum
+    
+    // Snap to nearest item
+    const nearestIndex = Math.round(targetScrollTop / ITEM_HEIGHT)
+    const clampedIndex = Math.max(0, Math.min(items.length - 1, nearestIndex))
+    
+    scrollToIndex(clampedIndex)
+  }
+
+  // Click to select
+  function handleClick(index: number) {
+    scrollToIndex(index)
+  }
+
+  // Handle scroll event (for manual scrolling)
+  function handleScroll() {
+    const container = containerRef.current
+    if (!container || isDragging.current) return
+    
+    currentOffset.current = container.scrollTop
+    const nearestIndex = Math.round(container.scrollTop / ITEM_HEIGHT)
+    const clampedIndex = Math.max(0, Math.min(items.length - 1, nearestIndex))
+    const newValue = items[clampedIndex]
+    
+    if (onChange && newValue !== value) {
+      onChange(newValue)
+    }
+  }
+
+  return (
+    <div className="relative">
+      {/* Center highlight indicator */}
+      <div className="pointer-events-none absolute inset-x-0 top-1/2 z-10 flex -translate-y-1/2 justify-center">
+        <div className="h-8 w-full rounded-lg border border-brand-300/50 bg-brand-50/30 backdrop-blur-sm" />
+      </div>
+      
+      {/* Top fade */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-8 bg-gradient-to-b from-white to-transparent" />
+      
+      {/* Bottom fade */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-8 bg-gradient-to-t from-white to-transparent" />
+      
+      {/* Scrolling container */}
+      <div
+        ref={containerRef}
+        onWheel={handleWheel}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onScroll={handleScroll}
+        className="relative overflow-y-auto oversccontain-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        style={{ 
+          height: CONTAINER_HEIGHT,
+          perspective: '500px',
+          perspectiveOrigin: 'center center',
+        }}
+      >
+        {/* Content wrapper for centering */}
+        <div 
+          className="relative"
+          style={{ height: PADDING + items.length * ITEM_HEIGHT + PADDING }}
+        >
+          {items.map((item, index) => {
+            const currentIdx = value !== undefined ? items.indexOf(value) : 0
+            const style = getItemStyle(index, currentIdx)
+            const isSelected = item === value
+            
+            return (
+              <div
+                key={item}
+                onClick={() => handleClick(index)}
+                className={clsx(
+                  'absolute left-0 right-0 flex cursor-pointer items-center justify-center transition-all duration-100',
+                  isSelected ? 'font-bold' : 'font-medium'
+                )}
+                style={{
+                  top: PADDING + index * ITEM_HEIGHT,
+                  height: ITEM_HEIGHT,
+                  ...style,
+                }}
+              >
+                <span className={clsx(
+                  'tabular-nums transition-colors',
+                  isSelected ? 'text-brand-600' : 'text-slate-400'
+                )}>
+                  {item}{unit}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export function Tabs({

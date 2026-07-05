@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Bell, Check, CheckCheck, Info, Settings, Truck } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import { formatDateTime } from '../utils/format'
-import { useIsAdmin } from '../hooks/useIsAdmin'
+import { useIsAdminMode } from '../hooks/useAuthRole'
 
 const TYPE_ICONS: Record<string, { icon: typeof Info; color: string }> = {
   task_created: { icon: Bell, color: 'text-blue-500 bg-blue-50' },
@@ -17,7 +17,7 @@ export default function NotificationCenter() {
   const notifications = useStore((s) => s.notifications)
   const markNotificationRead = useStore((s) => s.markNotificationRead)
   const markAllNotificationsRead = useStore((s) => s.markAllNotificationsRead)
-  const isAdmin = useIsAdmin()
+  const isAdmin = useIsAdminMode()
   const [open, setOpen] = useState(false)
 
   const unread = notifications.filter((n) => !n.read).length

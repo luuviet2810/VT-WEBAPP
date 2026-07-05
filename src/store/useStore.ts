@@ -210,6 +210,7 @@ interface StoreState {
   addPosition: (name: string) => void
   updatePosition: (id: string, patch: Partial<Position>) => void
   deletePosition: (id: string) => void
+  reorderPositions: (orderedIds: string[]) => void
 
   // Check sheets
   addCheckSheet: (c: Omit<CheckSheet, 'id' | 'createdAt'>) => void
@@ -380,6 +381,19 @@ export const useStore = create<StoreState>()(
           return
         }
         set((s) => ({ positions: s.positions.filter((p) => p.id !== id) }))
+      },
+
+      reorderPositions: (orderedIds) => {
+        const currentPositions = get().positions
+        const positionMap = new Map(currentPositions.map(p => [p.id, p]))
+        const reordered = orderedIds
+          .map((id, index) => {
+            const pos = positionMap.get(id)
+            return pos ? { ...pos, order: index } : null
+          })
+          .filter((p): p is NonNullable<typeof p> => p !== null)
+        
+        set({ positions: reordered })
       },
 
       addCheckSheet: (c) => {

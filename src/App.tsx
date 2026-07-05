@@ -3,7 +3,6 @@
 import { Route, Routes, Navigate } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import GlobalSearch from './components/GlobalSearch'
-import { PreviewBadge } from './components/ViewModeToggle'
 
 // Pages
 import VehicleList from './pages/VehicleList'
@@ -45,13 +44,9 @@ function MainLayout({ children }: { children: React.ReactNode }) {
 
       {/* Main Content - always full width */}
       <main className="flex-1 overflow-y-auto overflow-x-hidden">
-        {/* Preview Badge - shows when in preview mode */}
-        <PreviewBadge />
-        
         <div className="px-4 py-4 pb-24 md:px-6 md:py-6">
-          {/* Mobile header with menu button */}
+          {/* Mobile header with hamburger on left */}
           <div className="mb-4 flex items-center justify-between md:hidden">
-            <GlobalSearch />
             <button
               onClick={() => setSidebarOpen(true)}
               className="btn-icon"
@@ -63,6 +58,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
                 <line x1="4" x2="20" y1="18" y2="18"/>
               </svg>
             </button>
+            <GlobalSearch />
           </div>
 
           {/* Desktop search in header */}
@@ -89,6 +85,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 // Role-based route guard
+// IMPORTANT: This uses ACTUAL user role, NOT viewMode.
+// viewMode only affects UI rendering, not route access.
 function RoleGuard({ allowedRoles, children }: { allowedRoles: UserRole[]; children: React.ReactNode }) {
   const { isAuthenticated, currentUser } = useAuthStore()
 
@@ -96,8 +94,14 @@ function RoleGuard({ allowedRoles, children }: { allowedRoles: UserRole[]; child
     return <Navigate to="/login" replace />
   }
 
+  // Always use ACTUAL user role for route access check
   const userRole = currentUser.role as UserRole
-  if (!allowedRoles.includes(userRole)) {
+  
+  // Admin always has access (can preview any UI)
+  // Non-admin users are checked against allowedRoles
+  const hasAccess = userRole === 'admin' || allowedRoles.includes(userRole)
+  
+  if (!hasAccess) {
     return <ForbiddenPage />
   }
 

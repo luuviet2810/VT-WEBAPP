@@ -1,5 +1,7 @@
+// ====== CHECKSHEET FORM COMPONENT ======
+
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Camera, CheckCircle2, XCircle, Minus, StickyNote, Wrench } from 'lucide-react'
+import { Camera, CheckCircle2, XCircle, Minus, StickyNote, Wrench, Plus, Minus as MinusIcon } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import {
   CheckOutCheck,
@@ -20,7 +22,7 @@ import {
   Vehicle,
   CameraState,
 } from '../types'
-import { CollapsibleCard, Modal, SegButton } from './ui'
+import { CollapsibleCard, Modal, SegButton, WheelPicker } from './ui'
 import { emptyExteriorCheck } from '../store/useStore'
 import { uid } from '../utils/format'
 import PhotoUploader from './PhotoUploader'
@@ -54,20 +56,20 @@ const OUT_STATUS_OPTIONS: { value: CheckOutStatus; label: string }[] = [
   { value: 'none', label: 'Không có' },
 ]
 
-// 12 hạng mục kiểm tra đầu ra - theo biểu mẫu
-const OUT_CHECK_ITEMS: { key: keyof CheckOutCheck; label: string }[] = [
-  { key: 'conSeongnyeong', label: 'Còn性能 không?' },
-  { key: 'dauMay', label: 'Dầu máy' },
-  { key: 'nuocLamMat', label: 'Nước làm mát' },
-  { key: 'camHanhTrinh', label: 'Cam hành trình' },
-  { key: 'manHinhBluetooth', label: 'Màn hình, Bluetooth' },
-  { key: 'cameraLui', label: 'Camera lùi' },
-  { key: 'denPhaCot', label: 'Đèn (Pha, Cốt, Cảnh báo, Phanh)' },
-  { key: 'motorGuongNutBam', label: 'Motor Gương, Nút bấm (Cụp mở, chỉnh điện)' },
-  { key: 'dieuHoaSuGhe', label: 'Điều hòa / Sưởi ghế' },
-  { key: 'cuaSo', label: 'Cửa sổ (Tất cả các cửa)' },
-  { key: 'gheChinhDien', label: 'Ghế chỉnh điện' },
-  { key: 'doAcQuy', label: 'Đo ắc quy' },
+// 12 hạng mục kiểm tra đầu ra
+const OUT_CHECK_ITEMS: { key: keyof CheckOutCheck; label: string; taskPrefix: string }[] = [
+  { key: 'conSeongnyeong', label: 'Còn性能 không?', taskPrefix: 'Kiểm tra Còn性能' },
+  { key: 'dauMay', label: 'Dầu máy', taskPrefix: 'Kiểm tra dầu máy' },
+  { key: 'nuocLamMat', label: 'Nước làm mát', taskPrefix: 'Kiểm tra nước làm mát' },
+  { key: 'camHanhTrinh', label: 'Cam hành trình', taskPrefix: 'Sửa Cam hành trình' },
+  { key: 'manHinhBluetooth', label: 'Màn hình, Bluetooth', taskPrefix: 'Sửa Màn hình/Bluetooth' },
+  { key: 'cameraLui', label: 'Camera lùi', taskPrefix: 'Sửa Camera lùi' },
+  { key: 'denPhaCot', label: 'Đèn (Pha, Cốt, Cảnh báo, Phanh)', taskPrefix: 'Sửa Đèn' },
+  { key: 'motorGuongNutBam', label: 'Motor Gương, Nút bấm', taskPrefix: 'Sửa Motor Gương/Nút bấm' },
+  { key: 'dieuHoaSuGhe', label: 'Điều hòa / Sưởi ghế', taskPrefix: 'Sửa Điều hòa/Sưởi ghế' },
+  { key: 'cuaSo', label: 'Cửa sổ', taskPrefix: 'Sửa Cửa sổ' },
+  { key: 'gheChinhDien', label: 'Ghế chỉnh điện', taskPrefix: 'Sửa Ghế chỉnh điện' },
+  { key: 'doAcQuy', label: 'Đo ắc quy', taskPrefix: 'Kiểm tra ắc quy' },
 ]
 
 // ====== HELPERS ======
@@ -86,6 +88,57 @@ function defaultOutCheck(): CheckOutCheck {
     out[key] = { status: 'ok' }
   })
   return out
+}
+
+// ====== NUMBER PICKER COMPONENT ======
+
+function NumberPicker({
+  label,
+  value,
+  onChange,
+  min = 0,
+  max = 100,
+}: {
+  label: string
+  value: number
+  onChange: (v: number) => void
+  min?: number
+  max?: number
+}) {
+  const increment = () => onChange(Math.min(max, value + 1))
+  const decrement = () => onChange(Math.max(min, value - 1))
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-sm text-slate-600">{label}:</span>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={decrement}
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-50"
+          disabled={value <= min}
+        >
+          <MinusIcon size={14} />
+        </button>
+        <input
+          type="number"
+          min={min}
+          max={max}
+          value={value}
+          onChange={(e) => onChange(Math.max(min, Math.min(max, parseInt(e.target.value) || 0)))}
+          className="input w-16 text-center"
+        />
+        <button
+          type="button"
+          onClick={increment}
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-50"
+          disabled={value >= max}
+        >
+          <Plus size={14} />
+        </button>
+      </div>
+    </div>
+  )
 }
 
 // ====== MAIN COMPONENT ======
@@ -116,7 +169,7 @@ export default function CheckSheetForm({
     return checkSheets.find((c) => c.vehicleId === vehicle.id && c.type === type)
   }, [checkSheets, vehicle.id, type])
 
-  // ====== STATE ĐẦU VÀO ======
+  // ====== STATE ĐẦU VÀO =====
   const [checkerId, setCheckerId] = useState(currentEmployeeId)
   const [checkDate, setCheckDate] = useState(new Date().toISOString().slice(0, 10))
   const [fuelLevel, setFuelLevel] = useState<FuelLevel>('half')
@@ -130,11 +183,16 @@ export default function CheckSheetForm({
   const [exteriorPhotoModal, setExteriorPhotoModal] = useState<ExteriorSpotKey | null>(null)
   const [exteriorPhotos, setExteriorPhotos] = useState<Partial<Record<ExteriorSpotKey, string[]>>>({})
 
-  // ====== STATE ĐẦU RA ======
+  // ====== STATE ĐẦU RA =====
   const [outCheck, setOutCheck] = useState<CheckOutCheck>(defaultOutCheck())
   const [outNotes, setOutNotes] = useState('')
+  
+  // ====== ẮC QUY STATE (cho Đầu ra) =====
+  const [acquySOH, setAcquySOH] = useState(100)
+  const [acquySOC, setAcquySOC] = useState(100)
+  const [acquyPickerOpen, setAcquyPickerOpen] = useState<'soh' | 'soc' | null>(null)
 
-  // ====== SUMMARY COUNTS ======
+  // ====== SUMMARY COUNTS =====
   const summaryCounts = useMemo(() => {
     if (type === 'in') {
       let ok = 0
@@ -142,181 +200,113 @@ export default function CheckSheetForm({
       let none = 0
       let noteCount = 0
 
-      // Options
       if (screen === 'normal' || screen === 'android') ok++
       else if (screen === 'broken') error++
 
       if (rearCamera === 'ok') ok++
       else if (rearCamera === 'blurry') error++
-      else none++
+
+      if (hipass === 'mirror' || hipass === 'device') ok++
+      else if (hipass === 'none') none++
 
       if (rearSensor === 'ok') ok++
       else if (rearSensor === 'broken') error++
-      else none++
 
-      if (hipass === 'mirror' || hipass === 'device') ok++
-      else none++
+      if (dashcam === 'good' || dashcam === 'maybe') ok++
+      else if (dashcam === 'none') none++
 
-      if (dashcam === 'good') ok++
-      else if (dashcam === 'maybe') error++
-      else none++
-
-      // Interior
-      const seats: (keyof InteriorCheck)[] = ['driverSeat', 'passengerSeat', 'rearSeat']
-      seats.forEach((key) => {
-        if (interior[key].condition === 'good') ok++
+      Object.values(interior).forEach((v) => {
+        if (v.condition === 'good') ok++
         else error++
-        if (interior[key].note) noteCount++
+        if (v.note) noteCount++
       })
 
-      // Exterior
-      EXTERIOR_SPOTS.forEach(([key]) => {
-        if (exterior[key].condition === 'good') ok++
+      Object.values(exterior).forEach((v) => {
+        if (v.condition === 'good') ok++
         else error++
-        if (exterior[key].note) noteCount++
+        if (v.note) noteCount++
       })
 
       return { ok, error, none, noteCount }
     } else {
+      // Đầu ra
       let ok = 0
       let error = 0
       let none = 0
-      let noteCount = 0
 
-      OUT_CHECK_ITEMS.forEach(({ key }) => {
-        const status = outCheck[key]?.status
-        if (status === 'ok') ok++
-        else if (status === 'error') error++
-        else if (status === 'none') none++
-        if (outCheck[key]?.detail) noteCount++
+      Object.values(outCheck).forEach((v) => {
+        if (v.status === 'ok') ok++
+        else if (v.status === 'error') error++
+        else none++
       })
 
-      if (outNotes.trim()) noteCount++
-
-      return { ok, error, none, noteCount }
+      return { ok, error, none, noteCount: outNotes ? 1 : 0 }
     }
   }, [type, screen, rearCamera, hipass, rearSensor, dashcam, interior, exterior, outCheck, outNotes])
 
+  // Paint count
+  const paintCount = useMemo(() => {
+    return EXTERIOR_SPOTS.filter(([key]) => exterior[key]?.condition === 'needpaint').length
+  }, [exterior])
+
+  // Reference for exterior scroll
   const exteriorRef = useRef<HTMLDivElement>(null)
 
-  // ====== LOAD DATA ======
-  useEffect(() => {
-    console.log('🔵 [CheckSheetForm] Loading data - type:', type, 'vehicleId:', vehicle.id)
-    console.log('🔵 [CheckSheetForm] existingSheet:', existingSheet ? existingSheet.id : 'null')
-
-    if (existingSheet) {
-      // Load dữ liệu từ sheet có sẵn
-      setCheckerId(existingSheet.checkerId || currentEmployeeId)
-      setCheckDate(existingSheet.checkDate || new Date().toISOString().slice(0, 10))
-      setFuelLevel(existingSheet.fuelLevel || 'half')
-      setScreen(existingSheet.screen || 'normal')
-      setRearCamera(existingSheet.rearCamera || 'ok')
-      setHipass(existingSheet.hipass || 'none')
-      setRearSensor(existingSheet.rearSensor || 'ok')
-      setDashcam(existingSheet.dashcam || 'none')
-
-      if (existingSheet.interior) setInterior(existingSheet.interior)
-      if (existingSheet.exterior) setExterior(existingSheet.exterior)
-      if (existingSheet.exteriorPhotos) setExteriorPhotos(existingSheet.exteriorPhotos)
-
-      // Đầu ra
-      if (existingSheet.outCheck) setOutCheck(existingSheet.outCheck)
-      if (existingSheet.outNotes) setOutNotes(existingSheet.outNotes)
-
-      console.log('🔵 [CheckSheetForm] Loaded from existing sheet:', existingSheet.id)
-    } else {
-      // Reset về mặc định
-      setCheckerId(currentEmployeeId)
-      setCheckDate(new Date().toISOString().slice(0, 10))
-      setFuelLevel('half')
-      setScreen('normal')
-      setRearCamera('ok')
-      setHipass('none')
-      setRearSensor('ok')
-      setDashcam('none')
-      setInterior(defaultInterior())
-      setExterior(emptyExteriorCheck())
-      setExteriorPhotos({})
-      setOutCheck(defaultOutCheck())
-      setOutNotes('')
-
-      console.log('🔵 [CheckSheetForm] Reset to defaults - no existing sheet')
-    }
-  }, [vehicle.id, type]) // eslint-disable-line
-
-  // ====== HELPERS ======
-  function updateInterior(key: keyof InteriorCheck, patch: Partial<{ condition: InteriorCondition; note: string }>) {
+  // Update interior
+  function updateInterior(key: keyof InteriorCheck, patch: Partial<InteriorCheck[keyof InteriorCheck]>) {
     setInterior((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }))
   }
 
-  function updateExterior(key: ExteriorSpotKey, patch: Partial<{ condition: ExteriorCondition; note: string }>) {
+  // Update exterior
+  function updateExterior(key: ExteriorSpotKey, patch: Partial<ExteriorCheck[keyof ExteriorCheck]>) {
     setExterior((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }))
   }
 
+  // Update out check
   function updateOutCheck(key: keyof CheckOutCheck, patch: Partial<CheckOutItem>) {
     setOutCheck((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }))
   }
 
-  const paintCount = useMemo(() => {
-    let count = 0
-    EXTERIOR_SPOTS.forEach(([key]) => {
-      const c = exterior[key].condition
-      if (c === 'dent' || c === 'discolor' || c === 'needpaint') count++
-    })
-    return count
-  }, [exterior])
-
-  // Checklist items cho Đầu vào (tạo Task)
+  // Generate tasks from Đầu vào
   const allChecklistItems = useMemo(() => {
     if (type !== 'in') return []
     const items: { id: string; text: string; done: boolean }[] = []
 
-    if (screen === 'broken') {
-      items.push({ id: uid('chk'), text: 'Sửa màn hình', done: false })
-    }
-
-    if (rearCamera === 'broken') {
-      items.push({ id: uid('chk'), text: 'Lắp cam lùi', done: false })
-    }
-
-    if (rearSensor === 'broken') {
-      items.push({ id: uid('chk'), text: 'Lắp cảm biến lùi', done: false })
-    }
-
-    if (dashcam === 'good' || dashcam === 'maybe') {
-      items.push({ id: uid('chk'), text: 'Lắp thẻ nhớ', done: false })
-    }
-
-    if (dashcam === 'none') {
-      items.push({ id: uid('chk'), text: 'Lắp cam hành trình', done: false })
-    }
+    if (screen === 'broken') items.push({ id: uid('chk'), text: 'Sửa màn hình', done: false })
+    if (rearCamera === 'broken') items.push({ id: uid('chk'), text: 'Sửa camera lùi', done: false })
+    if (rearSensor === 'broken') items.push({ id: uid('chk'), text: 'Sửa cảm biến lùi', done: false })
+    if (dashcam === 'none') items.push({ id: uid('chk'), text: 'Lắp camera hành trình', done: false })
+    if (dashcam === 'maybe') items.push({ id: uid('chk'), text: 'Mua thẻ nhớ cho cam hành trình', done: false })
 
     const seats: { key: keyof InteriorCheck; label: string }[] = [
       { key: 'driverSeat', label: 'Ghế lái' },
       { key: 'passengerSeat', label: 'Ghế phụ' },
       { key: 'rearSeat', label: 'Hàng ghế sau' },
     ]
-
     seats.forEach(({ key, label }) => {
-      if (interior[key].condition === 'dirty') {
-        items.push({ id: uid('chk'), text: `Vệ sinh ${label}`, done: false })
-      }
-      if (interior[key].condition === 'torn') {
-        items.push({ id: uid('chk'), text: `Bọc lại ${label}`, done: false })
-      }
+      if (interior[key].condition === 'dirty') items.push({ id: uid('chk'), text: `Vệ sinh ${label}`, done: false })
+      if (interior[key].condition === 'torn') items.push({ id: uid('chk'), text: `Bọc lại ${label}`, done: false })
     })
 
-    if (paintCount > 0) {
-      items.push({ id: uid('chk'), text: `Sơn lại (${paintCount} tấm)`, done: false })
-    }
+    if (paintCount > 0) items.push({ id: uid('chk'), text: `Sơn lại (${paintCount} tấm)`, done: false })
 
-    const hasPolish = EXTERIOR_SPOTS.some(([key]) => exterior[key].condition === 'scratch')
-    if (hasPolish) {
-      items.push({ id: uid('chk'), text: 'Đánh bóng', done: false })
-    }
+    const hasPolish = EXTERIOR_SPOTS.some(([key]) => exterior[key]?.condition === 'scratch')
+    if (hasPolish) items.push({ id: uid('chk'), text: 'Đánh bóng', done: false })
 
     return items
   }, [type, screen, rearCamera, rearSensor, dashcam, interior, exterior, paintCount])
+
+  // Generate tasks from Đầu ra errors
+  const outErrorTasks = useMemo(() => {
+    if (type !== 'out') return []
+    return OUT_CHECK_ITEMS
+      .filter(({ key }) => outCheck[key]?.status === 'error')
+      .map(({ key, label }) => ({
+        id: uid('task'),
+        title: `Sửa xe ${vehicle.plate}: ${label}`,
+        prefix: `${vehicle.plate} - ${label}`,
+      }))
+  }, [type, outCheck, vehicle.plate])
 
   // Issue labels cho Đầu vào
   const issueLabels = useMemo(() => {
@@ -337,7 +327,7 @@ export default function CheckSheetForm({
       if (interior[key].condition === 'torn') labels.push({ text: `${label} rách`, bold: true })
     })
     if (paintCount > 0) labels.push({ text: `${paintCount} tấm sơn`, bold: true })
-    if (EXTERIOR_SPOTS.some(([key]) => exterior[key].condition === 'scratch')) labels.push({ text: 'Trầy cần đánh bóng', bold: true })
+    if (EXTERIOR_SPOTS.some(([key]) => exterior[key]?.condition === 'scratch')) labels.push({ text: 'Trầy cần đánh bóng', bold: true })
     return labels
   }, [type, screen, rearCamera, rearSensor, dashcam, interior, exterior, paintCount])
 
@@ -386,12 +376,10 @@ export default function CheckSheetForm({
     console.log('🔵 [CheckSheetForm] Saving sheetData:', JSON.stringify(sheetData, null, 2))
 
     if (existingSheet) {
-      // Update bản ghi hiện có
       updateCheckSheet(existingSheet.id, sheetData)
       console.log('🔵 [CheckSheetForm] Updated existing sheet:', existingSheet.id)
       return existingSheet.id
     } else {
-      // Tạo bản ghi mới
       addCheckSheet(sheetData)
       const newSheet = checkSheets.find((c) => c.vehicleId === vehicle.id && c.type === type)
       console.log('🔵 [CheckSheetForm] Created new sheet:', newSheet?.id)
@@ -399,15 +387,15 @@ export default function CheckSheetForm({
     }
   }
 
-  function handleSaveAndClose() {
-    console.log('🔵 [handleSaveAndClose] Bắt đầu - type:', type)
-
-    // Chỉ tạo Task cho Đầu vào
+  // ====== TASK GENERATION ======
+  function handleCreateOrUpdateTasks() {
     if (type === 'in' && allChecklistItems.length > 0) {
+      // Đầu vào: tạo/update task checklist
       const taskTitle = `Kiểm tra xe ${vehicle.plate}`
       const existingTask = tasks.find((t) => t.vehicleId === vehicle.id && t.title.includes(vehicle.plate))
 
       if (existingTask) {
+        // Merge checklist
         const mergedChecklist = [
           ...existingTask.checklist,
           ...allChecklistItems.filter(
@@ -428,16 +416,51 @@ export default function CheckSheetForm({
       }
     }
 
-    // Lưu check sheet
+    if (type === 'out' && outErrorTasks.length > 0) {
+      // Đầu ra: tạo/update task cho từng lỗi
+      outErrorTasks.forEach(({ title, prefix }) => {
+        // Tìm task có cùng prefix (không tạo trùng)
+        const existingTask = tasks.find((t) => 
+          t.title.includes(prefix) && t.vehicleId === vehicle.id
+        )
+
+        if (existingTask) {
+          // Task đã tồn tại, không làm gì (không update)
+          console.log('🔵 [CheckSheet] Task already exists:', existingTask.title)
+        } else {
+          // Tạo task mới
+          addTask({
+            id: uid('task'),
+            title,
+            checklist: [],
+            priority: 'high',
+            status: 'todo',
+            vehicleId: vehicle.id,
+            createdAt: new Date().toISOString(),
+          })
+          console.log('🔵 [CheckSheet] Created new task:', title)
+        }
+      })
+    }
+  }
+
+  function handleSaveAndClose() {
+    console.log('🔵 [handleSaveAndClose] Bắt đầu - type:', type)
+
+    // 1. Tạo/Cập nhật Tasks
+    handleCreateOrUpdateTasks()
+
+    // 2. Lưu CheckSheet
     handleSave()
 
-    // Notification
+    // 3. Notification
     addNotification({
       type: 'task_done',
       title: 'Lưu thành công',
       body: `Đã lưu phiếu ${type === 'in' ? 'đầu vào' : 'đầu ra'} cho xe ${vehicle.plate}`,
     })
 
+    // 4. Gọi callback để đóng popup
     onSaved()
   }
 
@@ -585,7 +608,7 @@ export default function CheckSheetForm({
             </>
           )}
 
-          {/* ĐẦU RA - 12 hạng mục kiểm tra */}
+          {/* ĐẦU RA - 12 hạng mục kiểm tra + Ắc quy */}
           {type === 'out' && (
             <>
               <CollapsibleCard title="Kiểm tra xe">
@@ -600,6 +623,101 @@ export default function CheckSheetForm({
                   ))}
                 </div>
               </CollapsibleCard>
+
+              {/* Ắc quy - Compact với Wheel Picker Popup */}
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="mb-3 text-sm font-medium text-slate-700">Đo ắc quy</div>
+                
+                {/* Default view: SOH & SOC values */}
+                <div className="grid grid-cols-2 gap-4">
+                  {/* SOH */}
+                  <div>
+                    <div className="mb-1 text-center text-xs text-slate-500">SOH</div>
+                    <button
+                      onClick={() => setAcquyPickerOpen('soh')}
+                      className="w-full rounded-lg border border-slate-200 bg-white py-3 text-center text-lg font-semibold text-slate-700 transition-colors hover:border-brand-300 hover:bg-brand-50 active:bg-brand-100"
+                    >
+                      {acquySOH}%
+                    </button>
+                  </div>
+                  {/* SOC */}
+                  <div>
+                    <div className="mb-1 text-center text-xs text-slate-500">SOC</div>
+                    <button
+                      onClick={() => setAcquyPickerOpen('soc')}
+                      className="w-full rounded-lg border border-slate-200 bg-white py-3 text-center text-lg font-semibold text-slate-700 transition-colors hover:border-brand-300 hover:bg-brand-50 active:bg-brand-100"
+                    >
+                      {acquySOC}%
+                    </button>
+                  </div>
+                </div>
+
+                {/* Wheel Picker Popup - Desktop */}
+                {acquyPickerOpen === 'soh' && (
+                  <div className="relative mt-3">
+                    <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
+                      <div className="mb-2 text-center text-xs font-medium text-slate-500">SOH (%)</div>
+                      <WheelPicker
+                        value={acquySOH}
+                        onChange={setAcquySOH}
+                        min={0}
+                        max={100}
+                        unit="%"
+                      />
+                      <div className="mt-2 flex justify-center">
+                        <button
+                          onClick={() => setAcquyPickerOpen(null)}
+                          className="rounded-lg bg-brand-500 px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-600 active:bg-brand-700"
+                        >
+                          Xong
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {acquyPickerOpen === 'soc' && (
+                  <div className="relative mt-3">
+                    <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
+                      <div className="mb-2 text-center text-xs font-medium text-slate-500">SOC (%)</div>
+                      <WheelPicker
+                        value={acquySOC}
+                        onChange={setAcquySOC}
+                        min={0}
+                        max={100}
+                        unit="%"
+                      />
+                      <div className="mt-2 flex justify-center">
+                        <button
+                          onClick={() => setAcquyPickerOpen(null)}
+                          className="rounded-lg bg-brand-500 px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-600 active:bg-brand-700"
+                        >
+                          Xong
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Status - chỉ đánh giá theo SOC */}
+                <div className={`mt-3 flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium ${
+                  acquySOC >= 50 
+                    ? 'bg-green-100 text-green-700' 
+                    : 'bg-amber-100 text-amber-700'
+                }`}>
+                  {acquySOC >= 50 ? (
+                    <>
+                      <span className="h-2 w-2 rounded-full bg-green-500" />
+                      Bình thường
+                    </>
+                  ) : (
+                    <>
+                      <span className="h-2 w-2 rounded-full bg-amber-500" />
+                      Cần sạc
+                    </>
+                  )}
+                </div>
+              </div>
 
               {/* Ghi chú đầu ra */}
               <CollapsibleCard title="Ghi chú thêm">
@@ -616,7 +734,7 @@ export default function CheckSheetForm({
                 <div className="rounded-xl border-2 border-red-200 bg-red-50 p-4">
                   <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-red-700">
                     <Wrench size={16} />
-                    Lỗi phát hiện ({outIssueLabels.length})
+                    Lỗi phát hiện ({outIssueLabels.length}) - Tự động tạo Task
                   </div>
                   <ul className="space-y-1">
                     {outIssueLabels.map((label, i) => (
@@ -647,22 +765,16 @@ export default function CheckSheetForm({
       <Modal
         open={exteriorPhotoModal !== null}
         onClose={() => setExteriorPhotoModal(null)}
-        title="Chụp ảnh vị trí lỗi"
-        subtitle={exteriorPhotoModal ? EXTERIOR_SPOTS.find(([k]) => k === exteriorPhotoModal)?.[1] : ''}
+        title={exteriorPhotoModal ? `Chụp ảnh ${EXTERIOR_SPOTS.find(([k]) => k === exteriorPhotoModal)?.[1]}` : ''}
       >
-        {exteriorPhotoModal && (
-          <div className="space-y-3">
-            <PhotoUploader
-              images={exteriorPhotos[exteriorPhotoModal] || []}
-              onChange={(imgs) => setExteriorPhotos((prev) => ({ ...prev, [exteriorPhotoModal]: imgs }))}
-              label="Tải ảnh vị trí lỗi"
-              emptyText="Chưa có ảnh"
-            />
-            <button className="btn-secondary w-full" onClick={() => setExteriorPhotoModal(null)}>
-              Đóng
-            </button>
-          </div>
-        )}
+        <PhotoUploader
+          images={exteriorPhotoModal ? (exteriorPhotos[exteriorPhotoModal] || []) : []}
+          onChange={(photos) => {
+            if (exteriorPhotoModal) {
+              setExteriorPhotos((prev) => ({ ...prev, [exteriorPhotoModal]: photos }))
+            }
+          }}
+        />
       </Modal>
     </>
   )
@@ -670,21 +782,21 @@ export default function CheckSheetForm({
 
 // ====== HELPER COMPONENTS ======
 
-function OptionRow<T extends string>({
+function OptionRow({
   label,
   value,
   onChange,
   options,
 }: {
   label: string
-  value: T
-  onChange: (v: T) => void
-  options: { value: T; label: string }[]
+  value: string
+  onChange: (v: string) => void
+  options: { value: string; label: string }[]
 }) {
   return (
     <div>
       <label className="label">{label}</label>
-      <SegButton options={options} value={value} onChange={(v) => onChange(v as T)} />
+      <SegButton options={options} value={value} onChange={onChange} />
     </div>
   )
 }
@@ -695,8 +807,8 @@ function InteriorRow({
   onChange,
 }: {
   label: string
-  entry: { condition: InteriorCondition; note?: string }
-  onChange: (p: Partial<{ condition: InteriorCondition; note: string }>) => void
+  entry: InteriorCheck[keyof InteriorCheck]
+  onChange: (p: Partial<InteriorCheck[keyof InteriorCheck]>) => void
 }) {
   return (
     <div className="mb-3">
@@ -754,7 +866,6 @@ function ExteriorRow({
   )
 }
 
-// Component cho hạng mục kiểm tra đầu ra
 function OutCheckRow({
   label,
   entry,
@@ -786,7 +897,6 @@ function OutCheckRow({
   )
 }
 
-// Summary Stat Card component
 function SummaryStat({
   icon,
   label,
@@ -798,26 +908,20 @@ function SummaryStat({
   count: number
   tone: 'green' | 'red' | 'slate' | 'brand'
 }) {
-  const colors = {
-    green: 'bg-green-50 border-green-200 text-green-600',
-    red: 'bg-red-50 border-red-200 text-red-600',
-    slate: 'bg-slate-50 border-slate-200 text-slate-500',
-    brand: 'bg-brand-50 border-brand-200 text-brand-600',
-  }
-
-  const textColors = {
-    green: 'text-green-700',
-    red: 'text-red-700',
-    slate: 'text-slate-700',
-    brand: 'text-brand-700',
-  }
-
+  const toneClass =
+    tone === 'green'
+      ? 'bg-green-50 text-green-600'
+      : tone === 'red'
+      ? 'bg-red-50 text-red-600'
+      : tone === 'brand'
+      ? 'bg-brand-50 text-brand-600'
+      : 'bg-slate-50 text-slate-600'
   return (
-    <div className={`flex items-center gap-3 rounded-xl border p-3 ${colors[tone]}`}>
-      <div className="shrink-0">{icon}</div>
-      <div className="min-w-0 flex-1">
-        <div className={`text-2xl font-bold ${textColors[tone]}`}>{count}</div>
-        <div className={`text-xs font-medium ${tone === 'slate' ? 'text-slate-500' : `text-${tone}-600`}`}>{label}</div>
+    <div className={`flex items-center gap-2 rounded-xl p-3 ${toneClass}`}>
+      <span className="shrink-0">{icon}</span>
+      <div>
+        <div className="text-xl font-bold">{count}</div>
+        <div className="text-xs opacity-80">{label}</div>
       </div>
     </div>
   )

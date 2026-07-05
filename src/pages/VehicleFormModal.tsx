@@ -4,7 +4,7 @@ import { Modal, Tabs, Badge } from '../components/ui'
 import PhotoUploader from '../components/PhotoUploader'
 import CheckSheetForm from '../components/CheckSheetForm'
 import { useStore } from '../store/useStore'
-import { useIsAdmin } from '../hooks/useIsAdmin'
+import { useIsAdminMode } from '../hooks/useAuthRole'
 import { FuelType, VehicleStatus } from '../types'
 
 const TABS = [
@@ -28,7 +28,7 @@ export default function VehicleFormModal({
   const updateVehicle = useStore((s) => s.updateVehicle)
   const vehicles = useStore((s) => s.vehicles)
   const positions = useStore((s) => s.positions)
-  const isAdmin = useIsAdmin()
+  const isAdmin = useIsAdminMode()
 
   const [tab, setTab] = useState('info')
   const [vehicleId, setVehicleId] = useState<string | null>(null)

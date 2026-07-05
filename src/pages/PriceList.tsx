@@ -5,7 +5,7 @@ import { useStore } from '../store/useStore'
 import { formatCurrency } from '../utils/format'
 import { Badge, EmptyState } from '../components/ui'
 import VehicleFormModal from './VehicleFormModal'
-import { useIsAdmin } from '../hooks/useIsAdmin'
+import { useIsAdminMode, useIsStaffMode } from '../hooks/useAuthRole'
 import { Vehicle, VehicleStatus } from '../types'
 
 const STATUS_LABEL: Record<VehicleStatus, string> = {
@@ -32,7 +32,12 @@ export default function PriceList() {
   const vehicles = useStore((s) => s.vehicles)
   const updateVehicle = useStore((s) => s.updateVehicle)
   const deleteVehicle = useStore((s) => s.deleteVehicle)
-  const isAdmin = useIsAdmin()
+  
+  // Use auth-based role check (respects viewMode for UI)
+  const isAdminMode = useIsAdminMode()
+  const isStaffMode = useIsStaffMode()
+  const canEdit = isAdminMode && !isStaffMode // Only actual admin can edit (not previewing staff)
+  
   const [modalOpen, setModalOpen] = useState(false)
   const [editVehicleId, setEditVehicleId] = useState<string | null>(null)
   const [sortKey, setSortKey] = useState<SortKey | null>(null)
@@ -63,6 +68,7 @@ export default function PriceList() {
   }
 
   function openAddModal() {
+    if (!canEdit) return
     setEditVehicleId(null)
     setModalOpen(true)
   }
@@ -82,12 +88,17 @@ export default function PriceList() {
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Bảng giá xe</h1>
-          <p className="mt-1 text-sm text-slate-500">{vehicles.length} xe — bấm hàng để chỉnh sửa</p>
+          <p className="mt-1 text-sm text-slate-500">
+            {vehicles.length} xe
+            {isStaffMode && !isAdminMode && ' — chỉ xem thông tin'}
+          </p>
         </div>
-        <button className="btn-primary" onClick={openAddModal}>
-          <Plus size={16} />
-          Thêm xe
-        </button>
+        {canEdit && (
+          <button className="btn-primary" onClick={openAddModal}>
+            <Plus size={16} />
+            Thêm xe
+          </button>
+        )}
       </div>
 
       {vehicles.length === 0 ? (
@@ -96,7 +107,7 @@ export default function PriceList() {
         </div>
       ) : (
         <div className="card overflow-x-auto">
-          <table className="w-full min-w-[1000px] text-sm">
+          <table className="w-full min-w-[900px] text-sm">
             <thead>
               <tr className="border-b border-slate-100 text-left text-xs font-medium uppercase tracking-wide text-slate-400">
                 <th className="px-4 py-3">Ảnh</th>
@@ -108,9 +119,9 @@ export default function PriceList() {
                 <th className="px-4 py-3">Dung tích</th>
                 <th className="px-4 py-3">Đã chạy</th>
                 <th className="px-4 py-3">Màu</th>
-                {isAdmin && <th className="px-4 py-3">Giá nhập</th>}
+                {canEdit && <th className="px-4 py-3">Giá nhập</th>}
                 <Th label="Giá bán" onClick={() => toggleSort('sellPrice')} />
-                <th className="px-4 py-3" />
+                {canEdit && <th className="px-4 py-3" />}
               </tr>
             </thead>
             <tbody>
@@ -118,7 +129,7 @@ export default function PriceList() {
                 <PriceRow
                   key={v.id}
                   vehicle={v}
-                  isAdmin={isAdmin}
+                  canEdit={canEdit}
                   onEdit={() => openEditModal(v.id)}
                   onDelete={() => handleDelete(v.id)}
                   onStatusChange={(status) => updateVehicle(v.id, { status })}
@@ -147,21 +158,23 @@ function Th({ label, onClick }: { label: string; onClick: () => void }) {
 
 function PriceRow({
   vehicle,
-  isAdmin,
+  canEdit,
   onEdit,
   onDelete,
   onStatusChange,
 }: {
   vehicle: Vehicle
-  isAdmin: boolean
+  canEdit: boolean
   onEdit: () => void
   onDelete: () => void
   onStatusChange: (status: VehicleStatus) => void
 }) {
   return (
     <tr
-      className="cursor-pointer border-b border-slate-50 transition-colors duration-150 last:border-0 hover:bg-slate-50/70"
-      onClick={onEdit}
+      className={`border-b border-slate-50 transition-colors duration-150 last:border-0 hover:bg-slate-50/70 ${
+        canEdit ? 'cursor-pointer' : ''
+      }`}
+      onClick={canEdit ? onEdit : undefined}
     >
       <td className="px-4 py-2.5">
         <div className="h-10 w-14 overflow-hidden rounded-lg bg-slate-100">
@@ -175,15 +188,25 @@ function PriceRow({
         </div>
       </td>
       <td className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
-        <select
-          className="cursor-pointer rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs transition-colors hover:border-brand-400 focus:border-brand-500 focus:outline-none"
-          value={vehicle.status}
-          onChange={(e) => onStatusChange(e.target.value as VehicleStatus)}
-        >
-          <option value="available">Chưa bán</option>
-          <option value="deposited">Đã cọc</option>
-          <option value="sold">Đã bán</option>
-        </select>
+        {canEdit ? (
+          <select
+            className="cursor-pointer rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs transition-colors hover:border-brand-400 focus:border-brand-500 focus:outline-none"
+            value={vehicle.status}
+            onChange={(e) => onStatusChange(e.target.value as VehicleStatus)}
+          >
+            <option value="available">Chưa bán</option>
+            <option value="deposited">Đã cọc</option>
+            <option value="sold">Đã bán</option>
+          </select>
+        ) : (
+          <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+            vehicle.status === 'available' ? 'bg-slate-100 text-slate-600' :
+            vehicle.status === 'deposited' ? 'bg-orange-100 text-orange-700' :
+            'bg-green-100 text-green-700'
+          }`}>
+            {STATUS_LABEL[vehicle.status]}
+          </span>
+        )}
       </td>
       <td className="px-4 py-2.5 font-medium text-slate-800">{vehicle.model}</td>
       <td className="px-4 py-2.5 font-medium text-brand-600">{vehicle.plate || '—'}</td>
@@ -192,26 +215,28 @@ function PriceRow({
       <td className="px-4 py-2.5 text-slate-500">{vehicle.displacement || '—'}</td>
       <td className="px-4 py-2.5 text-slate-500">{vehicle.mileage || '—'}</td>
       <td className="px-4 py-2.5 text-slate-500">{vehicle.color || '—'}</td>
-      {isAdmin && <td className="px-4 py-2.5 text-slate-500">{formatCurrency(vehicle.costPrice)}</td>}
+      {canEdit && <td className="px-4 py-2.5 text-slate-500">{formatCurrency(vehicle.costPrice)}</td>}
       <td className="px-4 py-2.5 font-semibold text-slate-800">{formatCurrency(vehicle.sellPrice)}</td>
-      <td className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center gap-1">
-          <button
-            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-brand-600 active:scale-95"
-            onClick={onEdit}
-            title="Chỉnh sửa"
-          >
-            <Pencil size={15} />
-          </button>
-          <button
-            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 active:scale-95"
-            onClick={onDelete}
-            title="Xoá"
-          >
-            <Trash2 size={15} />
-          </button>
-        </div>
-      </td>
+      {canEdit && (
+        <td className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-1">
+            <button
+              className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-brand-600 active:scale-95"
+              onClick={onEdit}
+              title="Chỉnh sửa"
+            >
+              <Pencil size={15} />
+            </button>
+            <button
+              className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 active:scale-95"
+              onClick={onDelete}
+              title="Xoá"
+            >
+              <Trash2 size={15} />
+            </button>
+          </div>
+        </td>
+      )}
     </tr>
   )
 }

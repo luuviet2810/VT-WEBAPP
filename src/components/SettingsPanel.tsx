@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { Save, Settings } from 'lucide-react'
 import { useStore } from '../store/useStore'
-import { useIsAdmin } from '../hooks/useIsAdmin'
+import { useIsAdminMode } from '../hooks/useAuthRole'
 import { Modal } from '../components/ui'
 
 export default function SettingsPanel() {
   const settings = useStore((s) => s.settings)
   const updateSettings = useStore((s) => s.updateSettings)
-  const isAdmin = useIsAdmin()
+  const isAdmin = useIsAdminMode()
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ ...settings })
 

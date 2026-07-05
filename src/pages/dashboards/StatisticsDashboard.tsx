@@ -7,7 +7,7 @@ import { BarChart2, Car, CheckCircle, Clock, TrendingUp, Users, DollarSign, Chec
 import { useStore } from '../../store/useStore'
 import { formatCurrency, formatDateTime, todayISO } from '../../utils/format'
 
-type TimeRange = 'day' | 'week' | 'month' | 'year'
+type TimeRange = 'month' | 'year'
 
 export default function StatisticsDashboard() {
   const vehicles = useStore((s) => s.vehicles)
@@ -25,14 +25,6 @@ export default function StatisticsDashboard() {
     const end = today.toISOString().slice(0, 10)
     let start: string
     switch (timeRange) {
-      case 'day':
-        start = end
-        break
-      case 'week':
-        const weekAgo = new Date(today)
-        weekAgo.setDate(weekAgo.getDate() - 7)
-        start = weekAgo.toISOString().slice(0, 10)
-        break
       case 'month':
         const monthAgo = new Date(today)
         monthAgo.setDate(monthAgo.getDate() - 30)
@@ -127,7 +119,7 @@ export default function StatisticsDashboard() {
 
       {/* Time Range Selector */}
       <div className="mb-6 flex gap-2">
-        {(['day', 'week', 'month', 'year'] as TimeRange[]).map((range) => (
+        {(['month', 'year'] as TimeRange[]).map((range) => (
           <button
             key={range}
             onClick={() => setTimeRange(range)}
@@ -137,7 +129,7 @@ export default function StatisticsDashboard() {
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            {range === 'day' ? 'Hôm nay' : range === 'week' ? 'Tuần' : range === 'month' ? 'Tháng' : 'Năm'}
+            {range === 'month' ? 'Theo tháng' : 'Theo năm'}
           </button>
         ))}
       </div>
@@ -154,7 +146,7 @@ export default function StatisticsDashboard() {
         <div className="card p-5">
           <div className="mb-2 flex items-center gap-2 text-sm text-slate-500">
             <TrendingUp size={16} />
-            Xe bán ({timeRange === 'day' ? 'hôm nay' : timeRange === 'week' ? '7 ngày' : timeRange === 'month' ? '30 ngày' : 'năm'})
+            Xe bán
           </div>
           <div className="text-3xl font-bold text-green-600">{soldVehicles}</div>
         </div>
