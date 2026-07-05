@@ -3,6 +3,9 @@
 import { Route, Routes, Navigate } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import GlobalSearch from './components/GlobalSearch'
+import { useEffect } from 'react'
+import { initializeFromSupabase } from './store/useStore'
+
 
 // Pages
 import VehicleList from './pages/VehicleList'
@@ -127,6 +130,10 @@ function StatisticsRouter() {
 
 export default function App() {
   const { isAuthenticated, currentUser } = useAuthStore()
+
+  useEffect(() => {
+    initializeFromSupabase()
+  }, [])
 
   return (
     <Routes>
@@ -325,5 +332,5 @@ export default function App() {
       {/* Catch all - redirect to home or login */}
       <Route path="*" element={<Navigate to={isAuthenticated ? '/' : '/login'} replace />} />
     </Routes>
-  )
+  );
 }

@@ -1,0 +1,52 @@
+import { supabase } from '../lib/supabase'
+import type { MoveLog } from '../types'
+
+function mapRow(row: Record<string, unknown>): MoveLog {
+  return {
+    id: row.id as string,
+    vehicleId: row.vehicle_id as string,
+    fromPositionId: row.from_position_id as string | null,
+    toPositionId: row.to_position_id as string,
+    employeeId: row.employee_id as string | null,
+    createdAt: row.created_at as string,
+  }
+}
+
+export async function getMoveLogs(): Promise<MoveLog[]> {
+  const { data, error } = await supabase
+    .from('move_logs')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return (data as Record<string, unknown>[]).map(mapRow)
+}
+
+export async function getMoveLogsByVehicle(vehicleId: string): Promise<MoveLog[]> {
+  const { data, error } = await supabase
+    .from('move_logs')
+    .select('*')
+    .eq('vehicle_id', vehicleId)
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return (data as Record<string, unknown>[]).map(mapRow)
+}
+
+export async function createMoveLog(
+  log: Omit<MoveLog, 'id' | 'createdAt'>
+): Promise<MoveLog> {
+  const { data, error } = await supabase
+    .from('move_logs')
+    .insert({
+      vehicle_id: log.vehicleId,
+      from_position_id: log.fromPositionId,
+      to_position_id: log.toPositionId,
+      employee_id: log.employeeId,
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+  return mapRow(data as Record<string, unknown>)
+}
