@@ -98,7 +98,7 @@ export const useAuthStore = create<AuthState>()(
           fullName: fullName.trim(),
           email: email.toLowerCase().trim(),
           passwordHash: hashPassword(password),
-          role: isFirstAdmin ? 'admin' : 'employee',
+          role: isFirstAdmin ? 'admin' : 'staff',
           status: isFirstAdmin ? 'approved' : 'pending',
           passkeyEnabled: false,
           createdAt: new Date().toISOString(),

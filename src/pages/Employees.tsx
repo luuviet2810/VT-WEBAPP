@@ -118,8 +118,8 @@ export default function Employees() {
 
   // Toggle role
   const handleToggleRole = (user: User) => {
-    const newRole = user.role === 'admin' ? 'employee' : 'admin'
-    if (newRole === 'employee' && user.id === currentUser?.id) {
+    const newRole = user.role === 'admin' ? 'staff' : 'admin'
+    if (newRole === 'staff' && user.id === currentUser?.id) {
       if (!confirm('Bạn có chắc muốn gỡ quyền Admin của chính mình?')) return
     }
     setUserRole(user.id, newRole)

@@ -1,11 +1,7 @@
+// ====== ROLE-BASED SIDEBAR ======
+
 import {
   Car,
-  Tag,
-  CheckSquare,
-  MapPin,
-  BarChart3,
-  ClipboardList,
-  Users,
   LogOut,
   X,
   Shield,
@@ -14,32 +10,30 @@ import {
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { useAuthStore } from '../store/useAuthStore'
+import { useViewModeStore } from '../store/viewModeStore'
 import NotificationCenter from './NotificationCenter'
+import ViewModeToggle from './ViewModeToggle'
+import { SIDEBAR_CONFIG, getSidebarConfig } from '../rbac/sidebarConfig'
+import { ROLE_LABELS, BRAND_NAME } from '../rbac/roles'
+import { UserRole } from '../rbac/roles'
 
 interface SidebarProps {
   isOpen: boolean
   onClose: () => void
 }
 
-// Admin navigation
-const ADMIN_NAV = [
-  { to: '/', label: 'Danh sách xe', icon: Car, end: true },
-  { to: '/bang-gia', label: 'Bảng giá', icon: Tag },
-  { to: '/nhiem-vu', label: 'Nhiệm vụ', icon: CheckSquare },
-  { to: '/vi-tri-xe', label: 'Vị trí xe', icon: MapPin },
-  { to: '/thong-ke', label: 'Thống kê', icon: BarChart3 },
-  { to: '/cham-cong', label: 'Chấm công', icon: ClipboardList },
-  { to: '/nhan-vien', label: 'Nhân viên', icon: Users },
-]
-
-// Employee navigation (no admin pages)
-const EMPLOYEE_NAV = [
-  { to: '/', label: 'Danh sách xe', icon: Car, end: true },
-  { to: '/bang-gia', label: 'Bảng giá', icon: Tag },
-  { to: '/nhiem-vu', label: 'Nhiệm vụ', icon: CheckSquare },
-  { to: '/vi-tri-xe', label: 'Vị trí xe', icon: MapPin },
-  { to: '/cham-cong', label: 'Chấm công', icon: ClipboardList },
-]
+// Get effective role for rendering (view mode or actual role)
+function useEffectiveRole(): UserRole {
+  const currentUser = useAuthStore((s) => s.currentUser)
+  const viewMode = useViewModeStore((s) => s.viewMode)
+  const actualRole = (currentUser?.role as UserRole) || 'staff'
+  
+  // Admin can preview different roles, others use their actual role
+  if (actualRole === 'admin') {
+    return viewMode
+  }
+  return actualRole
+}
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   return (
@@ -72,11 +66,12 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
 function DrawerContent({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate()
-  const { currentUser, logout, getPendingUsers, isAdmin } = useAuthStore()
+  const { currentUser, logout, getPendingUsers } = useAuthStore()
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
 
+  const effectiveRole = useEffectiveRole()
+  const sidebarConfig = getSidebarConfig(effectiveRole)
   const pendingUsers = getPendingUsers()
-  const NAV = isAdmin() ? ADMIN_NAV : EMPLOYEE_NAV
 
   const handleLogout = () => {
     logout()
@@ -93,6 +88,13 @@ function DrawerContent({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="flex h-full flex-col">
+      {/* View Mode Toggle - Only for Admin */}
+      {currentUser?.role === 'admin' && (
+        <div className="border-b border-slate-100 px-4 pt-4">
+          <ViewModeToggle />
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between border-b border-slate-100 px-4 py-4">
         <div className="flex items-center gap-3">
@@ -100,9 +102,9 @@ function DrawerContent({ onClose }: { onClose: () => void }) {
             <Car size={20} />
           </div>
           <div>
-            <div className="font-semibold text-slate-900">Gara Manager</div>
+            <div className="font-semibold text-slate-900">VT AUTO</div>
             <div className="text-xs text-slate-400">
-              {currentUser?.role === 'admin' ? 'Quản trị viên' : 'Nhân viên'}
+              {ROLE_LABELS[effectiveRole]}
             </div>
           </div>
         </div>
@@ -115,31 +117,30 @@ function DrawerContent({ onClose }: { onClose: () => void }) {
         </button>
       </div>
 
-      {/* Admin badge */}
-      {isAdmin() && (
+      {/* Admin badge - only show for admin with admin view mode */}
+      {effectiveRole === 'admin' && (
         <div className="mx-4 my-3 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
           <Shield size={16} className="text-amber-600" />
-          <span className="text-sm font-medium text-amber-700">Chế độ Admin</span>
+          <span className="text-sm font-medium text-amber-700">Admin Mode</span>
         </div>
       )}
 
-      {/* Navigation */}
+      {/* Navigation - Top items */}
       <nav className="flex-1 overflow-y-auto px-3 py-2">
-        {NAV.map((item) => {
-          const showBadge = item.to === '/nhan-vien' && pendingUsers.length > 0
+        {sidebarConfig.top.map((item) => {
+          const showBadge = item.key === 'employees' && pendingUsers.length > 0
 
           return (
             <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
+              key={item.key}
+              to={item.path}
               onClick={onClose}
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-xl px-4 py-3.5 text-[15px] font-medium transition-colors min-h-[48px]
                 ${isActive ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`
               }
             >
-              <item.icon size={22} />
+              {item.icon}
               <span>{item.label}</span>
               {showBadge && (
                 <span className="ml-auto flex h-6 min-w-6 items-center justify-center rounded-full bg-red-500 px-2 text-xs font-bold text-white">
@@ -149,6 +150,24 @@ function DrawerContent({ onClose }: { onClose: () => void }) {
             </NavLink>
           )
         })}
+      </nav>
+
+      {/* Navigation - Bottom items */}
+      <nav className="px-3 py-2 border-t border-slate-100">
+        {sidebarConfig.bottom.map((item) => (
+          <NavLink
+            key={item.key}
+            to={item.path}
+            onClick={onClose}
+            className={({ isActive }) =>
+              `flex items-center gap-3 rounded-xl px-4 py-3.5 text-[15px] font-medium transition-colors min-h-[48px]
+              ${isActive ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`
+            }
+          >
+            {item.icon}
+            <span>{item.label}</span>
+          </NavLink>
+        ))}
       </nav>
 
       {/* Notifications */}
@@ -170,7 +189,7 @@ function DrawerContent({ onClose }: { onClose: () => void }) {
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-semibold text-slate-900">{currentUser.fullName}</div>
               <div className="truncate text-xs text-slate-400">
-                {currentUser.role === 'admin' ? 'Quản trị' : 'Nhân viên'}
+                {ROLE_LABELS[effectiveRole]}
               </div>
             </div>
             <button
@@ -216,11 +235,12 @@ function DrawerContent({ onClose }: { onClose: () => void }) {
 
 function DesktopSidebarContent() {
   const navigate = useNavigate()
-  const { currentUser, logout, getPendingUsers, isAdmin } = useAuthStore()
+  const { currentUser, logout, getPendingUsers } = useAuthStore()
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
 
+  const effectiveRole = useEffectiveRole()
+  const sidebarConfig = getSidebarConfig(effectiveRole)
   const pendingUsers = getPendingUsers()
-  const NAV = isAdmin() ? ADMIN_NAV : EMPLOYEE_NAV
 
   const handleLogout = () => {
     logout()
@@ -237,41 +257,50 @@ function DesktopSidebarContent() {
 
   return (
     <div className="flex h-full flex-col">
+      {/* View Mode Toggle - Only for Admin */}
+      {currentUser?.role === 'admin' && (
+        <div className="border-b border-slate-100 px-3 pt-4">
+          <ViewModeToggle />
+        </div>
+      )}
+
+      {/* Logo & Title */}
       <div className="flex items-center gap-2.5 px-5 py-5">
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-white">
           <Car size={18} />
         </div>
         <div className="flex-1">
-          <div className="text-[15px] font-semibold text-slate-900 leading-tight">Gara Manager</div>
+          <div className="text-[15px] font-semibold text-slate-900 leading-tight">VT AUTO</div>
           <div className="text-xs text-slate-400 leading-tight">
-            {currentUser?.role === 'admin' ? 'Quản trị viên' : 'Nhân viên'}
+            {ROLE_LABELS[effectiveRole]}
           </div>
         </div>
       </div>
 
-      {isAdmin() && (
+      {/* Admin badge - only show for admin with admin view mode */}
+      {effectiveRole === 'admin' && (
         <div className="mx-3 mb-3 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
           <Shield size={14} className="text-amber-600" />
           <span className="text-xs font-medium text-amber-700">Admin Mode</span>
         </div>
       )}
 
+      {/* Navigation - Top items */}
       <nav className="flex-1 space-y-0.5 px-3">
-        {NAV.map((item) => {
-          const showBadge = item.to === '/nhan-vien' && pendingUsers.length > 0
+        {sidebarConfig.top.map((item) => {
+          const showBadge = item.key === 'employees' && pendingUsers.length > 0
 
           return (
             <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
+              key={item.key}
+              to={item.path}
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
                   isActive ? 'bg-brand-50 text-brand-700' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
                 }`
               }
             >
-              <item.icon size={18} />
+              {item.icon}
               {item.label}
               {showBadge && (
                 <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">
@@ -283,6 +312,25 @@ function DesktopSidebarContent() {
         })}
       </nav>
 
+      {/* Navigation - Bottom items */}
+      <nav className="space-y-0.5 border-t border-slate-100 px-3 pt-2">
+        {sidebarConfig.bottom.map((item) => (
+          <NavLink
+            key={item.key}
+            to={item.path}
+            className={({ isActive }) =>
+              `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+                isActive ? 'bg-brand-50 text-brand-700' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+              }`
+            }
+          >
+            {item.icon}
+            {item.label}
+          </NavLink>
+        ))}
+      </nav>
+
+      {/* User profile */}
       <div className="border-t border-slate-100 px-3 py-3">
         {currentUser ? (
           <div className="flex items-center gap-2.5 rounded-xl px-2 py-2">
@@ -292,7 +340,7 @@ function DesktopSidebarContent() {
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-medium text-slate-700">{currentUser.fullName}</div>
               <div className="truncate text-xs text-slate-400">
-                {currentUser.role === 'admin' ? 'Quản trị' : 'Nhân viên'}
+                {ROLE_LABELS[effectiveRole]}
               </div>
             </div>
             <button
@@ -314,6 +362,7 @@ function DesktopSidebarContent() {
         )}
       </div>
 
+      {/* Logout confirmation */}
       {showLogoutConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50">
           <div className="mx-4 w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">

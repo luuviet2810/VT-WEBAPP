@@ -1,45 +1,33 @@
+// ====== MAIN APPLICATION ROUTER ======
+
 import { Route, Routes, Navigate } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import GlobalSearch from './components/GlobalSearch'
+import { PreviewBadge } from './components/ViewModeToggle'
+
+// Pages
 import VehicleList from './pages/VehicleList'
 import PriceList from './pages/PriceList'
 import VehicleDetail from './pages/VehicleDetail'
 import Tasks from './pages/Tasks'
 import TaskDetail from './pages/TaskDetail'
 import Positions from './pages/Positions'
-import Dashboard from './pages/Dashboard'
 import Attendance from './pages/Attendance'
 import Employees from './pages/Employees'
 import LoginPage from './pages/Login'
 import RegisterPage from './pages/Register'
+import MyTasks from './pages/MyTasks'
+import ForbiddenPage from './pages/Forbidden'
+
+// Dashboards
+import OverviewDashboard from './pages/dashboards/OverviewDashboard'
+import StatisticsDashboard from './pages/dashboards/StatisticsDashboard'
+import StaffDashboard from './pages/dashboards/StaffDashboard'
+
 import { useAuthStore } from './store/useAuthStore'
+import { useViewModeStore } from './store/viewModeStore'
 import { useState } from 'react'
-
-// Protected route wrapper
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, currentUser } = useAuthStore()
-
-  if (!isAuthenticated || !currentUser) {
-    return <Navigate to="/login" replace />
-  }
-
-  return <>{children}</>
-}
-
-// Admin route wrapper
-function AdminRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, currentUser } = useAuthStore()
-
-  if (!isAuthenticated || !currentUser) {
-    return <Navigate to="/login" replace />
-  }
-
-  if (currentUser.role !== 'admin') {
-    return <Navigate to="/" replace />
-  }
-
-  return <>{children}</>
-}
+import { UserRole } from './rbac/roles'
 
 // Auth layout (no sidebar)
 function AuthLayout({ children }: { children: React.ReactNode }) {
@@ -57,6 +45,9 @@ function MainLayout({ children }: { children: React.ReactNode }) {
 
       {/* Main Content - always full width */}
       <main className="flex-1 overflow-y-auto overflow-x-hidden">
+        {/* Preview Badge - shows when in preview mode */}
+        <PreviewBadge />
+        
         <div className="px-4 py-4 pb-24 md:px-6 md:py-6">
           {/* Mobile header with menu button */}
           <div className="mb-4 flex items-center justify-between md:hidden">
@@ -86,15 +77,56 @@ function MainLayout({ children }: { children: React.ReactNode }) {
   )
 }
 
+// Protected route wrapper - requires authentication
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, currentUser } = useAuthStore()
+
+  if (!isAuthenticated || !currentUser) {
+    return <Navigate to="/login" replace />
+  }
+
+  return <>{children}</>
+}
+
+// Role-based route guard
+function RoleGuard({ allowedRoles, children }: { allowedRoles: UserRole[]; children: React.ReactNode }) {
+  const { isAuthenticated, currentUser } = useAuthStore()
+
+  if (!isAuthenticated || !currentUser) {
+    return <Navigate to="/login" replace />
+  }
+
+  const userRole = currentUser.role as UserRole
+  if (!allowedRoles.includes(userRole)) {
+    return <ForbiddenPage />
+  }
+
+  return <>{children}</>
+}
+
+// Get dashboard component based on user role (or view mode)
+function DashboardRouter() {
+  const { currentUser } = useAuthStore()
+  const viewMode = useViewModeStore((s) => s.viewMode)
+  
+  // Admin can preview different dashboards, others use their actual role
+  const effectiveRole = currentUser?.role === 'admin' ? viewMode : (currentUser?.role as UserRole)
+
+  // Admin/Staff all use the same overview dashboard at root
+  return <OverviewDashboard />
+}
+
+// Get statistics dashboard (admin only)
+function StatisticsRouter() {
+  return <StatisticsDashboard />
+}
+
 export default function App() {
   const { isAuthenticated, currentUser } = useAuthStore()
 
-  // Redirect logged-in users from auth pages
-  const isAuthPage = window.location.pathname === '/login' || window.location.pathname === '/register'
-
   return (
     <Routes>
-      {/* Auth routes */}
+      {/* ====== AUTH ROUTES ====== */}
       <Route
         path="/login"
         element={
@@ -120,23 +152,27 @@ export default function App() {
         }
       />
 
-      {/* Protected routes */}
+      {/* ====== PROTECTED ROUTES ====== */}
+
+      {/* Dashboard / Tổng quan - accessible by all authenticated users */}
       <Route
         path="/"
         element={
           <ProtectedRoute>
             <MainLayout>
-              <VehicleList />
+              <DashboardRouter />
             </MainLayout>
           </ProtectedRoute>
         }
       />
+
+      {/* Vehicle routes */}
       <Route
-        path="/bang-gia"
+        path="/xe"
         element={
           <ProtectedRoute>
             <MainLayout>
-              <PriceList />
+              <VehicleList />
             </MainLayout>
           </ProtectedRoute>
         }
@@ -151,28 +187,44 @@ export default function App() {
           </ProtectedRoute>
         }
       />
+
+      {/* Task routes - Admin only */}
       <Route
         path="/nhiem-vu"
         element={
-          <ProtectedRoute>
+          <RoleGuard allowedRoles={['admin']}>
             <MainLayout>
               <Tasks />
             </MainLayout>
-          </ProtectedRoute>
+          </RoleGuard>
         }
       />
       <Route
         path="/nhiem-vu/:id"
         element={
-          <ProtectedRoute>
+          <RoleGuard allowedRoles={['admin']}>
             <MainLayout>
               <TaskDetail />
             </MainLayout>
-          </ProtectedRoute>
+          </RoleGuard>
         }
       />
+
+      {/* My Tasks - Staff only */}
       <Route
-        path="/vi-tri-xe"
+        path="/viec-cua-toi"
+        element={
+          <RoleGuard allowedRoles={['staff']}>
+            <MainLayout>
+              <MyTasks />
+            </MainLayout>
+          </RoleGuard>
+        }
+      />
+
+      {/* Position routes - accessible by all */}
+      <Route
+        path="/vi-tri"
         element={
           <ProtectedRoute>
             <MainLayout>
@@ -181,16 +233,20 @@ export default function App() {
           </ProtectedRoute>
         }
       />
+
+      {/* Statistics - Admin only */}
       <Route
         path="/thong-ke"
         element={
-          <ProtectedRoute>
+          <RoleGuard allowedRoles={['admin']}>
             <MainLayout>
-              <Dashboard />
+              <StatisticsRouter />
             </MainLayout>
-          </ProtectedRoute>
+          </RoleGuard>
         }
       />
+
+      {/* Attendance - accessible by all */}
       <Route
         path="/cham-cong"
         element={
@@ -201,15 +257,65 @@ export default function App() {
           </ProtectedRoute>
         }
       />
+
+      {/* Employee management - Admin only */}
       <Route
         path="/nhan-vien"
         element={
-          <AdminRoute>
+          <RoleGuard allowedRoles={['admin']}>
             <MainLayout>
               <Employees />
             </MainLayout>
-          </AdminRoute>
+          </RoleGuard>
         }
+      />
+
+      {/* Price list - Admin only */}
+      <Route
+        path="/bang-gia"
+        element={
+          <RoleGuard allowedRoles={['admin']}>
+            <MainLayout>
+              <PriceList />
+            </MainLayout>
+          </RoleGuard>
+        }
+      />
+
+      {/* Settings - Admin only */}
+      <Route
+        path="/cai-dat"
+        element={
+          <RoleGuard allowedRoles={['admin']}>
+            <MainLayout>
+              <div className="card p-6">
+                <h2 className="text-lg font-semibold">Cài đặt</h2>
+                <p className="mt-2 text-slate-500">Chức năng đang phát triển...</p>
+              </div>
+            </MainLayout>
+          </RoleGuard>
+        }
+      />
+
+      {/* Profile - accessible by all */}
+      <Route
+        path="/ho-so"
+        element={
+          <ProtectedRoute>
+            <MainLayout>
+              <div className="card p-6">
+                <h2 className="text-lg font-semibold">Hồ sơ</h2>
+                <p className="mt-2 text-slate-500">Thông tin cá nhân của bạn</p>
+              </div>
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* 403 Forbidden */}
+      <Route
+        path="/403"
+        element={<ForbiddenPage />}
       />
 
       {/* Catch all - redirect to home or login */}

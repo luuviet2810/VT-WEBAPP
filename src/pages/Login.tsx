@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { LogIn, Fingerprint, Eye, EyeOff, AlertCircle, UserPlus } from 'lucide-react'
 import { useAuthStore } from '../store/useAuthStore'
 import { isWebAuthnSupported, isBiometricAvailable, authenticateWithPasskey } from '../utils/webauthn'
+import { UserRole } from '../rbac/roles'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -26,6 +27,11 @@ export default function LoginPage() {
     return null
   }
 
+  // Get redirect path based on user role
+  const getRedirectPath = (role: UserRole) => {
+    return '/'
+  }
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -37,7 +43,9 @@ export default function LoginPage() {
     const result = login(email, password)
 
     if (result.success) {
-      navigate('/')
+      // Get current user from store after login
+      const user = useAuthStore.getState().currentUser
+      navigate(getRedirectPath(user?.role as UserRole || 'staff'))
     } else {
       setError(result.error || 'Đăng nhập thất bại')
     }
@@ -70,9 +78,9 @@ export default function LoginPage() {
         {/* Logo & Title */}
         <div className="mb-8 text-center">
           <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-600 shadow-lg">
-            <span className="text-2xl font-bold text-white">GM</span>
+            <span className="text-2xl font-bold text-white">VT</span>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900">Gara Manager</h1>
+          <h1 className="text-2xl font-bold text-slate-900">VT AUTO</h1>
           <p className="mt-1 text-sm text-slate-500">Đăng nhập để tiếp tục</p>
         </div>
 

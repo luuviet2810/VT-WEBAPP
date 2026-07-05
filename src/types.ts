@@ -189,7 +189,7 @@ export interface CheckSheet {
 
 // ====== AUTH TYPES ======
 
-export type UserRole = 'admin' | 'employee'
+export type UserRole = 'admin' | 'staff'
 export type UserStatus = 'pending' | 'approved' | 'rejected' | 'disabled'
 
 export interface User {
