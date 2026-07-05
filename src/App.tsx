@@ -13,6 +13,7 @@ import Employees from './pages/Employees'
 import LoginPage from './pages/Login'
 import RegisterPage from './pages/Register'
 import { useAuthStore } from './store/useAuthStore'
+import { useState } from 'react'
 
 // Protected route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -47,14 +48,37 @@ function AuthLayout({ children }: { children: React.ReactNode }) {
 
 // Main layout (with sidebar)
 function MainLayout({ children }: { children: React.ReactNode }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#f5f8fc]">
-      <Sidebar />
-      <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-[1400px] px-4 py-4 sm:px-8 sm:py-6">
-          <div className="mb-4 flex justify-end">
+      {/* Sidebar as Drawer - hidden by default on mobile */}
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+      {/* Main Content - always full width */}
+      <main className="flex-1 overflow-y-auto overflow-x-hidden">
+        <div className="px-4 py-4 pb-24 md:px-6 md:py-6">
+          {/* Mobile header with menu button */}
+          <div className="mb-4 flex items-center justify-between md:hidden">
+            <GlobalSearch />
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="btn-icon"
+              aria-label="Mở menu"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="4" x2="20" y1="12" y2="12"/>
+                <line x1="4" x2="20" y1="6" y2="6"/>
+                <line x1="4" x2="20" y1="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+
+          {/* Desktop search in header */}
+          <div className="hidden md:mb-4 md:flex md:justify-end">
             <GlobalSearch />
           </div>
+
           {children}
         </div>
       </main>
