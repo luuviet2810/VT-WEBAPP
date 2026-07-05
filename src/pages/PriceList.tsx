@@ -84,7 +84,7 @@ export default function PriceList() {
   }
 
   return (
-    <div>
+    <div className="pb-16 md:pb-0">
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Bảng giá xe</h1>
@@ -94,7 +94,7 @@ export default function PriceList() {
           </p>
         </div>
         {canEdit && (
-          <button className="btn-primary" onClick={openAddModal}>
+          <button className="btn-primary hidden md:flex" onClick={openAddModal}>
             <Plus size={16} />
             Thêm xe
           </button>
@@ -138,6 +138,17 @@ export default function PriceList() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Mobile FAB - Floating Action Button */}
+      {canEdit && (
+        <button
+          className="fixed bottom-5 right-5 flex h-14 w-14 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-brand-700 hover:shadow-xl active:scale-95 md:hidden animate-fade-in"
+          onClick={openAddModal}
+          title="Thêm xe"
+        >
+          <Plus size={24} strokeWidth={2.5} />
+        </button>
       )}
 
       <VehicleFormModal open={modalOpen} onClose={closeModal} editVehicleId={editVehicleId} />

@@ -69,7 +69,7 @@ export default function Tasks() {
   }
 
   return (
-    <div>
+    <div className="pb-16 md:pb-0">
       {/* Header */}
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -89,7 +89,7 @@ export default function Tasks() {
               </option>
             ))}
           </select>
-          <button className="btn-primary" onClick={() => setModalOpen(true)}>
+          <button className="btn-primary hidden md:flex" onClick={() => setModalOpen(true)}>
             <Plus size={16} />
             Giao việc
           </button>
@@ -160,11 +160,18 @@ export default function Tasks() {
 
       {/* Create Task Modal */}
       <AssignTaskModal open={modalOpen} onClose={() => setModalOpen(false)} />
+
+      {/* Mobile FAB - Floating Action Button */}
+      <button
+        className="fixed bottom-5 right-5 flex h-14 w-14 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-brand-700 hover:shadow-xl active:scale-95 md:hidden animate-fade-in"
+        onClick={() => setModalOpen(true)}
+        title="Giao việc"
+      >
+        <Plus size={24} strokeWidth={2.5} />
+      </button>
     </div>
   )
 }
-
-// ====== TASK CARD ======
 
 function TaskCard({
   task,
