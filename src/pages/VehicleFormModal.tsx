@@ -1,11 +1,47 @@
 import { useEffect, useState } from 'react'
-import { FileText, Image as ImageIcon, LogIn, LogOut, Info } from 'lucide-react'
+import { FileText, Image as ImageIcon, LogIn, LogOut, Info, Download } from 'lucide-react'
 import { Modal, Tabs, Badge } from '../components/ui'
 import PhotoUploader from '../components/PhotoUploader'
 import CheckSheetForm from '../components/CheckSheetForm'
 import { useStore } from '../store/useStore'
 import { useIsAdminMode } from '../hooks/useAuthRole'
 import { FuelType, VehicleStatus } from '../types'
+
+// Download all images as individual files
+async function downloadAllImages(
+  images: string[],
+  model: string,
+  plate: string,
+  prefix: string = ''
+) {
+  if (!images || images.length === 0) return
+
+  for (let i = 0; i < images.length; i++) {
+    const imageUrl = images[i]
+    const index = i + 1
+    const fileName = prefix
+      ? `Giayto_${model}_${plate}_${index}.jpg`
+      : `${model}_${plate}_${index}.jpg`
+
+    try {
+      const response = await fetch(imageUrl)
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = fileName
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+
+      // Small delay between downloads to avoid browser blocking
+      await new Promise((resolve) => setTimeout(resolve, 200))
+    } catch (error) {
+      console.error(`Failed to download ${fileName}:`, error)
+    }
+  }
+}
 
 const TABS = [
   { key: 'info', label: 'Thông tin', icon: <Info size={15} /> },
@@ -138,7 +174,7 @@ export default function VehicleFormModal({
         <Tabs tabs={TABS} active={tab} onChange={setTab} />
       </div>
 
-      <div className="mt-2">
+      <div className="mt-2 flex h-full flex-col">
         {tab === 'info' && (
           <div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -232,7 +268,23 @@ export default function VehicleFormModal({
 
         {tab === 'photos' &&
           (vehicle ? (
-            <PhotoUploader images={vehicle.images} onChange={(images) => updateVehicle(vehicle.id, { images })} />
+            <div className="flex flex-1 flex-col">
+              <PhotoUploader
+                images={vehicle.images}
+                onChange={(images) => updateVehicle(vehicle.id, { images })}
+                rightContent={
+                  <button
+                    className="btn-secondary flex items-center gap-2"
+                    onClick={() => downloadAllImages(vehicle.images, vehicle.model, vehicle.plate)}
+                    disabled={!vehicle.images || vehicle.images.length === 0}
+                    title={!vehicle.images || vehicle.images.length === 0 ? 'Chưa có ảnh để tải' : ''}
+                  >
+                    <Download size={16} />
+                    Tải tất cả
+                  </button>
+                }
+              />
+            </div>
           ) : (
             <NeedVehicleHint />
           ))}
@@ -253,12 +305,23 @@ export default function VehicleFormModal({
 
         {tab === 'docs' &&
           (vehicle ? (
-            <div>
+            <div className="flex flex-1 flex-col">
               <PhotoUploader
                 images={vehicle.documents}
                 onChange={(documents) => updateVehicle(vehicle.id, { documents })}
                 label="Thêm ảnh / giấy tờ"
                 emptyText="Chưa có ảnh"
+                rightContent={
+                  <button
+                    className="btn-secondary flex items-center gap-2"
+                    onClick={() => downloadAllImages(vehicle.documents, vehicle.model, vehicle.plate, 'Giayto')}
+                    disabled={!vehicle.documents || vehicle.documents.length === 0}
+                    title={!vehicle.documents || vehicle.documents.length === 0 ? 'Chưa có ảnh để tải' : ''}
+                  >
+                    <Download size={16} />
+                    Tải tất cả
+                  </button>
+                }
               />
               <a className="mt-3 inline-block text-sm text-brand-600 hover:underline" href={`#/xe/${vehicle.id}`}>
                 Mở chi tiết xe →

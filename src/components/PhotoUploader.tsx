@@ -11,12 +11,14 @@ export default function PhotoUploader({
   label = 'Thêm ảnh',
   emptyText = 'Chưa có ảnh',
   multiple = true,
+  rightContent,
 }: {
   images: string[]
   onChange: (images: string[]) => void
   label?: string
   emptyText?: string
   multiple?: boolean
+  rightContent?: React.ReactNode
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragIdx, setDragIdx] = useState<number | null>(null)
@@ -76,10 +78,17 @@ export default function PhotoUploader({
           <ImagePlus size={16} />
           {label}
         </button>
-        <span className="text-xs text-slate-400">
-          {images.length}/{MAX_IMAGES} ảnh • Kéo thả để sắp xếp
-        </span>
+        {rightContent || (
+          <span className="text-xs text-slate-400">
+            {images.length}/{MAX_IMAGES} ảnh • Kéo thả để sắp xếp
+          </span>
+        )}
       </div>
+      {rightContent && (
+        <div className="mb-3 text-right text-xs text-slate-400">
+          {images.length}/{MAX_IMAGES} ảnh • Kéo thả để sắp xếp
+        </div>
+      )}
 
       {images.length === 0 ? (
         <div className="mt-4 rounded-xl border border-dashed border-slate-200">

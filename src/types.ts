@@ -151,19 +151,57 @@ export interface CheckOutItem {
   detail?: string
 }
 
+// Còn Song nưng: con | can_repair
+export type ConSeongnyeongStatus = 'con' | 'can_repair'
+
+// Dầu máy: replacing | good | empty
+export type DauMayStatus = 'replacing' | 'good' | 'empty'
+
+// Nước làm mát: replacing | good | empty
+export type NuocLamMatStatus = 'replacing' | 'good' | 'empty'
+
+// Điều hòa: good | need_gas
+export type DieuHoaStatus = 'good' | 'need_gas'
+
+// Sưởi ghế: good | broken | none
+export type SuoiGheStatus = 'good' | 'broken' | 'none'
+
+export interface ConSeongnyeongItem {
+  status: ConSeongnyeongStatus
+}
+
+export interface DauMayItem {
+  status: DauMayStatus
+}
+
+export interface NuocLamMatItem {
+  status: NuocLamMatStatus
+}
+
+export interface DieuHoaItem {
+  status: DieuHoaStatus
+}
+
+export interface SuoiGheItem {
+  status: SuoiGheStatus
+}
+
+export type TireCondition = 'good' | 'worn' | 'badd' // Còn ngon | Hơi mòn | Mòn lắm
+
 export interface CheckOutCheck {
-  conSeongnyeong: CheckOutItem        // Còn Song nưng không? 
-  dauMay: CheckOutItem                 // Dầu máy
-  nuocLamMat: CheckOutItem             // Nước làm mát
-  camHanhTrinh: CheckOutItem           // Cam hành trình
-  manHinhBluetooth: CheckOutItem       // Màn hình, Bluetooth
-  cameraLui: CheckOutItem              // Camera lùi
-  denPhaCot: CheckOutItem              // Đèn (Pha, Cốt, Cảnh báo, Phanh)
-  motorGuongNutBam: CheckOutItem       // Motor Gương, Nút bấm (Cụp mở, chỉnh điện)
-  dieuHoaSuGhe: CheckOutItem           // Điều hòa / Sưởi ghế
-  cuaSo: CheckOutItem                  // Cửa sổ (Tất cả các cửa)
-  gheChinhDien: CheckOutItem           // Ghế chỉnh điện
-  doAcQuy: CheckOutItem                // Đo ắc quy
+  conSeongnyeong: ConSeongnyeongItem        // Còn Song nưng không?
+  dauMay: DauMayItem                       // Dầu máy
+  nuocLamMat: NuocLamMatItem               // Nước làm mát
+  camHanhTrinh: CheckOutItem               // Cam hành trình
+  manHinhBluetooth: CheckOutItem          // Màn hình, Bluetooth
+  cameraLui: CheckOutItem                  // Camera lùi
+  denPhaCot: CheckOutItem                  // Đèn (Pha, Cốt, Cảnh báo, Phanh)
+  motorGuongNutBam: CheckOutItem           // Motor Gương, Nút bấm (Cụp mở, chỉnh điện)
+  dieuHoa: DieuHoaItem                      // Điều hòa
+  suoiGhe: SuoiGheItem                     // Sưởi ghế
+  cuaSo: CheckOutItem                      // Cửa sổ (Tất cả các cửa)
+  gheChinhDien: CheckOutItem               // Ghế chỉnh điện
+  tinhTrangLop: CheckOutItem               // Tình trạng lốp
 }
 
 export interface CheckSheet {
