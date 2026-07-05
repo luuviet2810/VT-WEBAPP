@@ -433,12 +433,9 @@ export default function CheckSheetForm({
 
     // Notification
     addNotification({
-      id: uid('notif'),
       type: 'task_done',
       title: 'Lưu thành công',
       body: `Đã lưu phiếu ${type === 'in' ? 'đầu vào' : 'đầu ra'} cho xe ${vehicle.plate}`,
-      read: false,
-      createdAt: new Date().toISOString(),
     })
 
     onSaved()

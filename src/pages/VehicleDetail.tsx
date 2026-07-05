@@ -38,14 +38,15 @@ export default function VehicleDetail() {
       </div>
     )
   }
+  const currentVehicle = vehicle
 
-  const position = positions.find((p) => p.id === vehicle.positionId)
-  const history = moveLogs.filter((l) => l.vehicleId === vehicle.id)
-  const sheets = checkSheets.filter((c) => c.vehicleId === vehicle.id)
+  const position = positions.find((p) => p.id === currentVehicle.positionId)
+  const history = moveLogs.filter((l) => l.vehicleId === currentVehicle.id)
+  const sheets = checkSheets.filter((c) => c.vehicleId === currentVehicle.id)
 
   function handleDelete() {
     if (confirm('Xoá xe này khỏi hệ thống?')) {
-      deleteVehicle(vehicle.id)
+      deleteVehicle(currentVehicle.id)
       navigate('/')
     }
   }
@@ -58,8 +59,8 @@ export default function VehicleDetail() {
             <ArrowLeft size={20} />
           </button>
           <div>
-            <h1 className="text-xl font-bold text-slate-900">{vehicle.plate || '—'}</h1>
-            <p className="text-sm text-slate-500">{vehicle.model}</p>
+            <h1 className="text-xl font-bold text-slate-900">{currentVehicle.plate || '—'}</h1>
+            <p className="text-sm text-slate-500">{currentVehicle.model}</p>
           </div>
         </div>
         <button onClick={handleDelete} className="btn-danger">
@@ -73,8 +74,8 @@ export default function VehicleDetail() {
           <div className="mt-1 font-semibold text-brand-600">{position ? position.name : 'Chưa phân bổ'}</div>
           <select
             className="input mt-2"
-            value={vehicle.positionId || ''}
-            onChange={(e) => moveVehicle(vehicle.id, e.target.value)}
+            value={currentVehicle.positionId || ''}
+            onChange={(e) => moveVehicle(currentVehicle.id, e.target.value)}
           >
             <option value="">— Chưa phân bổ —</option>
             {positions.map((p) => (
@@ -88,8 +89,8 @@ export default function VehicleDetail() {
           <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Người đang xử lý</div>
           <select
             className="input mt-2"
-            value={vehicle.assigneeId || ''}
-            onChange={(e) => updateVehicle(vehicle.id, { assigneeId: e.target.value || null })}
+            value={currentVehicle.assigneeId || ''}
+            onChange={(e) => updateVehicle(currentVehicle.id, { assigneeId: e.target.value || null })}
           >
             <option value="">— Chưa phân công —</option>
             {employees.map((e) => (
@@ -107,30 +108,30 @@ export default function VehicleDetail() {
         {tab === 'info' && (
           <div className="card p-5">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Biển số" value={vehicle.plate} onSave={(v) => updateVehicle(vehicle.id, { plate: v })} />
-              <Field label="Dòng xe" value={vehicle.model} onSave={(v) => updateVehicle(vehicle.id, { model: v })} />
+              <Field label="Biển số" value={currentVehicle.plate} onSave={(v) => updateVehicle(currentVehicle.id, { plate: v })} />
+              <Field label="Dòng xe" value={currentVehicle.model} onSave={(v) => updateVehicle(currentVehicle.id, { model: v })} />
               <Field
                 label="Năm SX"
-                value={vehicle.year ? String(vehicle.year) : ''}
-                onSave={(v) => updateVehicle(vehicle.id, { year: v ? Number(v) : undefined })}
+                value={currentVehicle.year ? String(currentVehicle.year) : ''}
+                onSave={(v) => updateVehicle(currentVehicle.id, { year: v ? Number(v) : undefined })}
               />
-              <Field label="Màu xe" value={vehicle.color || ''} onSave={(v) => updateVehicle(vehicle.id, { color: v })} />
+              <Field label="Màu xe" value={currentVehicle.color || ''} onSave={(v) => updateVehicle(currentVehicle.id, { color: v })} />
               <Field
                 label="Giá mua"
-                value={vehicle.costPrice !== undefined ? String(vehicle.costPrice) : ''}
-                onSave={(v) => updateVehicle(vehicle.id, { costPrice: v ? Number(v) : undefined })}
+                value={currentVehicle.costPrice !== undefined ? String(currentVehicle.costPrice) : ''}
+                onSave={(v) => updateVehicle(currentVehicle.id, { costPrice: v ? Number(v) : undefined })}
               />
               <Field
                 label="Giá bán"
-                value={vehicle.sellPrice !== undefined ? String(vehicle.sellPrice) : ''}
-                onSave={(v) => updateVehicle(vehicle.id, { sellPrice: v ? Number(v) : undefined })}
+                value={currentVehicle.sellPrice !== undefined ? String(currentVehicle.sellPrice) : ''}
+                onSave={(v) => updateVehicle(currentVehicle.id, { sellPrice: v ? Number(v) : undefined })}
               />
               <div>
                 <label className="label">Tình trạng</label>
                 <select
                   className="input"
-                  value={vehicle.status}
-                  onChange={(e) => updateVehicle(vehicle.id, { status: e.target.value as VehicleStatus })}
+                  value={currentVehicle.status}
+                  onChange={(e) => updateVehicle(currentVehicle.id, { status: e.target.value as VehicleStatus })}
                 >
                   <option value="available">Chưa bán</option>
                   <option value="deposited">Đã cọc</option>
@@ -143,8 +144,8 @@ export default function VehicleDetail() {
               <textarea
                 className="input"
                 rows={3}
-                defaultValue={vehicle.note}
-                onBlur={(e) => updateVehicle(vehicle.id, { note: e.target.value })}
+                defaultValue={currentVehicle.note}
+                onBlur={(e) => updateVehicle(currentVehicle.id, { note: e.target.value })}
               />
             </div>
           </div>
@@ -218,13 +219,13 @@ export default function VehicleDetail() {
           <div className="space-y-6">
             <div>
               <h3 className="mb-2 text-sm font-semibold text-slate-700">Ảnh xe</h3>
-              <PhotoUploader images={vehicle.images} onChange={(images) => updateVehicle(vehicle.id, { images })} />
+              <PhotoUploader images={currentVehicle.images} onChange={(images) => updateVehicle(currentVehicle.id, { images })} />
             </div>
             <div>
               <h3 className="mb-2 text-sm font-semibold text-slate-700">Giấy tờ</h3>
               <PhotoUploader
-                images={vehicle.documents}
-                onChange={(documents) => updateVehicle(vehicle.id, { documents })}
+                images={currentVehicle.documents}
+                onChange={(documents) => updateVehicle(currentVehicle.id, { documents })}
                 label="Thêm giấy tờ"
               />
             </div>
@@ -236,7 +237,7 @@ export default function VehicleDetail() {
         open={checkModal !== null}
         onClose={() => setCheckModal(null)}
         title={checkModal === 'in' ? 'Phiếu đầu vào' : 'Phiếu đầu ra'}
-        subtitle={<span className="text-sm text-slate-400">{vehicle.plate} • {vehicle.model}</span>}
+        subtitle={<span className="text-sm text-slate-400">{currentVehicle.plate} • {currentVehicle.model}</span>}
       >
         {checkModal && (
           <CheckSheetForm vehicle={vehicle} type={checkModal} onCancel={() => setCheckModal(null)} onSaved={() => setCheckModal(null)} />

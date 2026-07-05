@@ -251,8 +251,8 @@ export default function Dashboard() {
 
           <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
             <StatCard label="Xe bán tháng" value={soldThisMonth.length} icon={<TrendingUp size={16} />} />
-            <StatCard label="Doanh thu tháng (tr)" value={revenueMonth.toFixed(1)} icon={<BarChart2 size={16} />} />
-            <StatCard label="Lợi nhuận tháng (tr)" value={profitMonth.toFixed(1)} tone={profitMonth < 0 ? 'text-red-600' : 'text-emerald-600'} icon={<TrendingUp size={16} />} />
+            <StatCard label="Doanh thu tháng (tr)" value={Number(revenueMonth.toFixed(1))} icon={<BarChart2 size={16} />} />
+            <StatCard label="Lợi nhuận tháng (tr)" value={Number(profitMonth.toFixed(1))} tone={profitMonth < 0 ? 'text-red-600' : 'text-emerald-600'} icon={<TrendingUp size={16} />} />
             <StatCard label="Việc tuần này" value={doneThisWeek} icon={<Clock size={16} />} />
           </div>
         </>

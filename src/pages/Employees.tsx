@@ -97,8 +97,6 @@ export default function Employees() {
       type: 'user_approved',
       title: 'Phê duyệt tài khoản',
       body: `Tài khoản "${user.fullName}" đã được phê duyệt`,
-      read: false,
-      createdAt: new Date().toISOString(),
     })
   }
 
@@ -109,8 +107,6 @@ export default function Employees() {
       type: 'user_rejected',
       title: 'Từ chối tài khoản',
       body: `Tài khoản "${user.fullName}" đã bị từ chối`,
-      read: false,
-      createdAt: new Date().toISOString(),
     })
   }
 

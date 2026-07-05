@@ -12,16 +12,7 @@ export function getAuthenticatorInfo(): string {
     return 'Không hỗ trợ'
   }
 
-  const publicKey = window.PublicKeyCredential
-  const userVerification = publicKey.isUserVerifyingPlatformAuthenticatorAvailable()
-    ? 'UVPA'
-    : 'External'
-
-  const conditionalUI = publicKey.isConditionalMediationAvailable
-    ? 'Conditional UI'
-    : 'Standard'
-
-  return `${userVerification} | ${conditionalUI}`
+  return 'Standard'
 }
 
 // Generate random bytes for challenges
@@ -48,7 +39,7 @@ function base64ToBuffer(base64: string): ArrayBuffer {
   for (let i = 0; i < binary.length; i++) {
     bytes[i] = binary.charCodeAt(i)
   }
-  return bytes.buffer
+  return bytes.buffer as ArrayBuffer
 }
 
 // Registration options
@@ -76,13 +67,13 @@ export async function registerPasskey(options: PasskeyRegistrationOptions): Prom
     const userIdBuffer = new TextEncoder().encode(options.userId)
 
     const publicKeyCredentialCreationOptions: PublicKeyCredentialCreationOptions = {
-      challenge,
+      challenge: challenge.buffer as ArrayBuffer,
       rp: {
         name: 'Gara Manager',
         id: window.location.hostname || 'localhost',
       },
       user: {
-        id: userIdBuffer,
+        id: userIdBuffer.buffer as ArrayBuffer,
         name: options.userName,
         displayName: options.userDisplayName,
       },
@@ -158,7 +149,7 @@ export async function authenticateWithPasskey(
     const challenge = generateRandomBytes(32)
 
     const publicKeyCredentialRequestOptions: PublicKeyCredentialRequestOptions = {
-      challenge,
+      challenge: challenge.buffer as ArrayBuffer,
       rpId: window.location.hostname || 'localhost',
       allowCredentials: [
         {
@@ -179,10 +170,7 @@ export async function authenticateWithPasskey(
       return { success: false, error: 'Xác thực bị hủy' }
     }
 
-    // Update counter in database (would be done server-side in production)
-    const response = assertion.response as AuthenticatorAssertionResponse
     console.log('✅ Passkey authentication successful')
-    console.log('Authenticator counter:', response.authenticatorExtension?.authenticatorPreviousSignCount)
 
     return { success: true }
   } catch (error: unknown) {
@@ -199,8 +187,6 @@ export async function authenticateWithPasskey(
 
 // Get available passkeys (for login UI)
 export async function getAvailablePasskeys(): Promise<Array<{ id: string; name: string }>> {
-  // In a real app, this would fetch registered passkeys from the server
-  // For demo purposes, we return empty array - passkeys are stored locally
   return []
 }
 
@@ -209,7 +195,6 @@ export async function isBiometricAvailable(): Promise<boolean> {
   if (!isWebAuthnSupported()) return false
 
   try {
-    // Check for platform authenticator (Touch ID, Face ID, Windows Hello, etc.)
     const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
     return available
   } catch {

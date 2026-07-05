@@ -267,7 +267,7 @@ export const useStore = create<StoreState>()(
           updatedAt: todayISO(),
         }
         set((s) => ({ vehicles: [vehicle, ...s.vehicles] }))
-        const emp = s.employees.find((e) => e.id === s.currentEmployeeId)
+        const emp = get().employees.find((e) => e.id === get().currentEmployeeId)
         get().addNotification({ type: 'vehicle_added', title: 'Xe mới được thêm', body: `${emp?.name || 'Ai đó'} vừa thêm xe "${vehicle.model}" (${vehicle.plate})` })
         return id
       },
@@ -314,7 +314,7 @@ export const useStore = create<StoreState>()(
           createdAt: todayISO(),
         }
         set((s) => ({ tasks: [task, ...s.tasks] }))
-        const emp = s.employees.find((e) => e.id === s.currentEmployeeId)
+        const emp = get().employees.find((e) => e.id === get().currentEmployeeId)
         get().addNotification({ type: 'task_created', title: 'Nhiệm vụ mới', body: `${emp?.name || 'Ai đó'} vừa tạo nhiệm vụ "${task.title}"` })
       },
 

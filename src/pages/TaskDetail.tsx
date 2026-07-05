@@ -42,6 +42,7 @@ export default function TaskDetail() {
       </div>
     )
   }
+  const currentTask = task
 
   function startEditChecklist(item: TaskChecklistItem) {
     setEditingChecklistId(item.id)
@@ -50,8 +51,8 @@ export default function TaskDetail() {
 
   function saveEditChecklist() {
     if (!editingChecklistId || !editText.trim()) return
-    const newChecklist = task.checklist.map((i) => (i.id === editingChecklistId ? { ...i, text: editText.trim() } : i))
-    updateTask(task.id, { checklist: newChecklist })
+    const newChecklist = currentTask.checklist.map((i) => (i.id === editingChecklistId ? { ...i, text: editText.trim() } : i))
+    updateTask(currentTask.id, { checklist: newChecklist })
     setEditingChecklistId(null)
     setEditText('')
   }
@@ -59,25 +60,25 @@ export default function TaskDetail() {
   function addChecklistItem() {
     if (!newChecklistText.trim()) return
     const newItem: TaskChecklistItem = { id: uid('chk'), text: newChecklistText.trim(), done: false }
-    updateTask(task.id, { checklist: [...task.checklist, newItem] })
+    updateTask(currentTask.id, { checklist: [...currentTask.checklist, newItem] })
     setNewChecklistText('')
     setShowAddChecklist(false)
   }
 
   function removeChecklistItem(itemId: string) {
-    const newChecklist = task.checklist.filter((i) => i.id !== itemId)
-    updateTask(task.id, { checklist: newChecklist })
+    const newChecklist = currentTask.checklist.filter((i) => i.id !== itemId)
+    updateTask(currentTask.id, { checklist: newChecklist })
   }
 
   function handleDelete() {
     if (confirm('Xoá nhiệm vụ này?')) {
-      deleteTask(task.id)
+      deleteTask(currentTask.id)
       navigate('/nhiem-vu')
     }
   }
 
-  const vehicle = vehicles.find((v) => v.id === task.vehicleId)
-  const assignee = employees.find((e) => e.id === task.assigneeId)
+  const vehicle = vehicles.find((v) => v.id === currentTask.vehicleId)
+  const assignee = employees.find((e) => e.id === currentTask.assigneeId)
 
   return (
     <div>
@@ -86,20 +87,20 @@ export default function TaskDetail() {
           <ArrowLeft size={20} />
         </button>
         <div className="flex-1">
-          <h1 className="text-xl font-bold text-slate-900">{task.title}</h1>
+          <h1 className="text-xl font-bold text-slate-900">{currentTask.title}</h1>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-400">
-            <Badge tone={task.status === 'done' ? 'green' : task.status === 'doing' ? 'blue' : 'slate'}>{COLUMNS.find((c) => c.key === task.status)?.label}</Badge>
-            <Badge tone={task.priority === 'urgent' ? 'red' : task.priority === 'high' ? 'orange' : task.priority === 'medium' ? 'blue' : 'slate'}>{PRIORITY_LABEL[task.priority]}</Badge>
+            <Badge tone={currentTask.status === 'done' ? 'green' : currentTask.status === 'doing' ? 'blue' : 'slate'}>{COLUMNS.find((c) => c.key === currentTask.status)?.label}</Badge>
+            <Badge tone={currentTask.priority === 'urgent' ? 'red' : currentTask.priority === 'high' ? 'orange' : currentTask.priority === 'medium' ? 'blue' : 'slate'}>{PRIORITY_LABEL[currentTask.priority]}</Badge>
             {assignee && <span>{assignee.name}</span>}
             {vehicle && <span>xe {vehicle.plate} {vehicle.model}</span>}
-            {task.dueDate && <span>{task.dueDate}{task.dueTime ? ` ${task.dueTime}` : ''}</span>}
+            {currentTask.dueDate && <span>{currentTask.dueDate}{currentTask.dueTime ? ` ${currentTask.dueTime}` : ''}</span>}
           </div>
         </div>
         <div className="flex items-center gap-1">
           <select
             className="input w-auto text-xs"
-            value={task.status}
-            onChange={(e) => updateTask(task.id, { status: e.target.value as TaskStatus })}
+            value={currentTask.status}
+            onChange={(e) => updateTask(currentTask.id, { status: e.target.value as TaskStatus })}
           >
             {COLUMNS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
           </select>
@@ -111,10 +112,10 @@ export default function TaskDetail() {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-4">
-          {task.description && (
+          {currentTask.description && (
             <div className="card p-4">
               <h3 className="mb-2 text-sm font-semibold text-slate-700">Mô tả</h3>
-              <p className="text-sm text-slate-600 whitespace-pre-wrap">{task.description}</p>
+              <p className="text-sm text-slate-600 whitespace-pre-wrap">{currentTask.description}</p>
             </div>
           )}
 
@@ -122,24 +123,24 @@ export default function TaskDetail() {
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-sm font-semibold text-slate-700">Checklist</h3>
               <span className="text-xs text-slate-400">
-                {task.checklist.filter((i) => i.done).length}/{task.checklist.length} hoàn thành
+                {currentTask.checklist.filter((i) => i.done).length}/{currentTask.checklist.length} hoàn thành
               </span>
             </div>
-            {task.checklist.length > 0 && (
+            {currentTask.checklist.length > 0 && (
               <div className="mb-3 h-2 overflow-hidden rounded-full bg-slate-100">
                 <div
                   className="h-full rounded-full bg-brand-500 transition-all"
-                  style={{ width: `${task.checklist.length > 0 ? (task.checklist.filter((i) => i.done).length / task.checklist.length) * 100 : 0}%` }}
+                  style={{ width: `${currentTask.checklist.length > 0 ? (currentTask.checklist.filter((i) => i.done).length / currentTask.checklist.length) * 100 : 0}%` }}
                 />
               </div>
             )}
             <div className="space-y-2">
-              {task.checklist.map((item) => (
+              {currentTask.checklist.map((item) => (
                 <div key={item.id} className="flex items-start gap-2">
                   <input
                     type="checkbox"
                     checked={item.done}
-                    onChange={() => toggleTaskChecklistItem(task.id, item.id)}
+                    onChange={() => toggleTaskChecklistItem(currentTask.id, item.id)}
                     className="mt-0.5 rounded border-slate-300 text-brand-600"
                   />
                   {editingChecklistId === item.id ? (
