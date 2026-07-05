@@ -81,6 +81,7 @@ export const useAuthStore = create<AuthState>()(
         // Check if email exists
         const existing = get().users.find((u) => u.email.toLowerCase() === email.toLowerCase())
         if (existing) {
+          console.log('🔴 [Auth] Email already exists:', email)
           return { success: false, error: 'Email đã được sử dụng' }
         }
 
@@ -89,6 +90,7 @@ export const useAuthStore = create<AuthState>()(
 
         // If no admin exists, first registered user becomes admin and is auto-approved
         const isFirstAdmin = !hasAdmin
+        console.log('🔵 [Auth] Register - isFirstAdmin:', isFirstAdmin)
 
         // Create user
         const newUser: User = {
@@ -103,9 +105,14 @@ export const useAuthStore = create<AuthState>()(
           updatedAt: new Date().toISOString(),
         }
 
+        console.log('🔵 [Auth] New user created:', newUser)
+        console.log('🔵 [Auth] Password hash:', newUser.passwordHash)
+
         set((state) => ({
           users: [newUser, ...state.users],
         }))
+        
+        console.log('🔵 [Auth] Users after register:', get().users)
 
         // Auto-login if first admin
         if (isFirstAdmin) {
@@ -123,27 +130,43 @@ export const useAuthStore = create<AuthState>()(
 
       // Login with email + password
       login: (email, password) => {
+        console.log('🔵 [Auth] Login attempt:', email)
+        console.log('🔵 [Auth] Current users:', get().users)
+        
         const user = get().getUserByEmail(email)
+        console.log('🔵 [Auth] Found user:', user)
+        
         if (!user) {
+          console.log('🔴 [Auth] User not found')
           return { success: false, error: 'Email hoặc mật khẩu không đúng' }
         }
 
         if (user.status === 'pending') {
+          console.log('🔴 [Auth] User pending')
           return { success: false, error: 'Tài khoản đang chờ Admin phê duyệt' }
         }
 
         if (user.status === 'rejected') {
+          console.log('🔴 [Auth] User rejected')
           return { success: false, error: 'Tài khoản chưa được phê duyệt' }
         }
 
         if (user.status === 'disabled') {
+          console.log('🔴 [Auth] User disabled')
           return { success: false, error: 'Tài khoản đã bị vô hiệu hóa' }
         }
 
-        if (!verifyPassword(password, user.passwordHash)) {
+        const passwordValid = verifyPassword(password, user.passwordHash)
+        console.log('🔵 [Auth] Password valid:', passwordValid)
+        console.log('🔵 [Auth] Input hash:', hashPassword(password))
+        console.log('🔵 [Auth] Stored hash:', user.passwordHash)
+        
+        if (!passwordValid) {
+          console.log('🔴 [Auth] Wrong password')
           return { success: false, error: 'Email hoặc mật khẩu không đúng' }
         }
 
+        console.log('🟢 [Auth] Login success')
         set({ currentUser: user, isAuthenticated: true })
         return { success: true }
       },
