@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Clock, FileImage, Info, ListChecks, Trash2 } from 'lucide-react'
 import { useStore } from '../store/useStore'
@@ -23,12 +23,15 @@ export default function VehicleDetail() {
   const employees = useStore((s) => s.employees)
   const moveLogs = useStore((s) => s.moveLogs)
   const checkSheets = useStore((s) => s.checkSheets)
+  const vehicleTimelines = useStore((s) => s.vehicleTimelines)
+  const loadVehicleTimeline = useStore((s) => s.loadVehicleTimeline)
   const updateVehicle = useStore((s) => s.updateVehicle)
   const moveVehicle = useStore((s) => s.moveVehicle)
   const deleteVehicle = useStore((s) => s.deleteVehicle)
 
   const [tab, setTab] = useState('info')
   const [checkModal, setCheckModal] = useState<'in' | 'out' | null>(null)
+  const [timelineLoading, setTimelineLoading] = useState(false)
 
   const vehicle = vehicles.find((v) => v.id === id)
   if (!vehicle) {
@@ -41,8 +44,16 @@ export default function VehicleDetail() {
   const currentVehicle = vehicle
 
   const position = positions.find((p) => p.id === currentVehicle.positionId)
-  const history = moveLogs.filter((l) => l.vehicleId === currentVehicle.id)
   const sheets = checkSheets.filter((c) => c.vehicleId === currentVehicle.id)
+  const timeline = vehicleTimelines[currentVehicle.id] || []
+
+  useEffect(() => {
+    if (!currentVehicle.id) return
+    setTimelineLoading(true)
+    loadVehicleTimeline(currentVehicle.id)
+      .catch((err) => console.error('🔴 [VehicleDetail] Failed to load timeline:', err))
+      .finally(() => setTimelineLoading(false))
+  }, [currentVehicle.id, loadVehicleTimeline])
 
   function handleDelete() {
     if (confirm('Xoá xe này khỏi hệ thống?')) {
@@ -156,23 +167,50 @@ export default function VehicleDetail() {
             <div className="mb-3">
               <div className="text-sm font-semibold text-slate-700">Lịch sử</div>
             </div>
-            {history.length === 0 ? (
+            {timelineLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-slate-200 animate-pulse" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 w-3/4 rounded bg-slate-100 animate-pulse" />
+                      <div className="h-3 w-1/2 rounded bg-slate-100 animate-pulse" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : timeline.length === 0 ? (
               <EmptyState icon={<Clock size={30} />} title="Chưa có lịch sử." />
             ) : (
               <ul className="space-y-0">
-                {history.map((h) => {
-                  const from = positions.find((p) => p.id === h.fromPositionId)
-                  const to = positions.find((p) => p.id === h.toPositionId)
-                  const emp = employees.find((e) => e.id === h.employeeId)
+                {timeline.map((item) => {
+                  const user = item.userId ? employees.find((e) => e.id === item.userId)?.name : undefined
+
+                  const isMoveLog = item.type === 'move_log' && !!item.moveLogId
+                  const moveLog = isMoveLog ? moveLogs.find((m) => m.id === item.moveLogId) : undefined
+                  const from = moveLog ? positions.find((p) => p.id === moveLog.fromPositionId) : undefined
+                  const to = moveLog ? positions.find((p) => p.id === moveLog.toPositionId) : undefined
+
                   return (
-                    <li key={h.id} className="flex items-start gap-3 border-b border-slate-50 pb-3 last:border-0 last:pb-0">
+                    <li key={item.id} className="flex items-start gap-3 border-b border-slate-50 pb-3 last:border-0 last:pb-0">
                       <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brand-500" />
                       <div>
                         <div className="text-sm text-slate-700">
-                          <span className="font-medium">{from ? from.name : '—'}</span> → <span className="font-medium text-brand-600">{to ? to.name : '—'}</span>
+                          {isMoveLog ? (
+                            <>
+                              <span className="font-medium">{from ? from.name : '—'}</span>
+                              {' → '}
+                              <span className="font-medium text-brand-600">{to ? to.name : '—'}</span>
+                            </>
+                          ) : (
+                            item.title
+                          )}
                         </div>
+                        {item.description && !isMoveLog && (
+                          <div className="text-xs text-slate-500">{item.description}</div>
+                        )}
                         <div className="text-xs text-slate-400">
-                          {emp?.name || 'Không rõ'} • {formatDateTime(h.createdAt)}
+                          {user || 'Không rõ'} • {formatDateTime(item.time)}
                         </div>
                       </div>
                     </li>

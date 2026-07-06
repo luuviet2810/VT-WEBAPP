@@ -246,6 +246,10 @@ export interface CheckSheet {
   inputDieuHoa?: DieuHoaItem
   inputSuoiGhe?: SuoiGheItem
   inputTireState?: CheckOutItem
+  inputAcquySOH?: number
+  inputAcquySOC?: number
+  acquySOH?: number
+  acquySOC?: number
   // Đầu ra - kiểm tra theo checklist 12 hạng mục
   outCheck?: CheckOutCheck
   outNotes?: string
@@ -308,3 +312,4 @@ export type NotificationType =
   | 'user_registered'   // New user registered - for admin
   | 'user_approved'     // User account approved
   | 'user_rejected'     // User account rejected
+  | 'error'

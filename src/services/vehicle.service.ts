@@ -101,7 +101,7 @@ export async function getVehicleById(id: string): Promise<Vehicle | null> {
 
 // ====== CREATE ======
 
-export async function createVehicle(vehicle: Omit<Vehicle, 'id' | 'createdAt' | 'updatedAt'>): Promise<Vehicle> {
+export async function createVehicle(vehicle: Omit<Vehicle, 'id' | 'createdAt' | 'updatedAt'> & { images?: string[]; documents?: string[] }): Promise<Vehicle> {
   const payload = {
     plate: vehicle.plate,
     model: vehicle.model,

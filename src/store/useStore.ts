@@ -5,6 +5,7 @@ import {
   EXTERIOR_SPOTS,
   Employee,
   ExteriorCheck,
+  MoveLog,
   Notification,
   Position,
   Settings,
@@ -116,7 +117,7 @@ interface StoreState {
   isInitialized: boolean
 
   // Vehicles
-  addVehicle: (v: Partial<Vehicle>) => Promise<void>
+  addVehicle: (v: Partial<Vehicle>) => Promise<Vehicle>
   updateVehicle: (id: string, patch: Partial<Vehicle>) => Promise<void>
   deleteVehicle: (id: string) => Promise<void>
   moveVehicle: (id: string, toPositionId: string) => Promise<void>
@@ -193,6 +194,8 @@ export const useStore = create<StoreState>()(
         positionId: v.positionId ?? null,
         assigneeId: v.assigneeId ?? null,
         note: v.note || '',
+        images: [],
+        documents: [],
       })
       set((s) => ({ vehicles: [created, ...s.vehicles] }))
       const emp = get().employees.find((e) => e.id === get().currentEmployeeId)

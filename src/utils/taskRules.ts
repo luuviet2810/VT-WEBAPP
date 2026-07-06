@@ -94,7 +94,7 @@ const ruleDieuHoaBroken: Rule = {
   priority: 'high',
   evaluate(ctx: RuleContext) {
     if (ctx.sheet.type !== 'in') return false
-    return ctx.sheet.inputDieuHoa?.status === 'broken'
+    return ctx.sheet.inputDieuHoa?.status !== 'good'
   },
 }
 
