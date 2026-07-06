@@ -98,7 +98,10 @@ export async function deleteVehicleImage(imageId: string, storagePath: string): 
     .from('vehicle-images')
     .remove([storagePath])
 
-  if (storageError) console.error('🔴 [vehicleMedia] Failed to delete storage file:', storageError)
+  // Log but don't fail if storage deletion fails
+  if (storageError) {
+    console.error('[vehicleMedia] Failed to delete storage file:', storageError)
+  }
 
   // Delete DB record
   const { error: dbError } = await supabase
@@ -181,7 +184,10 @@ export async function deleteVehicleDocument(docId: string, storagePath: string):
     .from('vehicle-documents')
     .remove([storagePath])
 
-  if (storageError) console.error('🔴 [vehicleMedia] Failed to delete storage file:', storageError)
+  // Log but don't fail if storage deletion fails
+  if (storageError) {
+    console.error('[vehicleMedia] Failed to delete storage file:', storageError)
+  }
 
   // Delete DB record
   const { error: dbError } = await supabase

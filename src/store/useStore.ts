@@ -53,7 +53,6 @@ const defaultSettings: Settings = {
 }
 
 export async function initializeFromSupabase(): Promise<void> {
-  console.log('\uD83D\uDD35 [STORE] Initializing from Supabase...')
   try {
     const [vehicles, positions, employees, tasks, checkSheets, attendance, notifications, moveLogs] = await Promise.all([
       vehicleService.getVehicles().catch(() => []),
@@ -65,16 +64,6 @@ export async function initializeFromSupabase(): Promise<void> {
       notificationService.getNotifications().catch(() => []),
       moveLogService.getMoveLogs().catch(() => []),
     ])
-
-    console.log('\uD83D\uDD35 [STORE] Loaded:', {
-      vehicles: vehicles.length,
-      positions: positions.length,
-      employees: employees.length,
-      tasks: tasks.length,
-      checkSheets: checkSheets.length,
-      attendance: attendance.length,
-      notifications: notifications.length,
-    })
 
     const mappedVehicles = vehicles.map((v) => {
       const record = v as unknown as Record<string, unknown>
@@ -336,6 +325,7 @@ export const useStore = create<StoreState>()(
         } catch (err) {
           if (before) set((s) => ({ vehicles: s.vehicles.map((v) => (v.id === id ? before : v)) }))
           console.error('\uD83D\uDD34 [STORE] Failed to update vehicle in Supabase:', err)
+          get().addNotification({ type: 'error', title: 'Lỗi', body: 'Không thể cập nhật xe. Vui lòng thử lại.' })
         }
       }
 
@@ -374,6 +364,7 @@ export const useStore = create<StoreState>()(
       } catch (err) {
         if (before) set((s) => ({ vehicles: [...s.vehicles, before] }))
         console.error('\uD83D\uDD34 [STORE] Failed to delete vehicle in Supabase:', err)
+        get().addNotification({ type: 'error', title: 'Lỗi', body: 'Không thể xóa xe. Vui lòng thử lại.' })
       }
     },
 
@@ -405,6 +396,7 @@ export const useStore = create<StoreState>()(
           moveLogs: s.moveLogs.filter((l) => l.id !== log.id),
         }))
         console.error('\uD83D\uDD34 [STORE] Failed to move vehicle in Supabase:', err)
+        get().addNotification({ type: 'error', title: 'Lỗi', body: 'Không thể di chuyển xe. Vui lòng thử lại.' })
       }
     },
 
@@ -442,6 +434,7 @@ export const useStore = create<StoreState>()(
         }))
       } catch (err) {
         console.error('\uD83D\uDD34 [STORE] Failed to create task in Supabase:', err)
+        get().addNotification({ type: 'error', title: 'Lỗi', body: 'Không thể tạo nhiệm vụ. Vui lòng thử lại.' })
       }
 
       const emp = get().employees.find((e) => e.id === get().currentEmployeeId)

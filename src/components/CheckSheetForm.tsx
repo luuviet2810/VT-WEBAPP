@@ -410,7 +410,7 @@ export default function CheckSheetForm({
         setOutTireState(sheet.outTireState ?? { status: 'ok' })
         setInputNotes(sheet.inputNotes ?? '')
       } catch (err) {
-        console.error('🔴 [CheckSheetForm] Failed to load/create sheet:', err)
+        console.error('[CheckSheetForm] Failed to load/create sheet:', err)
         addNotification({ type: 'error', title: 'Lỗi tải phiếu', body: 'Không thể tải dữ liệu phiếu kiểm tra.' })
       }
     }
@@ -456,7 +456,7 @@ export default function CheckSheetForm({
           )
         })
         .catch((err) => {
-          console.error('🔴 [CheckSheetForm] SAVE FAILED:', err)
+          console.error('[CheckSheetForm] SAVE FAILED:', err)
           addNotification({ type: 'error', title: 'Lỗi lưu', body: 'Không thể lưu phiếu kiểm tra. Dữ liệu vẫn còn trên màn hình.' })
         })
     }, DEBOUNCE_MS)
@@ -836,7 +836,7 @@ export default function CheckSheetForm({
   // ====== SAVE (manual, used by Save button) ======
   function handleSave() {
     if (!vehicle?.id || !sheetId) {
-      console.error('❌ Cannot save: vehicle ID or sheet ID missing')
+      console.error('[CheckSheetForm] Cannot save: vehicle ID or sheet ID missing')
       return null
     }
     const patch = buildPatch()

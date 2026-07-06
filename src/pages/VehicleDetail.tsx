@@ -84,7 +84,9 @@ export default function VehicleDetail() {
     if (!currentVehicle.id) return
     setTimelineLoading(true)
     loadVehicleTimeline(currentVehicle.id)
-      .catch((err) => console.error('🔴 [VehicleDetail] Failed to load timeline:', err))
+      .catch((err) => {
+        console.error('[VehicleDetail] Failed to load timeline:', err)
+      })
       .finally(() => setTimelineLoading(false))
   }, [currentVehicle.id, loadVehicleTimeline])
 

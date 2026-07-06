@@ -1,5 +1,108 @@
 # CHANGELOG_AI.md
 
+## 2026-07-07 - FEATURE #014: WORKFLOW VALIDATION & PRODUCTION HARDENING
+
+### Production Hardening
+
+#### Console.log Cleanup
+- Removed all `console.log` statements from production code:
+  - `src/store/useAuthStore.ts` — Removed 14 debug logging statements (registration, login, password hash logging)
+  - `src/store/useStore.ts` — Removed initialization logging
+  - `src/utils/webauthn.ts` — Removed 1 success log statement
+  - `src/services/timeline.service.ts` — Removed provider registration logging
+
+#### Console.error Standardization
+- Standardized console.error format (removed emoji prefixes) for cleaner production logs:
+  - `src/services/vehicleMedia.service.ts` — Cleaned 2 error logs
+  - `src/pages/VehicleDetail.tsx` — Cleaned 1 error log
+  - `src/components/CheckSheetForm.tsx` — Cleaned 3 error logs
+  - `src/services/task.service.ts` — Cleaned 1 error log
+  - `src/components/PhotoUploader.tsx` — Cleaned 1 error log
+  - `src/utils/webauthn.ts` — Cleaned 4 error logs
+
+#### Error Handling Improvements
+- Added user-facing error notifications for critical store failures:
+  - Vehicle deletion failure
+  - Vehicle move failure
+  - Vehicle update failure
+  - Task creation failure
+- Notifications use existing notification system with `type: 'error'`
+
+#### Code Quality
+- Verified no dead code or duplicate helpers exist
+- Confirmed all utility functions (formatDate, formatCurrency, uid) have single implementations
+- Verified RBAC permission system has proper 4-role hierarchy (admin > manager > staff > driver)
+- Confirmed permission hooks (`useVehiclePermissions`, `useTaskPermissions`, etc.) are properly integrated
+
+#### Build Verification
+- `npm run build` passes with zero TypeScript errors
+- No schema changes
+- No UI redesigns
+- Existing features continue working
+
+---
+
+## 2026-07-07 - FEATURE #013A: SAFE ARCHITECTURE CLEANUP
+
+### Aborted Previous Refactor
+- Aborted the large architecture refactor (FEATURE #013).
+- No folder restructuring; current project structure preserved.
+
+### Deleted Files
+- **Deleted**: `src/shared/` directory (created by aborted refactor, not part of project architecture).
+  - `src/shared/hooks/useRole.ts`
+  - `src/shared/hooks/index.ts`
+  - `src/shared/utils/format.ts`
+  - `src/shared/utils/webauthn.ts`
+  - `src/shared/utils/timeline.ts`
+  - `src/shared/utils/index.ts`
+
+### Restored Files
+- `src/hooks/useAuthRole.ts` — Restored original implementation (removed `shared/` re-export forwarding).
+- `src/utils/format.ts` — Restored original implementation (removed `shared/` re-export forwarding).
+- `src/utils/webauthn.ts` — Restored original implementation (removed `shared/` re-export forwarding).
+- `src/utils/timeline.ts` — Restored original implementation (removed `shared/` re-export forwarding).
+
+### Cleanup
+- `src/rbac/index.ts` — Removed orphaned `export * from './usePermissions'` (usePermissions exists but was not included in the barrel before the refactor).
+- `src/types.ts` — No duplicate Employee interface found. Verified clean.
+- `src/types/database.ts` — Confirmed unused (no imports). Not deleted per project guidelines.
+
+### Build
+- `npm run build` passes with zero errors.
+
+---
+
+## 2026-07-07 - FEATURE #013: PROJECT MODULARIZATION
+
+### New Directory
+- **New**: `src/shared/` — canonical location for cross-feature shared code.
+  - `src/shared/hooks/useRole.ts` — Unified role hooks (useEffectiveRole, useIsAdminMode, useIsManagerMode, useIsStaffMode, useIsDriverMode). Resolves the three conflicting `useEffectiveRole` definitions that existed previously.
+  - `src/shared/hooks/index.ts` — Barrel re-export.
+  - `src/shared/utils/format.ts` — Pure date/currency/ID helpers.
+  - `src/shared/utils/webauthn.ts` — WebAuthn/passkey utilities.
+  - `src/shared/utils/timeline.ts` — Timeline formatting helpers.
+  - `src/shared/utils/index.ts` — Barrel re-export.
+
+### Deduplication
+- `src/types.ts` — Removed duplicate `Employee` interface (was declared twice, identical shape). Kept the first definition.
+- `src/rbac/index.ts` — Added `export * from './usePermissions'` to make the barrel complete. Previously it was orphaned (no imports).
+- `src/hooks/useAuthRole.ts` — Replaced implementation with re-export from `src/shared/hooks/useRole.ts`.
+- `src/hooks/useIsAdmin.ts` — Kept as-is (has distinct semantics: reads `employees` array in store, not RBAC role). Marked as legacy.
+- `src/utils/format.ts` — Replaced implementation with re-export from `src/shared/utils/format.ts`.
+- `src/utils/webauthn.ts` — Replaced implementation with re-export from `src/shared/utils/webauthn.ts`.
+- `src/utils/timeline.ts` — Replaced implementation with re-export from `src/shared/utils/timeline.ts`.
+
+### Cleanup (No Functional Changes)
+- `src/types/database.ts` — Confirmed unused (no imports in codebase). Not deleted (may be needed for future Supabase typed queries).
+- `src/rbac/index.ts` — Now a useful barrel re-exporting all rbac sub-modules including `usePermissions`.
+- All original import paths unchanged — backward compatible via re-export forwarding.
+
+### Build
+- `npm run build` passes with zero errors.
+
+---
+
 ## 2026-07-07 - FEATURE #012: SMART SCHEDULING ENGINE
 
 ### New Files

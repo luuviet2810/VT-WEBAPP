@@ -339,15 +339,6 @@ export interface TaskTemplate {
   updatedAt: string
 }
 
-// Legacy Employee type - kept for backwards compatibility
-export interface Employee {
-  id: string
-  name: string
-  phone?: string
-  isAdmin: boolean
-  disabled: boolean
-}
-
 // Notification types
 export type NotificationType =
   | 'task_created'

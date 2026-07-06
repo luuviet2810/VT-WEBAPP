@@ -24,7 +24,6 @@ const providers: TimelineProvider[] = []
 
 export function registerTimelineProvider(provider: TimelineProvider): void {
   providers.push(provider)
-  console.log(`🔵 [timeline.service] Registered provider: "${provider.type}"`)
 }
 
 // ====== PROVIDER: VEHICLE CREATED ======
