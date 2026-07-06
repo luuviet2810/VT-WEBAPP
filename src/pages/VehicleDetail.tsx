@@ -1,15 +1,29 @@
-import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useMemo, useEffect, useState } from 'react'
+import { useNavigate, useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Clock, FileImage, Info, ListChecks, Trash2 } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import { Badge, EmptyState, Modal, Tabs } from '../components/ui'
 import PhotoUploader from '../components/PhotoUploader'
+import VehicleGallery from '../components/VehicleGallery'
 import CheckSheetForm from '../components/CheckSheetForm'
-import { formatCurrency, formatDateTime } from '../utils/format'
-import { VehicleStatus } from '../types'
+import { formatDateTime } from '../utils/format'
+import { TaskPriority, TaskStatus, VehicleStatus } from '../types'
+
+const STATUS_LABEL: Record<VehicleStatus, string> = {
+  available: 'Chưa bán',
+  deposited: 'Đã cọc',
+  sold: 'Đã bán',
+}
+const PRIORITY_LABEL: Record<TaskPriority, string> = {
+  low: 'Thấp',
+  medium: 'Trung bình',
+  high: 'Cao',
+  urgent: 'Khẩn cấp',
+}
 
 const TABS = [
   { key: 'info', label: 'Thông tin', icon: <Info size={15} /> },
+  { key: 'tasks', label: 'Nhiệm vụ', icon: <ListChecks size={15} /> },
   { key: 'history', label: 'Lịch sử', icon: <Clock size={15} /> },
   { key: 'checksheet', label: 'Checksheet', icon: <ListChecks size={15} /> },
   { key: 'files', label: 'Giấy tờ & Ảnh', icon: <FileImage size={15} /> },
@@ -21,6 +35,7 @@ export default function VehicleDetail() {
   const vehicles = useStore((s) => s.vehicles)
   const positions = useStore((s) => s.positions)
   const employees = useStore((s) => s.employees)
+  const tasks = useStore((s) => s.tasks)
   const moveLogs = useStore((s) => s.moveLogs)
   const checkSheets = useStore((s) => s.checkSheets)
   const vehicleTimelines = useStore((s) => s.vehicleTimelines)
@@ -46,6 +61,13 @@ export default function VehicleDetail() {
   const position = positions.find((p) => p.id === currentVehicle.positionId)
   const sheets = checkSheets.filter((c) => c.vehicleId === currentVehicle.id)
   const timeline = vehicleTimelines[currentVehicle.id] || []
+  const relatedTasks = useMemo(
+    () =>
+      tasks
+        .filter((task) => task.vehicleId === currentVehicle.id)
+        .sort((a, b) => (a.createdAt > b.createdAt ? -1 : a.createdAt < b.createdAt ? 1 : 0)),
+    [tasks, currentVehicle.id]
+  )
 
   useEffect(() => {
     if (!currentVehicle.id) return
@@ -221,6 +243,45 @@ export default function VehicleDetail() {
           </div>
         )}
 
+        {tab === 'tasks' && (
+          <div>
+            {relatedTasks.length === 0 ? (
+              <div className="card">
+                <EmptyState icon={<ListChecks size={30} />} title="Chưa có nhiệm vụ nào" subtitle="Khi có nhiệm vụ liên quan đến xe này, chúng sẽ hiển thị ở đây." />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {relatedTasks.map((task) => {
+                  const assignee = employees.find((e) => e.id === task.assigneeId)
+                  return (
+                    <Link
+                      key={task.id}
+                      to={`/nhiem-vu/${task.id}`}
+                      className="card flex flex-col gap-3 p-4 transition hover:shadow-sm hover:-translate-y-0.5"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="font-semibold text-slate-800">{task.title}</span>
+                        <span className="text-xs text-slate-400">{task.dueDate}{task.dueTime ? ` ${task.dueTime}` : ''}</span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge tone={task.status === 'done' ? 'green' : task.status === 'doing' ? 'blue' : 'slate'}>
+                          {task.status === 'todo' ? 'Chưa làm' : task.status === 'doing' ? 'Đang làm' : 'Hoàn thành'}
+                        </Badge>
+                        <Badge tone={task.priority === 'urgent' ? 'red' : task.priority === 'high' ? 'orange' : task.priority === 'medium' ? 'blue' : 'slate'}>
+                          {PRIORITY_LABEL[task.priority]}
+                        </Badge>
+                        <span className="text-xs text-slate-500">
+                          {assignee ? `Người phụ trách: ${assignee.name}` : 'Chưa phân công'}
+                        </span>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {tab === 'checksheet' && (
           <div>
             <div className="mb-4 flex gap-3">
@@ -258,10 +319,11 @@ export default function VehicleDetail() {
 
         {tab === 'files' && (
           <div className="space-y-6">
-            <div>
-              <h3 className="mb-2 text-sm font-semibold text-slate-700">Ảnh xe</h3>
-              <PhotoUploader images={currentVehicle.images} onChange={(images) => updateVehicle(currentVehicle.id, { images })} />
-            </div>
+            <VehicleGallery
+              title="Ảnh xe"
+              images={currentVehicle.images}
+              onChange={(images) => updateVehicle(currentVehicle.id, { images })}
+            />
             <div>
               <h3 className="mb-2 text-sm font-semibold text-slate-700">Giấy tờ</h3>
               <PhotoUploader

@@ -6,10 +6,7 @@
  * a task to create if the condition is met.
  */
 
-import type { CheckSheet } from '../types'
-
-export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent'
-export type TaskStatus = 'todo' | 'doing' | 'done'
+import type { CheckSheet, TaskPriority, TaskStatus } from '../types'
 
 export interface GeneratedTask {
   id: string
@@ -364,18 +361,9 @@ const ALL_RULES: Rule[] = [
 // ====== MAIN EXPORT ======
 
 export function generateTasks(sheet: CheckSheet, vehiclePlate: string): GeneratedTask[] {
-  console.log('🔵 [taskRules] GENERATE TASKS — sheet:', sheet.id, 'type:', sheet.type, 'vehicle:', vehiclePlate)
   const ctx: RuleContext = { sheet, vehiclePlate }
 
-  const triggered = ALL_RULES.filter((rule) => {
-    const result = rule.evaluate(ctx)
-    if (result) {
-      console.log(`  🟡 Rule triggered: [${rule.id}] "${rule.title}"`)
-    }
-    return result
-  })
-
-  console.log(`  🟢 [taskRules] Total rules triggered: ${triggered.length}`)
+  const triggered = ALL_RULES.filter((rule) => rule.evaluate(ctx))
 
   return triggered.map((rule) => ({
     id: uid('task'),
@@ -388,4 +376,8 @@ export function generateTasks(sheet: CheckSheet, vehiclePlate: string): Generate
     ruleId: rule.id,
     createdAt: new Date().toISOString(),
   }))
+}
+
+export function getTaskRuleIds(): string[] {
+  return ALL_RULES.map((rule) => rule.id)
 }

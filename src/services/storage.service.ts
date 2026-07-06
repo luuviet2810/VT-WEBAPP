@@ -12,7 +12,8 @@ export async function uploadVehicleImage(
   vehicleId: string,
   file: File
 ): Promise<UploadResult> {
-  const path = `vehicles/${vehicleId}/${Date.now()}_${file.name}`
+  const safeKey = safeStorageKey(file.name, `${Date.now()}`)
+  const path = `vehicles/${vehicleId}/${safeKey}`
 
   const { data, error } = await supabase.storage
     .from('vehicle-images')
@@ -60,7 +61,8 @@ export async function uploadVehicleDocument(
   vehicleId: string,
   file: File
 ): Promise<UploadResult> {
-  const path = `documents/${vehicleId}/${Date.now()}_${file.name}`
+  const safeKey = safeStorageKey(file.name, `${Date.now()}`)
+  const path = `documents/${vehicleId}/${safeKey}`
 
   const { data, error } = await supabase.storage
     .from('vehicle-documents')
@@ -109,7 +111,8 @@ export async function uploadExteriorPhoto(
   spotKey: string,
   file: File
 ): Promise<UploadResult> {
-  const path = `checksheets/${vehicleId}/${spotKey}/${Date.now()}_${file.name}`
+  const safeKey = safeStorageKey(file.name, `${Date.now()}`)
+  const path = `checksheets/${vehicleId}/${spotKey}/${safeKey}`
 
   const { data, error } = await supabase.storage
     .from('checksheet-photos')
@@ -128,6 +131,12 @@ export async function uploadExteriorPhoto(
 }
 
 // ====== UTILITIES ======
+
+function safeStorageKey(fileName: string, seed: string): string {
+  const ext = fileName.includes('.') ? `.${fileName.split('.').pop()}` : ''
+  const sanitized = seed.replace(/[^a-zA-Z0-9._-]/g, '')
+  return `${sanitized}${ext}`
+}
 
 function extractStoragePath(url: string, bucket: string): string | null {
   const pattern = `/storage/v1/object/public/${bucket}/`

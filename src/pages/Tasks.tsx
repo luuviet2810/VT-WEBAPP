@@ -1,20 +1,13 @@
-// ====== TASKS PAGE - Kanban Board ======
+// ====== TASKS PAGE - Vehicle Work Board ======
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertCircle, Calendar, Check, Plus, User, GripVertical } from 'lucide-react'
+import { Car, Plus, User } from 'lucide-react'
 import { useStore } from '../store/useStore'
-import { Badge, EmptyState, Modal } from '../components/ui'
-import { Task, TaskChecklistItem, TaskPriority, TaskStatus } from '../types'
+import { Badge, Modal } from '../components/ui'
+import { Employee, Position, Task, TaskChecklistItem, TaskPriority, TaskStatus, Vehicle } from '../types'
 import { formatDate, uid } from '../utils/format'
 import clsx from 'clsx'
-
-// 4 columns for Kanban
-const COLUMNS: { key: TaskStatus; label: string; color: string }[] = [
-  { key: 'todo', label: 'Chưa làm', color: 'border-slate-300' },
-  { key: 'doing', label: 'Đang làm', color: 'border-blue-300' },
-  { key: 'done', label: 'Hoàn thành', color: 'border-green-300' },
-]
 
 const PRIORITY_LABEL: Record<TaskPriority, string> = {
   low: 'Thấp',
@@ -22,51 +15,67 @@ const PRIORITY_LABEL: Record<TaskPriority, string> = {
   high: 'Cao',
   urgent: 'Khẩn cấp',
 }
-const PRIORITY_TONE: Record<TaskPriority, 'slate' | 'blue' | 'orange' | 'red'> = {
-  low: 'slate',
-  medium: 'blue',
-  high: 'orange',
-  urgent: 'red',
+
+type WorkSection = 'todo' | 'doing' | 'done'
+
+const SECTION_CONFIG: { key: WorkSection; label: string; icon: string; tone: 'slate' | 'orange' | 'green' }[] = [
+  { key: 'todo', label: 'Chưa làm', icon: '🚗', tone: 'slate' },
+  { key: 'doing', label: 'Đang làm', icon: '🟡', tone: 'orange' },
+  { key: 'done', label: 'Đã hoàn thành', icon: '✅', tone: 'green' },
+]
+
+type VehicleGroup = {
+  vehicleId: string
+  vehicle: Vehicle | null
+  tasks: Task[]
+  total: number
+  done: number
+  section: WorkSection
 }
 
 export default function Tasks() {
   const tasks = useStore((s) => s.tasks)
   const employees = useStore((s) => s.employees)
-  const updateTask = useStore((s) => s.updateTask)
+  const vehicles = useStore((s) => s.vehicles)
+  const positions = useStore((s) => s.positions)
   const toggleTaskChecklistItem = useStore((s) => s.toggleTaskChecklistItem)
   const [assigneeFilter, setAssigneeFilter] = useState('all')
   const [modalOpen, setModalOpen] = useState(false)
-  const [dragTaskId, setDragTaskId] = useState<string | null>(null)
-  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null)
 
   const filtered = useMemo(
     () => tasks.filter((t) => assigneeFilter === 'all' || t.assigneeId === assigneeFilter),
     [tasks, assigneeFilter]
   )
 
-  function handleDragOver(e: React.DragEvent, status: TaskStatus) {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-    setDragOverColumn(status)
-  }
-
-  function handleDragLeave() {
-    setDragOverColumn(null)
-  }
-
-  function handleDrop(e: React.DragEvent, status: TaskStatus) {
-    e.preventDefault()
-    setDragOverColumn(null)
-    if (dragTaskId) {
-      updateTask(dragTaskId, { status })
-      setDragTaskId(null)
+  const groups = useMemo(() => {
+    const map = new Map<string, Task[]>()
+    for (const t of filtered) {
+      const key = t.vehicleId || '__unassigned__'
+      const list = map.get(key)
+      if (list) list.push(t)
+      else map.set(key, [t])
     }
-  }
 
-  function handleDragEnd() {
-    setDragTaskId(null)
-    setDragOverColumn(null)
-  }
+    const result: VehicleGroup[] = []
+    for (const [vehicleId, groupedTasks] of map) {
+      const total = groupedTasks.length
+      const done = groupedTasks.filter((t) => t.status === 'done').length
+      const todo = groupedTasks.filter((t) => t.status === 'todo').length
+      const doing = groupedTasks.filter((t) => t.status === 'doing').length
+      let section: WorkSection
+      if (total > 0 && done === total) section = 'done'
+      else if (doing > 0 || (todo > 0 && done > 0)) section = 'doing'
+      else section = 'todo'
+
+      const vehicle =
+        vehicleId === '__unassigned__'
+          ? null
+          : vehicles.find((v) => v.id === vehicleId) ?? null
+
+      result.push({ vehicleId, vehicle, tasks: groupedTasks, total, done, section })
+    }
+    return result
+  }, [filtered, vehicles])
 
   return (
     <div className="pb-16 md:pb-0">
@@ -74,12 +83,12 @@ export default function Tasks() {
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Nhiệm vụ</h1>
-          <p className="mt-1 text-sm text-slate-500">Kéo thả để cập nhật trạng thái công việc</p>
+          <p className="mt-1 text-sm text-slate-500">Theo dõi tiến độ theo từng xe</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <select 
-            className="input w-44" 
-            value={assigneeFilter} 
+          <select
+            className="input w-44"
+            value={assigneeFilter}
             onChange={(e) => setAssigneeFilter(e.target.value)}
           >
             <option value="all">Tất cả nhân viên</option>
@@ -96,64 +105,23 @@ export default function Tasks() {
         </div>
       </div>
 
-      {/* Kanban Board */}
-      <div className="flex gap-4 overflow-x-auto pb-4">
-        {COLUMNS.map((col) => {
-          const colTasks = filtered.filter((t) => t.status === col.key)
-          const isDragOver = dragOverColumn === col.key
-          
-          return (
-            <div
-              key={col.key}
-              onDragOver={(e) => handleDragOver(e, col.key)}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, col.key)}
-              className={clsx(
-                'w-80 shrink-0 rounded-2xl border-2 p-4 transition-all duration-200',
-                isDragOver 
-                  ? 'border-brand-400 bg-brand-50' 
-                  : 'border-transparent bg-slate-100'
-              )}
-            >
-              {/* Column Header */}
-              <div className="mb-3 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className={clsx(
-                    'flex h-8 w-8 items-center justify-center rounded-lg font-bold text-sm',
-                    col.key === 'todo' ? 'bg-slate-200 text-slate-600' :
-                    col.key === 'doing' ? 'bg-blue-100 text-blue-600' :
-                    'bg-green-100 text-green-600'
-                  )}>
-                    {colTasks.length}
-                  </div>
-                  <span className="text-sm font-semibold text-slate-700">{col.label}</span>
-                </div>
-              </div>
+      {/* Vehicle Work Board */}
+      <div className="flex flex-col gap-6">
+        {SECTION_CONFIG.map((section) => {
+          const sectionGroups = groups.filter((g) => g.section === section.key)
 
-              {/* Task Cards */}
-              <div className="space-y-2 min-h-[200px]">
-                {colTasks.length === 0 && (
-                  <div className={clsx(
-                    'flex items-center justify-center rounded-xl border-2 border-dashed py-8 text-xs transition-colors',
-                    isDragOver ? 'border-brand-300 bg-brand-100/50 text-brand-500' : 'border-slate-200 text-slate-400'
-                  )}>
-                    {isDragOver ? 'Thả task vào đây' : 'Trống'}
-                  </div>
-                )}
-                
-                {colTasks.map((t) => (
-                  <TaskCard
-                    key={t.id}
-                    task={t}
-                    draggable
-                    onDragStart={() => setDragTaskId(t.id)}
-                    onDragEnd={handleDragEnd}
-                    employeeName={employees.find((e) => e.id === t.assigneeId)?.name}
-                    onToggleChecklist={(itemId) => toggleTaskChecklistItem(t.id, itemId)}
-                  />
-                ))}
-              </div>
-            </div>
+          return (
+            <WorkBoardSection key={section.key} section={section} groups={sectionGroups}>
+              {sectionGroups.map((group) => (
+                <WorkBoardVehicleCard
+                  key={group.vehicleId}
+                  group={group}
+                  positions={positions}
+                  employees={employees}
+                  onToggleChecklist={(taskId, itemId) => toggleTaskChecklistItem(taskId, itemId)}
+                />
+              ))}
+            </WorkBoardSection>
           )
         })}
       </div>
@@ -161,7 +129,7 @@ export default function Tasks() {
       {/* Create Task Modal */}
       <AssignTaskModal open={modalOpen} onClose={() => setModalOpen(false)} />
 
-      {/* Mobile FAB - Floating Action Button */}
+      {/* Mobile FAB */}
       <button
         className="fixed bottom-5 right-5 flex h-14 w-14 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-brand-700 hover:shadow-xl active:scale-95 md:hidden animate-fade-in"
         onClick={() => setModalOpen(true)}
@@ -173,123 +141,202 @@ export default function Tasks() {
   )
 }
 
-function TaskCard({
-  task,
-  draggable,
-  onDragStart,
-  onDragEnd,
-  employeeName,
-  onToggleChecklist,
+function WorkBoardSection({
+  section,
+  groups,
+  children,
 }: {
-  task: Task
-  draggable?: boolean
-  onDragStart?: () => void
-  onDragEnd?: () => void
-  employeeName?: string
-  onToggleChecklist: (itemId: string) => void
+  section: { key: WorkSection; label: string; icon: string; tone: 'slate' | 'orange' | 'green' }
+  groups: VehicleGroup[]
+  children: React.ReactNode
 }) {
-  const isDragging = false
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const isDragging = useRef(false)
+  const dragStart = useRef({ x: 0, scrollLeft: 0 })
+  const nodeRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    const node = scrollRef.current
+    if (!node) return
+    nodeRef.current = node
+
+    function onWheel(event: WheelEvent) {
+      const current = nodeRef.current
+      if (!current || !(event.shiftKey && Math.abs(event.deltaY) > Math.abs(event.deltaX))) return
+      event.preventDefault()
+      current.scrollTo({ left: current.scrollLeft + event.deltaY, behavior: 'smooth' })
+    }
+
+    function onMouseDown(event: MouseEvent) {
+      const current = nodeRef.current
+      if (!current || (event.target as HTMLElement).closest('a, button, input, label')) return
+      isDragging.current = true
+      dragStart.current = { x: event.clientX, scrollLeft: current.scrollLeft }
+      current.style.userSelect = 'none'
+    }
+
+    function onMouseMove(event: MouseEvent) {
+      const current = nodeRef.current
+      if (!current || !isDragging.current) return
+      const dx = event.clientX - dragStart.current.x
+      current.scrollLeft = dragStart.current.scrollLeft - dx
+    }
+
+    function onMouseUp() {
+      isDragging.current = false
+      if (nodeRef.current) nodeRef.current.style.userSelect = ''
+    }
+
+    node.addEventListener('wheel', onWheel, { passive: false })
+    node.addEventListener('mousedown', onMouseDown)
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+
+    return () => {
+      node.removeEventListener('wheel', onWheel)
+      node.removeEventListener('mousedown', onMouseDown)
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+      nodeRef.current = null
+    }
+  }, [])
 
   return (
-    <div
-      draggable={draggable}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
-      className={clsx(
-        'group cursor-grab rounded-xl border bg-white p-3.5 shadow-sm transition-all duration-200',
-        'active:cursor-grabbing hover:shadow-md hover:border-brand-200',
-        isDragging && 'opacity-50 scale-95 shadow-lg ring-2 ring-brand-400'
-      )}
-    >
-      {/* Drag Handle + Title */}
-      <div className="flex items-start gap-2">
-        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-slate-100 text-slate-400 opacity-0 transition-opacity group-hover:opacity-100">
-          <GripVertical size={14} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <Link 
-            to={`/nhiem-vu/${task.id}`} 
-            className="text-sm font-medium text-slate-800 hover:text-brand-600 line-clamp-2"
-          >
-            {task.title}
-          </Link>
-        </div>
+    <div className="animate-fade-in-up">
+      <div className="mb-3 flex items-center gap-2">
+        <span className="text-sm font-semibold text-slate-700">{section.icon} {section.label}</span>
+        <Badge tone={section.tone}>{groups.length}</Badge>
       </div>
 
-      {/* Checklist Preview */}
-      <ChecklistPreview task={task} compact onToggle={onToggleChecklist} />
-
-      {/* Assignee */}
-      {employeeName && (
-        <div className="mt-2 flex items-center gap-1 text-xs font-medium text-amber-600">
-          <User size={12} /> {employeeName}
+      <div
+        ref={scrollRef}
+        className="snap-x snap-mandatory overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        style={{ scrollBehavior: 'smooth', WebkitOverflowScrolling: 'touch' }}
+      >
+        <div className="flex gap-4 p-[1px]">
+          {children}
         </div>
-      )}
-
-      {/* Footer: Priority + Due Date */}
-      <div className="mt-2 flex items-center justify-between">
-        <Badge tone={PRIORITY_TONE[task.priority]}>
-          {PRIORITY_LABEL[task.priority]}
-        </Badge>
-        {task.dueDate && (
-          <span className={clsx(
-            'flex items-center gap-1 text-xs',
-            task.priority === 'urgent' ? 'text-red-500' : 'text-slate-400'
-          )}>
-            {task.priority === 'urgent' && <AlertCircle size={12} />}
-            {formatDate(task.dueDate)}
-            {task.dueTime ? ` ${task.dueTime}` : ''}
-          </span>
-        )}
       </div>
     </div>
   )
 }
 
-// ====== CHECKLIST PREVIEW ======
-
-function ChecklistPreview({
-  task,
-  compact,
-  onToggle,
+function WorkBoardVehicleCard({
+  group,
+  positions,
+  employees,
+  onToggleChecklist,
 }: {
-  task: Task
-  compact?: boolean
-  onToggle: (itemId: string) => void
+  group: VehicleGroup
+  positions: Position[]
+  employees: Employee[]
+  onToggleChecklist: (taskId: string, itemId: string) => void
 }) {
-  const items = task.checklist || []
-  if (items.length === 0) return null
+  const { vehicle, tasks, total, done } = group
+  const progress = total > 0 ? Math.round((done / total) * 100) : 0
+  const image = vehicle?.images?.[0]
+  const position = vehicle ? positions.find((p) => p.id === vehicle.positionId) : undefined
+  const assignee = vehicle?.assigneeId ? employees.find((e) => e.id === vehicle.assigneeId) : undefined
 
-  const done = items.filter((i) => i.done).length
-  const visible = compact ? items.slice(0, 3) : items
+  const prevSectionRef = useRef(group.section)
+  const [sectionClass, setSectionClass] = useState('')
+
+  useEffect(() => {
+    if (prevSectionRef.current !== group.section) {
+      setSectionClass('animate-slide-in-right')
+      const timer = window.setTimeout(() => setSectionClass(''), 500)
+      prevSectionRef.current = group.section
+      return () => window.clearTimeout(timer)
+    }
+    return undefined
+  }, [group.section])
 
   return (
-    <div 
-      className="mt-2 space-y-1" 
-      onClick={(e) => e.stopPropagation()} 
-      onMouseDown={(e) => e.stopPropagation()}
-    >
-      {visible.map((item) => (
-        <label key={item.id} className="flex cursor-pointer items-start gap-2">
-          <input
-            type="checkbox"
-            checked={item.done}
-            onChange={() => onToggle(item.id)}
-            className="mt-0.5 shrink-0 rounded border-slate-300 text-brand-600"
-          />
-          <span className={clsx(
-            'text-xs leading-5',
-            item.done ? 'text-slate-400 line-through' : 'font-medium text-slate-700'
-          )}>
-            {item.text}
-          </span>
-        </label>
-      ))}
-      {compact && items.length > 3 && (
-        <div className="text-[11px] text-slate-400">+{items.length - 3} mục khác</div>
-      )}
-      <div className="text-[11px] font-medium text-slate-400">
-        {done}/{items.length} hoàn thành
+    <div className={`w-[88vw] sm:w-[500px] md:w-[540px] shrink-0 snap-start ${sectionClass}`}>
+      <div className="card flex h-[280px] md:h-[210px] flex-col md:flex-row overflow-hidden">
+        {/* LEFT: Vehicle image */}
+        <div className="hidden md:flex w-[28%] shrink-0 items-center justify-center bg-slate-50">
+          {vehicle ? (
+            <Link to={`/xe/${vehicle.id}`} className="block h-full w-full">
+              <div className="flex h-full w-full items-center justify-center bg-slate-100">
+                {image ? (
+                  <img src={image} alt={vehicle.model} className="h-full w-full object-cover" />
+                ) : (
+                  <Car size={32} className="text-slate-300" />
+                )}
+              </div>
+            </Link>
+          ) : (
+            <div className="px-3 text-sm font-semibold text-slate-500">Chưa có xe liên quan</div>
+          )}
+        </div>
+
+        {/* CENTER: Vehicle info */}
+        <div className="flex w-full md:w-[30%] shrink-0 flex-col justify-between md:border-l md:border-slate-100 p-3">
+          <div className="space-y-1">
+            <div className="text-base font-bold text-slate-900">{vehicle?.plate || '—'}</div>
+            <div className="text-xs text-slate-500">{vehicle?.model}</div>
+            <div className="text-xs text-slate-500">{position ? position.name : 'Chưa phân bổ'}</div>
+            <div className="flex items-center gap-1 text-xs text-slate-500">
+              <User size={12} />
+              <span className="truncate">{assignee?.name || 'Chưa phân công'}</span>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between text-xs text-slate-500">
+              <span>{done}/{total} hoàn thành</span>
+              <span>{progress}%</span>
+            </div>
+            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
+              <div className="h-full rounded-full bg-brand-500 transition-all" style={{ width: `${progress}%` }} />
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT: Tasks */}
+        <div className="flex w-full md:w-[42%] shrink-0 flex-col md:border-l md:border-slate-100">
+          <div className="border-b border-slate-100 px-3 py-2 text-xs font-semibold text-slate-500">
+            Nhiệm vụ
+          </div>
+          <div className="flex-1 overflow-y-auto px-3 py-2 [-ms-overflow-style:none] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar]:h-1">
+            <div className="space-y-3">
+              {tasks.map((task, idx) => (
+                <div key={task.id} className="space-y-1">
+                  <Link to={`/nhiem-vu/${task.id}`} className="text-xs font-medium text-brand-600 hover:underline">
+                    📋 {task.title}
+                  </Link>
+                  <div className="pl-5">
+                    <div className="space-y-0.5">
+                      {task.checklist.map((item) => (
+                        <label key={item.id} className="flex cursor-pointer items-start gap-2">
+                          <input
+                            type="checkbox"
+                            checked={item.done}
+                            onChange={() => onToggleChecklist(task.id, item.id)}
+                            className="mt-0.5 shrink-0 rounded border-slate-300 text-brand-600"
+                          />
+                          <span className={clsx('text-[11px] text-slate-600', item.done && 'text-slate-400 line-through')}>{item.text}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  {idx < tasks.length - 1 && <div className="border-b border-dashed border-slate-100" />}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="border-t border-slate-100 px-3 py-2">
+            <div className="flex items-center justify-between text-xs text-slate-500">
+              <span>{done}/{total}</span>
+              <span>{progress}%</span>
+            </div>
+            <div className="mt-1 h-1 overflow-hidden rounded-full bg-slate-100">
+              <div className="h-full rounded-full bg-brand-500 transition-all" style={{ width: `${progress}%` }} />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -419,10 +466,13 @@ function AssignTaskModal({ open, onClose }: { open: boolean; onClose: () => void
                 className={clsx(
                   'flex-1 rounded-lg border py-2 text-sm font-medium transition-colors',
                   priority === key
-                    ? key === 'urgent' ? 'border-red-300 bg-red-50 text-red-700' :
-                      key === 'high' ? 'border-orange-300 bg-orange-50 text-orange-700' :
-                      key === 'medium' ? 'border-blue-300 bg-blue-50 text-blue-700' :
-                      'border-slate-300 bg-slate-50 text-slate-700'
+                    ? key === 'urgent'
+                      ? 'border-red-300 bg-red-50 text-red-700'
+                      : key === 'high'
+                        ? 'border-orange-300 bg-orange-50 text-orange-700'
+                        : key === 'medium'
+                          ? 'border-blue-300 bg-blue-50 text-blue-700'
+                          : 'border-slate-300 bg-slate-50 text-slate-700'
                     : 'border-slate-200 text-slate-500 hover:bg-slate-50'
                 )}
               >
@@ -489,9 +539,9 @@ function AssignTaskModal({ open, onClose }: { open: boolean; onClose: () => void
           <button type="button" className="btn-secondary flex-1" onClick={handleClose}>
             Huỷ
           </button>
-          <button 
-            type="button" 
-            className="btn-primary flex-1" 
+          <button
+            type="button"
+            className="btn-primary flex-1"
             onClick={handleSubmit}
             disabled={!title.trim()}
           >

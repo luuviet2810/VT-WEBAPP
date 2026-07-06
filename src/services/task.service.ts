@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase'
-import type { Task, TaskChecklistItem } from '../types'
+import type { Task, TaskActivityLogEntry, TaskChecklistItem } from '../types'
 
 // Map DB row to Task type
 function mapRow(row: Record<string, unknown>): Task {
@@ -14,6 +14,7 @@ function mapRow(row: Record<string, unknown>): Task {
     vehicleId: row.vehicle_id as string | null,
     dueDate: row.due_date as string | null,
     dueTime: row.due_time as string | null,
+    ruleId: (row.rule_id as string | undefined) ?? null,
     createdAt: row.created_at as string,
   }
 }
@@ -23,12 +24,6 @@ export async function getTasks(): Promise<Task[]> {
     .from('tasks')
     .select('*')
     .order('created_at', { ascending: false })
-
-  console.log('🔵 [task.service] getTasks()')
-  console.log('   data:', JSON.stringify(data, null, 2))
-  console.log('   error:', error)
-  console.log('   status:', status)
-  console.log('   statusText:', statusText)
 
   if (error) throw error
   return (data as Record<string, unknown>[]).map(mapRow)
@@ -49,7 +44,6 @@ export async function getTaskById(id: string): Promise<Task | null> {
 }
 
 export async function createTask(task: Omit<Task, 'id' | 'createdAt'>): Promise<Task> {
-  console.log('🟢 [task.service] CREATE TASK', { title: task.title, vehicleId: task.vehicleId, priority: task.priority })
   const { data, error } = await supabase
     .from('tasks')
     .insert({
@@ -62,20 +56,25 @@ export async function createTask(task: Omit<Task, 'id' | 'createdAt'>): Promise<
       vehicle_id: task.vehicleId,
       due_date: task.dueDate,
       due_time: task.dueTime,
+      rule_id: task.ruleId ?? null,
     })
     .select()
     .single()
 
   if (error) {
-    console.error('🔴 [task.service] CREATE TASK ERROR:', error)
     throw error
   }
-  console.log('🟢 [task.service] CREATE TASK SUCCESS:', (data as Record<string, unknown>).id)
+
+  try {
+    await addTaskActivity((data as Record<string, unknown>).id as string, 'Tạo nhiệm vụ', task.assigneeId ?? null)
+  } catch (activityError) {
+    console.error('🔴 [task.service] Failed to create task activity:', activityError)
+  }
+
   return mapRow(data as Record<string, unknown>)
 }
 
 export async function updateTask(id: string, patch: Partial<Task>): Promise<Task> {
-  console.log('🟡 [task.service] UPDATE TASK', { id, patch })
   const updateData: Record<string, unknown> = {}
 
   if (patch.title !== undefined) updateData.title = patch.title
@@ -87,6 +86,7 @@ export async function updateTask(id: string, patch: Partial<Task>): Promise<Task
   if (patch.vehicleId !== undefined) updateData.vehicle_id = patch.vehicleId
   if (patch.dueDate !== undefined) updateData.due_date = patch.dueDate
   if (patch.dueTime !== undefined) updateData.due_time = patch.dueTime
+  if (patch.ruleId !== undefined) updateData.rule_id = patch.ruleId
 
   const { data, error } = await supabase
     .from('tasks')
@@ -96,10 +96,8 @@ export async function updateTask(id: string, patch: Partial<Task>): Promise<Task
     .single()
 
   if (error) {
-    console.error('🔴 [task.service] UPDATE TASK ERROR:', error)
     throw error
   }
-  console.log('🟢 [task.service] UPDATE TASK SUCCESS:', id)
   return mapRow(data as Record<string, unknown>)
 }
 
@@ -113,15 +111,7 @@ export async function deleteTask(id: string): Promise<void> {
 }
 
 // Task activity log
-export interface TaskActivityEntry {
-  id: string
-  taskId: string
-  action: string
-  employeeId: string | null
-  createdAt: string
-}
-
-export async function getTaskActivity(taskId: string): Promise<TaskActivityEntry[]> {
+export async function getTaskActivity(taskId: string): Promise<TaskActivityLogEntry[]> {
   const { data, error } = await supabase
     .from('task_activity_logs')
     .select('*')
@@ -144,11 +134,33 @@ export async function getTaskActivity(taskId: string): Promise<TaskActivityEntry
   }))
 }
 
+export async function getAllTaskActivity(): Promise<TaskActivityLogEntry[]> {
+  const { data, error } = await supabase
+    .from('task_activity_logs')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return (data as Array<{
+    id: string
+    task_id: string
+    action: string
+    employee_id: string | null
+    created_at: string
+  }>).map((row) => ({
+    id: row.id,
+    taskId: row.task_id,
+    action: row.action,
+    employeeId: row.employee_id,
+    createdAt: row.created_at,
+  }))
+}
+
 export async function addTaskActivity(
   taskId: string,
   action: string,
   employeeId?: string | null
-): Promise<TaskActivityEntry> {
+): Promise<TaskActivityLogEntry> {
   const { data, error } = await supabase
     .from('task_activity_logs')
     .insert({

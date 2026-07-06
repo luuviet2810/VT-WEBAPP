@@ -27,6 +27,7 @@ function mapRow(row: Record<string, unknown>): CheckSheet {
     inputNotes: row.input_notes as string | undefined,
     outCheck: row.out_check as CheckSheet['outCheck'],
     outNotes: row.out_notes as string | undefined,
+    outTireState: row.out_tire_state as CheckSheet['outTireState'],
     inputAcquySOH: row.input_acquy_soh as number | undefined,
     inputAcquySOC: row.input_acquy_soc as number | undefined,
     acquySOH: row.acquy_soh as number | undefined,
@@ -40,12 +41,6 @@ export async function getCheckSheets(): Promise<CheckSheet[]> {
     .from('check_sheets')
     .select('*')
     .order('created_at', { ascending: false })
-
-  console.log('🔵 [checksheet.service] getCheckSheets()')
-  console.log('   data:', JSON.stringify(data, null, 2))
-  console.log('   error:', error)
-  console.log('   status:', status)
-  console.log('   statusText:', statusText)
 
   if (error) throw error
   return (data as Record<string, unknown>[]).map(mapRow)
@@ -79,7 +74,6 @@ export async function getCheckSheetById(id: string): Promise<CheckSheet | null> 
 export async function createCheckSheet(
   sheet: Omit<CheckSheet, 'id' | 'createdAt'>
 ): Promise<CheckSheet> {
-  console.log('🟢 [checksheet.service] CREATE CHECKSHEET', { vehicleId: sheet.vehicleId, type: sheet.type })
   const { data, error } = await supabase
     .from('check_sheets')
     .insert({
@@ -102,6 +96,7 @@ export async function createCheckSheet(
       input_notes: sheet.inputNotes,
       out_check: sheet.outCheck,
       out_notes: sheet.outNotes,
+      out_tire_state: sheet.outTireState,
       input_acquy_soh: sheet.inputAcquySOH,
       input_acquy_soc: sheet.inputAcquySOC,
       acquy_soh: sheet.acquySOH,
@@ -111,10 +106,8 @@ export async function createCheckSheet(
     .single()
 
   if (error) {
-    console.error('🔴 [checksheet.service] CREATE ERROR:', error)
     throw error
   }
-  console.log('🟢 [checksheet.service] CREATE SUCCESS:', (data as Record<string, unknown>).id)
   return mapRow(data as Record<string, unknown>)
 }
 
@@ -122,7 +115,6 @@ export async function updateCheckSheet(
   id: string,
   patch: Partial<CheckSheet>
 ): Promise<CheckSheet> {
-  console.log('🟡 [checksheet.service] UPDATE CHECKSHEET', { id, patch })
   const updateData: Record<string, unknown> = {}
 
   if (patch.vehicleId !== undefined) updateData.vehicle_id = patch.vehicleId
@@ -144,6 +136,7 @@ export async function updateCheckSheet(
   if (patch.inputNotes !== undefined) updateData.input_notes = patch.inputNotes
   if (patch.outCheck !== undefined) updateData.out_check = patch.outCheck
   if (patch.outNotes !== undefined) updateData.out_notes = patch.outNotes
+  if (patch.outTireState !== undefined) updateData.out_tire_state = patch.outTireState
   if (patch.inputAcquySOH !== undefined) updateData.input_acquy_soh = patch.inputAcquySOH
   if (patch.inputAcquySOC !== undefined) updateData.input_acquy_soc = patch.inputAcquySOC
   if (patch.acquySOH !== undefined) updateData.acquy_soh = patch.acquySOH
@@ -157,10 +150,8 @@ export async function updateCheckSheet(
     .single()
 
   if (error) {
-    console.error('🔴 [checksheet.service] UPDATE ERROR:', error)
     throw error
   }
-  console.log('🟢 [checksheet.service] UPDATE SUCCESS:', id)
   return mapRow(data as Record<string, unknown>)
 }
 
@@ -189,8 +180,6 @@ export async function getOrCreateCheckSheet(
     inputAcquySOC?: number
   }
 ): Promise<CheckSheet> {
-  console.log('🔵 [checksheet.service] LOAD CHECKSHEET', { vehicleId, type })
-
   const { data, error } = await supabase
     .from('check_sheets')
     .select('*')
@@ -199,17 +188,14 @@ export async function getOrCreateCheckSheet(
     .maybeSingle()
 
   if (error && error.code !== 'PGRST116') {
-    console.error('🔴 [checksheet.service] LOAD ERROR:', error)
     throw error
   }
 
   if (data) {
-    console.log('🟢 [checksheet.service] LOAD FOUND:', (data as Record<string, unknown>).id)
     return mapRow(data as Record<string, unknown>)
   }
 
   // No record exists — create one with defaults
-  console.log('🟡 [checksheet.service] CREATE CHECKSHEET — no record found, creating new')
   const created = await createCheckSheet({
     vehicleId,
     type,

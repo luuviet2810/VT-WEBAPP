@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar'
 import GlobalSearch from './components/GlobalSearch'
 import { useEffect } from 'react'
 import { initializeFromSupabase } from './store/useStore'
+import { useRealtimeSync } from './hooks/useRealtimeSync'
 
 
 // Pages
@@ -134,6 +135,9 @@ export default function App() {
   useEffect(() => {
     initializeFromSupabase()
   }, [])
+
+  // Subscribe to Supabase Realtime when authenticated, unsubscribe on logout
+  useRealtimeSync()
 
   return (
     <Routes>

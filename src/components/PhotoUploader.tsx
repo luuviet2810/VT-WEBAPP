@@ -2,12 +2,14 @@ import { GripVertical, ImagePlus, Star, Trash2, Upload } from 'lucide-react'
 import { useRef, useState } from 'react'
 import clsx from 'clsx'
 import { EmptyState } from './ui'
+import { uploadVehicleImage } from '../services/storage.service'
 
 const MAX_IMAGES = 20
 
 export default function PhotoUploader({
   images,
   onChange,
+  vehicleId,
   label = 'Thêm ảnh',
   emptyText = 'Chưa có ảnh',
   multiple = true,
@@ -15,6 +17,7 @@ export default function PhotoUploader({
 }: {
   images: string[]
   onChange: (images: string[]) => void
+  vehicleId?: string
   label?: string
   emptyText?: string
   multiple?: boolean
@@ -23,21 +26,30 @@ export default function PhotoUploader({
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragIdx, setDragIdx] = useState<number | null>(null)
   const [overIdx, setOverIdx] = useState<number | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
 
-  function handleFiles(files: FileList | null) {
-    if (!files || files.length === 0) return
+  async function handleFiles(files: FileList | null) {
+    if (!files || files.length === 0 || uploading) return
     const remaining = MAX_IMAGES - images.length
     if (remaining <= 0) return
     const selected = Array.from(files).slice(0, remaining)
-    const readers = selected.map(
-      (file) =>
-        new Promise<string>((resolve) => {
-          const reader = new FileReader()
-          reader.onload = () => resolve(reader.result as string)
-          reader.readAsDataURL(file)
-        })
-    )
-    Promise.all(readers).then((results) => onChange([...images, ...results]))
+
+    setUploadError(null)
+    setUploading(true)
+    const uploaded: string[] = []
+    try {
+      for (const file of selected) {
+        const result = await uploadVehicleImage(vehicleId ?? 'temp', file)
+        uploaded.push(result.url)
+      }
+      onChange([...images, ...uploaded])
+    } catch (err) {
+      console.error('🔴 [PhotoUploader] Upload failed:', err)
+      setUploadError('Tải ảnh lên thất bại.')
+    } finally {
+      setUploading(false)
+    }
   }
 
   function removeAt(idx: number) {
@@ -74,9 +86,9 @@ export default function PhotoUploader({
         }}
       />
       <div className="flex items-center justify-between gap-3">
-        <button type="button" onClick={() => inputRef.current?.click()} className="btn-primary" disabled={images.length >= MAX_IMAGES}>
+        <button type="button" onClick={() => inputRef.current?.click()} className="btn-primary" disabled={uploading || images.length >= MAX_IMAGES}>
           <ImagePlus size={16} />
-          {label}
+          {uploading ? 'Đang tải...' : label}
         </button>
         {rightContent || (
           <span className="text-xs text-slate-400">
@@ -89,6 +101,8 @@ export default function PhotoUploader({
           {images.length}/{MAX_IMAGES} ảnh • Kéo thả để sắp xếp
         </div>
       )}
+
+      {uploadError && <div className="mt-2 text-xs text-red-600">{uploadError}</div>}
 
       {images.length === 0 ? (
         <div className="mt-4 rounded-xl border border-dashed border-slate-200">

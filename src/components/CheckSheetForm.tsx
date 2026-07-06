@@ -1,5 +1,6 @@
 // ====== CHECKSHEET FORM COMPONENT ======
 
+import clsx from 'clsx'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Camera, CheckCircle2, XCircle, Minus, StickyNote, Wrench, Plus, Minus as MinusIcon } from 'lucide-react'
 import { useStore } from '../store/useStore'
@@ -33,9 +34,10 @@ import {
   Vehicle,
   CameraState,
 } from '../types'
-import { CollapsibleCard, Modal, SegButton, WheelPicker, BatteryCheck } from './ui'
+import { CollapsibleCard, Modal, SegButton, WheelPicker, BatteryCheck, Badge } from './ui'
 import { emptyExteriorCheck } from '../store/useStore'
 import { uid } from '../utils/format'
+import { generateTasks, GeneratedTask } from '../utils/taskRules'
 import PhotoUploader from './PhotoUploader'
 
 const DEBOUNCE_MS = 500
@@ -257,6 +259,126 @@ export default function CheckSheetForm({
   const [acquySOC, setAcquySOC] = useState(100)
   const [acquyPickerOpen, setAcquyPickerOpen] = useState<'soh' | 'soc' | null>(null)
 
+  // ====== SUGGESTED TASKS ======
+  const [suggestedTasks, setSuggestedTasks] = useState<GeneratedTask[]>([])
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set())
+  const [suggestionSource, setSuggestionSource] = useState<string>('rules')
+
+  function buildSheetForRules(): CheckSheet {
+    return {
+      id: sheetId ?? uid('chk'),
+      vehicleId: vehicle.id,
+      type,
+      checkerId,
+      checkDate,
+      fuelLevel,
+      screen,
+      rearCamera,
+      hipass,
+      rearSensor,
+      dashcam,
+      interior,
+      exterior,
+      exteriorPhotos,
+      inputDieuHoa,
+      inputSuoiGhe,
+      inputTireState,
+      inputNotes,
+      outCheck,
+      outNotes,
+      inputAcquySOH,
+      inputAcquySOC,
+      acquySOH,
+      acquySOC,
+      createdAt: new Date().toISOString(),
+    }
+  }
+
+  function refreshSuggestions(source: 'rules' | 'manual') {
+    const generated = source === 'rules' ? generateTasks(buildSheetForRules(), vehicle.plate) : []
+    const manual = source === 'manual' ? suggestedTasks.filter((task) => task.ruleId?.startsWith('manual_')) : []
+    const combined = source === 'rules' ? generated : manual
+    setSuggestedTasks(combined)
+    setSelectedTaskIds(new Set(combined.map((task) => task.id)))
+    setSuggestionSource(source)
+  }
+
+  function toggleSuggestedTask(id: string) {
+    setSelectedTaskIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function handleCreateSelectedTasks() {
+    const selected = suggestedTasks.filter((task) => selectedTaskIds.has(task.id))
+    if (selected.length === 0) return
+
+    if (type === 'in') {
+      const inspectionTitle = `Kiểm tra xe ${vehicle.plate}`
+      const selectedRuleIds = new Set(selected.map((task) => task.ruleId).filter(Boolean))
+      const existingInspectionTask = tasks.find((task) => task.vehicleId === vehicle.id && task.title === inspectionTitle)
+      const matchedInspectionTask = existingInspectionTask ?? tasks.find((task) => task.vehicleId === vehicle.id && task.title.includes(vehicle.plate))
+
+      const newChecklists = selected.map((task) => ({
+        id: task.id,
+        text: task.title,
+        done: false,
+      }))
+
+      if (matchedInspectionTask) {
+        const mergedChecklists = [
+          ...matchedInspectionTask.checklist,
+          ...newChecklists.filter((item) => !matchedInspectionTask.checklist.some((existing) => existing.text === item.text)),
+        ]
+        updateTask(matchedInspectionTask.id, { checklist: mergedChecklists })
+      } else {
+        addTask({
+          id: uid('task'),
+          title: inspectionTitle,
+          checklist: newChecklists,
+          priority: 'medium',
+          status: 'todo',
+          vehicleId: vehicle.id,
+          createdAt: new Date().toISOString(),
+        })
+      }
+    }
+
+    if (type === 'out') {
+      const requiredRuleIds = new Set(selected.map((task) => task.ruleId).filter(Boolean))
+      const vehicleOutTasks = tasks.filter((task) => task.vehicleId === vehicle.id)
+      const taskRuleIds = new Set(vehicleOutTasks.map((task) => task.ruleId).filter(Boolean))
+
+      vehicleOutTasks.forEach((existingTask) => {
+        if (!existingTask.ruleId || !taskRuleIds.has(existingTask.ruleId)) return
+        if (existingTask.status === 'done') return
+        if (!requiredRuleIds.has(existingTask.ruleId)) {
+          useStore.getState().deleteTask(existingTask.id)
+        }
+      })
+
+      selected.forEach((task) => {
+        const existingTask = vehicleOutTasks.find((item) => item.ruleId === task.ruleId)
+        if (!existingTask) {
+          addTask({
+            id: task.id,
+            title: task.title,
+            description: task.description,
+            checklist: task.checklist,
+            priority: task.priority,
+            status: task.status,
+            vehicleId: vehicle.id,
+            createdAt: task.createdAt,
+            ruleId: task.ruleId,
+          })
+        }
+      })
+    }
+  }
+
   // ====== INIT: load existing sheet or create new one ======
   useEffect(() => {
     async function init() {
@@ -285,6 +407,7 @@ export default function CheckSheetForm({
         setInputDieuHoa(sheet.inputDieuHoa ?? { status: 'good' })
         setInputSuoiGhe(sheet.inputSuoiGhe ?? { status: 'none' })
         setInputTireState(sheet.inputTireState ?? { status: 'ok' })
+        setOutTireState(sheet.outTireState ?? { status: 'ok' })
         setInputNotes(sheet.inputNotes ?? '')
       } catch (err) {
         console.error('🔴 [CheckSheetForm] Failed to load/create sheet:', err)
@@ -316,7 +439,7 @@ export default function CheckSheetForm({
       inputNotes,
     }
     if (type === 'out') {
-      return { ...base, outCheck, outNotes, acquySOH, acquySOC }
+      return { ...base, outCheck, outNotes, acquySOH, acquySOC, outTireState }
     }
     return { ...base, inputAcquySOH, inputAcquySOC }
   }
@@ -325,11 +448,8 @@ export default function CheckSheetForm({
     if (!sheetId) return
     if (saveTimer.current) clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(() => {
-      console.log('🟡 [CheckSheetForm] SAVE CHECKSHEET — debounce elapsed, saving:', sheetId)
       updateCheckSheet(sheetId!, buildPatch())
         .then(async () => {
-          console.log('🟢 [CheckSheetForm] SAVE SUCCESS:', sheetId)
-          // Generate tasks from saved checksheet
           useStore.getState().generateTasksFromSheet(
             { ...buildPatch(), id: sheetId!, vehicleId: vehicle.id, createdAt: '' } as CheckSheet,
             vehicle.plate
@@ -349,6 +469,11 @@ export default function CheckSheetForm({
       if (saveTimer.current) clearTimeout(saveTimer.current)
     }
   }, [sheetId, checkerId, checkDate, fuelLevel, screen, rearCamera, hipass, rearSensor, dashcam, interior, exterior, exteriorPhotos, inputDieuHoa, inputSuoiGhe, inputTireState, inputNotes, outCheck, outNotes, inputAcquySOH, inputAcquySOC, acquySOH, acquySOC])
+
+  useEffect(() => {
+    if (!sheetId) return
+    refreshSuggestions('rules')
+  }, [sheetId, type, checkerId, checkDate, fuelLevel, screen, rearCamera, hipass, rearSensor, dashcam, interior, exterior, inputDieuHoa, inputSuoiGhe, inputTireState, inputNotes, outCheck, outNotes, inputAcquySOH, inputAcquySOC, acquySOH, acquySOC])
 
   // ====== SUMMARY COUNTS ======
   const summaryCounts = useMemo(() => {
@@ -716,7 +841,6 @@ export default function CheckSheetForm({
     }
     const patch = buildPatch()
     updateCheckSheet(sheetId, patch)
-    console.log('🔵 [CheckSheetForm] Manual save for sheet:', sheetId)
     return sheetId
   }
 
@@ -819,13 +943,10 @@ export default function CheckSheetForm({
           // Kiểm tra xem task này có trong danh sách cần thiết không
           const isNeeded = requiredPrefixes.some((rp) => t.title.includes(rp.prefix))
           if (!isNeeded) {
-            // Xóa task không cần thiết
             useStore.getState().deleteTask(t.id)
-            console.log('🔵 [CheckSheet] Deleted task:', t.title)
           }
         })
 
-      // Tạo tasks mới nếu chưa có
       requiredPrefixes.forEach(({ title, prefix }) => {
         const existingTask = tasks.find((t) =>
           t.title.includes(prefix) && t.vehicleId === vehicle.id
@@ -841,14 +962,12 @@ export default function CheckSheetForm({
             vehicleId: vehicle.id,
             createdAt: new Date().toISOString(),
           })
-          console.log('🔵 [CheckSheet] Created new task:', title)
         }
       })
     }
   }
 
   function handleSaveAndClose() {
-    console.log('🔵 [handleSaveAndClose] Bắt đầu - type:', type)
 
     // 1. Tạo/Cập nhật Tasks
     handleCreateOrUpdateTasks()
@@ -927,6 +1046,80 @@ export default function CheckSheetForm({
             />
           </div>
         </div>
+
+        {/* Suggested tasks assistant */}
+        {suggestedTasks.length > 0 && (
+          <CollapsibleCard
+            title="Nhiệm vụ gợi ý"
+            badge={<Badge tone="blue">{selectedTaskIds.size}/{suggestedTasks.length}</Badge>}
+            defaultOpen={false}
+          >
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="text-xs text-slate-500">Chọn nhiệm vụ cần tạo từ phiếu kiểm tra.</div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTaskIds(new Set(suggestedTasks.map((task) => task.id)))}
+                    className="text-xs text-brand-600 hover:text-brand-700"
+                  >
+                    Chọn tất cả
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTaskIds(new Set())}
+                    className="text-xs text-slate-500 hover:text-slate-700"
+                  >
+                    Bỏ chọn
+                  </button>
+                </div>
+              </div>
+
+              <div className="max-h-56 space-y-2 overflow-y-auto">
+                {suggestedTasks.map((task) => {
+                  const isSelected = selectedTaskIds.has(task.id)
+                  return (
+                    <label
+                      key={task.id}
+                      className={clsx(
+                        'flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors',
+                        isSelected ? 'border-brand-200 bg-brand-50' : 'border-slate-200 bg-white hover:bg-slate-50'
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600"
+                        checked={isSelected}
+                        onChange={() => toggleSuggestedTask(task.id)}
+                      />
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-slate-900">{task.title}</div>
+                        {task.description ? (
+                          <div className="mt-1 text-xs text-slate-500">{task.description}</div>
+                        ) : null}
+                      </div>
+                    </label>
+                  )
+                })}
+              </div>
+
+              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <div className="text-xs text-slate-600">
+                  Đã chọn <span className="font-semibold">{selectedTaskIds.size}</span> /
+                  {suggestedTasks.length} nhiệm vụ
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCreateSelectedTasks}
+                  disabled={selectedTaskIds.size === 0}
+                  className="btn-primary"
+                >
+                  Tạo nhiệm vụ đã chọn
+                </button>
+              </div>
+            </div>
+          </CollapsibleCard>
+        )}
 
         {/* Scrollable content */}
         <div className="flex-1 space-y-4 px-1">

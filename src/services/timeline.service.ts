@@ -8,36 +8,10 @@
  *   const items = await getVehicleTimeline(vehicleId)
  */
 
-import type { CheckSheet, MoveLog, Task, TaskActivityLogEntry, Vehicle } from '../types'
+import type { CheckSheet, MoveLog, Task, TaskActivityLogEntry, TimelineItem, TimelineItemType, Vehicle } from '../types'
 import { getMoveLogsByVehicle } from './moveLog.service'
 import { getCheckSheetsByVehicle } from './checksheet.service'
 import * as taskService from './task.service'
-
-// ====== TIMELINE ITEM ======
-
-export type TimelineItemType =
-  | 'vehicle_created'
-  | 'check_sheet_created'
-  | 'task_generated'
-  | 'task_status_changed'
-  | 'move_log'
-  | 'vehicle_status_changed'
-  | 'custom'
-
-export interface TimelineItem {
-  id: string
-  time: string          // ISO date string, used for sorting
-  type: TimelineItemType
-  title: string
-  description: string
-  user?: string        // employee name who triggered the event
-  userId?: string | null
-  // Source references
-  vehicleId?: string
-  checkSheetId?: string
-  taskId?: string
-  moveLogId?: string
-}
 
 // ====== TIMELINE PROVIDER ======
 
@@ -125,13 +99,28 @@ registerTimelineProvider({
 
 // ====== PROVIDER: TASK STATUS CHANGED ======
 
-// Note: taskActivityLogs are fetched separately from the store
-// This provider uses a placeholder — actual integration happens via store
-
 registerTimelineProvider({
   type: 'task_status_changed',
-  async fetch(_vehicleId) {
-    return []
+  async fetch(vehicleId) {
+    const [allActivities, allTasks] = await Promise.all([taskService.getAllTaskActivity(), taskService.getTasks()])
+    const vehicleTaskIds = new Set(allTasks.filter((task) => task.vehicleId === vehicleId).map((task) => task.id))
+    const taskMap = new Map(allTasks.map((task) => [task.id, task]))
+
+    return allActivities
+      .filter((activity) => vehicleTaskIds.has(activity.taskId))
+      .map((activity): TimelineItem => {
+        const task = taskMap.get(activity.taskId)
+        return {
+          id: `act_${activity.id}`,
+          time: activity.createdAt,
+          type: 'task_status_changed',
+          title: task?.title ?? 'Cập nhật nhiệm vụ',
+          description: activity.action,
+          userId: activity.employeeId,
+          taskId: activity.taskId,
+          vehicleId,
+        }
+      })
   },
 })
 
@@ -156,23 +145,11 @@ export async function getVehicleTimeline(vehicleId: string): Promise<TimelineIte
 }
 
 export async function loadVehicleTimeline(vehicleId: string): Promise<TimelineItem[]> {
-  console.log('🔵 [timeline.service] TIMELINE LOADED — vehicle:', vehicleId)
-
-  const items = await getVehicleTimeline(vehicleId)
-
-  console.log(`  🟢 [timeline.service] TIMELINE LOADED — total: ${items.length}`)
-
-  return items
+  return getVehicleTimeline(vehicleId)
 }
 
 export async function refreshVehicleTimeline(vehicleId: string): Promise<TimelineItem[]> {
-  console.log('🔵 [timeline.service] TIMELINE REFRESH — vehicle:', vehicleId)
-
-  const items = await getVehicleTimeline(vehicleId)
-
-  console.log(`  🟢 [timeline.service] TIMELINE REFRESH — total: ${items.length}`)
-
-  return items
+  return getVehicleTimeline(vehicleId)
 }
 
 export async function getVehicleTimelineWithActivity(

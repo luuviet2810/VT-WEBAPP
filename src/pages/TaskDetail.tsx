@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ArrowLeft, Check, Clock, Plus, Trash2, X } from 'lucide-react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { Badge, EmptyState, Modal } from '../components/ui'
 import { TaskChecklistItem, TaskPriority, TaskStatus } from '../types'
@@ -198,6 +198,27 @@ export default function TaskDetail() {
         </div>
 
         <div className="space-y-4">
+          {vehicle ? (
+            <Link to={`/xe/${vehicle.id}`} className="card block p-4 transition hover:shadow-sm">
+              <h3 className="mb-2 text-sm font-semibold text-slate-700">Xe liên quan</h3>
+              <div className="space-y-1">
+                <div>
+                  <span className="text-xs text-slate-400">Biển số</span>
+                  <div className="text-sm font-medium text-brand-600">{vehicle.plate || '—'}</div>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-400">Dòng xe</span>
+                  <div className="text-sm text-slate-700">{vehicle.model}</div>
+                </div>
+              </div>
+            </Link>
+          ) : (
+            <div className="card p-4">
+              <h3 className="mb-2 text-sm font-semibold text-slate-700">Xe liên quan</h3>
+              <p className="text-xs text-slate-400">Nhiệm vụ này chưa được liên kết với xe cụ thể.</p>
+            </div>
+          )}
+
           <div className="card p-4">
             <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
               <Clock size={14} />

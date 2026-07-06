@@ -2,10 +2,11 @@
 
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, Car, User, ListChecks, X, ClipboardList, Gauge, Fuel, Monitor, Camera, AlertCircle } from 'lucide-react'
+import { Car, User, ListChecks, ClipboardList, Fuel, Monitor, Camera, AlertCircle } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import { Badge, EmptyState, Modal } from '../components/ui'
-import { formatCurrency, formatDateTime } from '../utils/format'
+import VehicleFilterBar from '../components/VehicleFilterBar'
+import { formatCurrency } from '../utils/format'
 import { VehicleStatus, FuelLevel } from '../types'
 
 const STATUS_LABEL: Record<VehicleStatus, string> = {
@@ -31,27 +32,28 @@ export default function VehicleList() {
   const positions = useStore((s) => s.positions)
   const employees = useStore((s) => s.employees)
   const checkSheets = useStore((s) => s.checkSheets)
-  const [query, setQuery] = useState('')
-  const [positionFilter, setPositionFilter] = useState('all')
-  const [statusFilter, setStatusFilter] = useState('all')
-  const [assigneeFilter, setAssigneeFilter] = useState('all')
-  
-  // CheckSheet Preview Modal
+  const [filters, setFilters] = useState({
+    query: '',
+    status: 'all',
+    positionId: 'all',
+    assigneeId: 'all',
+  })
   const [previewSheet, setPreviewSheet] = useState<typeof checkSheets[0] | null>(null)
   const [previewType, setPreviewType] = useState<'in' | 'out'>('in')
 
   const filtered = useMemo(() => {
+    const q = filters.query.trim().toLowerCase()
     return vehicles.filter((v) => {
-      const q = query.trim().toLowerCase()
       const matchesQuery = !q || v.plate.toLowerCase().includes(q) || v.model.toLowerCase().includes(q)
-      const matchesPosition = positionFilter === 'all' || v.positionId === positionFilter
-      const matchesStatus = statusFilter === 'all' || v.status === statusFilter
-      const matchesAssignee = assigneeFilter === 'all' || 
-        (assigneeFilter === 'unassigned' && !v.assigneeId) ||
-        v.assigneeId === assigneeFilter
+      const matchesPosition = filters.positionId === 'all' || v.positionId === filters.positionId
+      const matchesStatus = filters.status === 'all' || v.status === filters.status
+      const matchesAssignee =
+        filters.assigneeId === 'all' ||
+        (filters.assigneeId === 'unassigned' && !v.assigneeId) ||
+        v.assigneeId === filters.assigneeId
       return matchesQuery && matchesPosition && matchesStatus && matchesAssignee
     })
-  }, [vehicles, query, positionFilter, statusFilter, assigneeFilter])
+  }, [vehicles, filters])
 
   // Get latest check sheets for a vehicle
   const getLatestCheckSheets = (vehicleId: string) => {
@@ -80,37 +82,7 @@ export default function VehicleList() {
         </p>
       </div>
 
-      {/* Filters */}
-      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="relative col-span-2">
-          <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            className="input pl-10"
-            placeholder="Tìm biển số hoặc dòng xe..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </div>
-        <select className="input" value={positionFilter} onChange={(e) => setPositionFilter(e.target.value)}>
-          <option value="all">Tất cả vị trí</option>
-          {positions.map((p) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-        </select>
-        <select className="input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-          <option value="all">Tất cả tình trạng</option>
-          <option value="available">Chưa bán</option>
-          <option value="deposited">Đã cọc</option>
-          <option value="sold">Đã bán</option>
-        </select>
-        <select className="input" value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)}>
-          <option value="all">Mọi người</option>
-          <option value="unassigned">Chưa phân công</option>
-          {employees.map((e) => (
-            <option key={e.id} value={e.id}>{e.name}</option>
-          ))}
-        </select>
-      </div>
+      <VehicleFilterBar onFilterChange={setFilters} />
 
       {/* Vehicle Grid */}
       {filtered.length === 0 ? (

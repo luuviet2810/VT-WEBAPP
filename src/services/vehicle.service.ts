@@ -37,12 +37,6 @@ export async function getVehicles(): Promise<Vehicle[]> {
     .select('*')
     .order('created_at', { ascending: false })
 
-  console.log('🔵 [vehicle.service] getVehicles()')
-  console.log('   data:', JSON.stringify(data, null, 2))
-  console.log('   error:', error)
-  console.log('   status:', status)
-  console.log('   statusText:', statusText)
-
   if (error) throw error
   if (!data) return []
 
@@ -117,18 +111,11 @@ export async function createVehicle(vehicle: Omit<Vehicle, 'id' | 'createdAt' | 
     assignee_id: vehicle.assigneeId,
     note: vehicle.note,
   }
-  console.log('INSERT PAYLOAD', payload)
-
   const result = await supabase
     .from('vehicles')
     .insert(payload)
     .select()
     .single()
-
-  console.log('INSERT RESULT', result)
-  if (result.error != null) {
-    console.error(result.error)
-  }
 
   if (result.error) throw result.error
   if (!result.data) throw new Error('No data returned from insert')

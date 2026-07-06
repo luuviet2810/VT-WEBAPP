@@ -38,11 +38,14 @@ export interface MoveLog {
 
 export type TimelineItemType =
   | 'vehicle_created'
+  | 'vehicle_updated'
   | 'check_sheet_created'
   | 'task_generated'
   | 'task_status_changed'
   | 'move_log'
   | 'vehicle_status_changed'
+  | 'photo_uploaded'
+  | 'document_uploaded'
   | 'custom'
 
 export interface TimelineItem {
@@ -87,6 +90,7 @@ export interface Task {
   vehicleId?: string | null
   dueDate?: string | null
   dueTime?: string | null
+  ruleId?: string | null
   createdAt: string
 }
 
@@ -253,9 +257,11 @@ export interface CheckSheet {
   // Đầu ra - kiểm tra theo checklist 12 hạng mục
   outCheck?: CheckOutCheck
   outNotes?: string
+  outTireState?: CheckOutItem
   // Ghi chú đầu vào
   inputNotes?: string
   createdAt: string
+  updatedAt?: string
 }
 
 // ====== AUTH TYPES ======
