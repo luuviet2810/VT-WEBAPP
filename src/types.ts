@@ -36,6 +36,29 @@ export interface MoveLog {
   createdAt: string
 }
 
+export type TimelineItemType =
+  | 'vehicle_created'
+  | 'check_sheet_created'
+  | 'task_generated'
+  | 'task_status_changed'
+  | 'move_log'
+  | 'vehicle_status_changed'
+  | 'custom'
+
+export interface TimelineItem {
+  id: string
+  time: string
+  type: TimelineItemType
+  title: string
+  description: string
+  user?: string
+  userId?: string | null
+  vehicleId?: string
+  checkSheetId?: string
+  taskId?: string
+  moveLogId?: string
+}
+
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent'
 export type TaskStatus = 'todo' | 'doing' | 'done'
 
@@ -219,9 +242,15 @@ export interface CheckSheet {
   interior: InteriorCheck
   exterior: ExteriorCheck
   exteriorPhotos?: Partial<Record<ExteriorSpotKey, string[]>>
+  // Đầu vào - các field riêng cho input
+  inputDieuHoa?: DieuHoaItem
+  inputSuoiGhe?: SuoiGheItem
+  inputTireState?: CheckOutItem
   // Đầu ra - kiểm tra theo checklist 12 hạng mục
   outCheck?: CheckOutCheck
   outNotes?: string
+  // Ghi chú đầu vào
+  inputNotes?: string
   createdAt: string
 }
 

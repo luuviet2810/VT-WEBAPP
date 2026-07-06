@@ -10,17 +10,22 @@ import {
   Settings,
   Task,
   TaskActivityLogEntry,
+  TimelineItem,
   Vehicle,
 } from '../types'
+import { generateTasks } from '../utils/taskRules'
 import { todayISO, uid } from '../utils/format'
 import * as vehicleService from '../services/vehicle.service'
 import * as positionService from '../services/position.service'
-import * as employeeService from '../services/employee.service'
+import * as usersService from '../services/users.service'
 import * as taskService from '../services/task.service'
 import * as attendanceService from '../services/attendance.service'
 import * as checksheetService from '../services/checksheet.service'
 import * as notificationService from '../services/notification.service'
 import * as moveLogService from '../services/moveLog.service'
+import * as vehicleMediaService from '../services/vehicleMedia.service'
+import * as storageService from '../services/storage.service'
+import * as timelineService from '../services/timeline.service'
 
 function emptyExterior(): ExteriorCheck {
   const out = {} as ExteriorCheck
@@ -46,14 +51,15 @@ const defaultSettings: Settings = {
 export async function initializeFromSupabase(): Promise<void> {
   console.log('🔵 [STORE] Initializing from Supabase...')
   try {
-    const [vehicles, positions, employees, tasks, checkSheets, attendance, notifications] = await Promise.all([
+    const [vehicles, positions, employees, tasks, checkSheets, attendance, notifications, moveLogs] = await Promise.all([
       vehicleService.getVehicles().catch(() => []),
       positionService.getPositions().catch(() => []),
-      employeeService.getEmployees().catch(() => []),
+      usersService.getEmployees().catch(() => []),
       taskService.getTasks().catch(() => []),
       checksheetService.getCheckSheets().catch(() => []),
       attendanceService.getAttendanceEntries().catch(() => []),
       notificationService.getNotifications().catch(() => []),
+      moveLogService.getMoveLogs().catch(() => []),
     ])
 
     console.log('🔵 [STORE] Loaded:', {
@@ -84,6 +90,7 @@ export async function initializeFromSupabase(): Promise<void> {
       checkSheets,
       attendance,
       notifications,
+      moveLogs,
       isInitialized: true,
     })
   } catch (err) {
@@ -104,14 +111,16 @@ interface StoreState {
   notifications: Notification[]
   settings: Settings
   taskActivityLogs: TaskActivityLogEntry[]
+  vehicleTimelines: Record<string, TimelineItem[]>
   currentEmployeeId: string
   isInitialized: boolean
 
   // Vehicles
-  addVehicle: (v: Partial<Vehicle>) => string
+  addVehicle: (v: Partial<Vehicle>) => Promise<void>
   updateVehicle: (id: string, patch: Partial<Vehicle>) => Promise<void>
   deleteVehicle: (id: string) => Promise<void>
   moveVehicle: (id: string, toPositionId: string) => Promise<void>
+  loadVehicleTimeline: (vehicleId: string) => Promise<void>
 
   // Tasks
   addTask: (t: Partial<Task>) => Promise<void>
@@ -119,6 +128,7 @@ interface StoreState {
   deleteTask: (id: string) => Promise<void>
   toggleTaskChecklistItem: (taskId: string, itemId: string) => Promise<void>
   addTaskActivity: (taskId: string, action: string, employeeId?: string | null) => Promise<void>
+  generateTasksFromSheet: (sheet: CheckSheet, vehiclePlate: string) => Promise<void>
 
   // Employees
   updateEmployee: (id: string, patch: Partial<Employee>) => Promise<void>
@@ -149,8 +159,6 @@ interface StoreState {
 }
 
 // ====== STORE ======
-// MoveLog is used for type only (loaded from Supabase, local state only)
-type MoveLog = { id: string; vehicleId: string; fromPositionId: string | null; toPositionId: string; employeeId: string | null; createdAt: string }
 
 export const useStore = create<StoreState>()(
   (set, get) => ({
@@ -165,14 +173,13 @@ export const useStore = create<StoreState>()(
     notifications: [],
     settings: defaultSettings,
     taskActivityLogs: [],
+    vehicleTimelines: {},
     currentEmployeeId: '',
     isInitialized: false,
 
     // ====== VEHICLES ======
-    addVehicle: (v) => {
-      const id = uid('veh')
-      const vehicle: Vehicle = {
-        id,
+    addVehicle: async (v) => {
+      const created = await vehicleService.createVehicle({
         plate: v.plate || '',
         model: v.model || '',
         year: v.year,
@@ -186,43 +193,122 @@ export const useStore = create<StoreState>()(
         positionId: v.positionId ?? null,
         assigneeId: v.assigneeId ?? null,
         note: v.note || '',
-        images: v.images || [],
-        documents: v.documents || [],
-        createdAt: todayISO(),
-        updatedAt: todayISO(),
-      }
-
-      // Optimistic update
-      set((s) => ({ vehicles: [vehicle, ...s.vehicles] }))
-
-      // Sync to Supabase (fire-and-forget)
-      vehicleService.createVehicle({
-        ...vehicle,
-        fuelType: vehicle.fuelType,
-        costPrice: vehicle.costPrice,
-        sellPrice: vehicle.sellPrice,
-        positionId: vehicle.positionId,
-        assigneeId: vehicle.assigneeId,
-      }).catch((err) => console.error('🔴 [STORE] Failed to create vehicle in Supabase:', err))
-
+      })
+      set((s) => ({ vehicles: [created, ...s.vehicles] }))
       const emp = get().employees.find((e) => e.id === get().currentEmployeeId)
-      get().addNotification({ type: 'vehicle_added', title: 'Xe mới được thêm', body: `${emp?.name || 'Ai đó'} vừa thêm xe "${vehicle.model}" (${vehicle.plate})` })
-      return id
+      get().addNotification({ type: 'vehicle_added', title: 'Xe mới được thêm', body: `${emp?.name || 'Ai đó'} vừa thêm xe "${created.model}" (${created.plate})` })
+      return created
     },
 
     updateVehicle: async (id, patch) => {
       const before = get().vehicles.find((v) => v.id === id)
-      set((s) => ({
-        vehicles: s.vehicles.map((v) => (v.id === id ? { ...v, ...patch, updatedAt: todayISO() } : v)),
-      }))
+      const beforeImages = before?.images ?? []
+      const beforeDocs = before?.documents ?? []
 
-      // Sync to Supabase
-      try {
-        await vehicleService.updateVehicle(id, patch)
-      } catch (err) {
-        console.error('🔴 [STORE] Failed to update vehicle in Supabase:', err)
+      // Separate media updates from regular fields
+      const { images, documents, ...vehiclePatch } = patch as typeof patch & { images?: string[]; documents?: string[] }
+
+      // Upload new images (data URLs) to Supabase Storage, save DB metadata, sync Zustand
+      if (images !== undefined) {
+        // Optimistic: set images immediately
+        set((s) => ({ vehicles: s.vehicles.map((v) => (v.id === id ? { ...v, images } : v)) }))
+
+        try {
+          // Find newly added (present in new array, absent in old)
+          const oldSet = new Set(beforeImages)
+          const newUrls = images.filter((url) => !oldSet.has(url))
+          // Preserve upload order as sort_order
+          let sortOrder = beforeImages.length
+          for (const dataUrl of newUrls) {
+            const base64 = dataUrl.split(',')[1]
+            if (!base64) continue
+            const binary = atob(base64)
+            const bytes = new Uint8Array(binary.length)
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+            const blob = new Blob([bytes], { type: dataUrl.match(/:([^;]+)/)?.[1] ?? 'image/jpeg' })
+            const file = new File([blob], 'image.jpg', { type: blob.type })
+            const uploaded = await storageService.uploadVehicleImage(id, file)
+            try {
+              await vehicleMediaService.addVehicleImage(id, uploaded.path, 'vehicle-images', uploaded.url, file.size, file.type, sortOrder++)
+            } catch (dbErr) {
+              // DB insert failed — clean up storage file to avoid orphan
+              await storageService.deleteVehicleImage(uploaded.url)
+              throw dbErr
+            }
+          }
+
+          // Find removed (present in old, absent in new)
+          const newSet = new Set(images)
+          const toRemove = beforeImages.filter((url) => !newSet.has(url))
+          for (const url of toRemove) {
+            const existingImages = await vehicleMediaService.getVehicleImages(id)
+            const match = existingImages.find((img) => img.url === url)
+            if (match) {
+              await vehicleMediaService.deleteVehicleImage(match.id, match.path)
+            }
+          }
+        } catch (err) {
+          console.error('🔴 [STORE] Failed to sync vehicle images:', err)
+          // Rollback
+          set((s) => ({ vehicles: s.vehicles.map((v) => (v.id === id ? { ...v, images: beforeImages } : v)) }))
+        }
       }
 
+      // Upload new documents (data URLs)
+      if (documents !== undefined) {
+        set((s) => ({ vehicles: s.vehicles.map((v) => (v.id === id ? { ...v, documents } : v)) }))
+
+        try {
+          const oldSet = new Set(beforeDocs)
+          const newUrls = documents.filter((url) => !oldSet.has(url))
+          let sortOrder = beforeDocs.length
+          for (const dataUrl of newUrls) {
+            const base64 = dataUrl.split(',')[1]
+            if (!base64) continue
+            const binary = atob(base64)
+            const bytes = new Uint8Array(binary.length)
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+            const blob = new Blob([bytes], { type: dataUrl.match(/:([^;]+)/)?.[1] ?? 'application/pdf' })
+            const file = new File([blob], 'document', { type: blob.type })
+            const uploaded = await storageService.uploadVehicleDocument(id, file)
+            try {
+              await vehicleMediaService.addVehicleDocument(id, uploaded.path, 'vehicle-documents', uploaded.url, undefined, file.size, file.type, sortOrder++)
+            } catch (dbErr) {
+              await storageService.deleteVehicleDocument(uploaded.url)
+              throw dbErr
+            }
+          }
+
+          const newSet = new Set(documents)
+          const toRemove = beforeDocs.filter((url) => !newSet.has(url))
+          for (const url of toRemove) {
+            const existingDocs = await vehicleMediaService.getVehicleDocuments(id)
+            const match = existingDocs.find((doc) => doc.url === url)
+            if (match) {
+              await vehicleMediaService.deleteVehicleDocument(match.id, match.path)
+            }
+          }
+        } catch (err) {
+          console.error('🔴 [STORE] Failed to sync vehicle documents:', err)
+          set((s) => ({ vehicles: s.vehicles.map((v) => (v.id === id ? { ...v, documents: beforeDocs } : v)) }))
+        }
+      }
+
+      // Update vehicle fields (non-media)
+      if (Object.keys(vehiclePatch).length > 0) {
+        set((s) => ({
+          vehicles: s.vehicles.map((v) => (v.id === id ? { ...v, ...vehiclePatch, updatedAt: todayISO() } : v)),
+        }))
+
+        try {
+          await vehicleService.updateVehicle(id, vehiclePatch)
+        } catch (err) {
+          if (before) set((s) => ({ vehicles: s.vehicles.map((v) => (v.id === id ? before : v)) }))
+          console.error('🔴 [STORE] Failed to update vehicle in Supabase:', err)
+        }
+      }
+
+      // Notification for status change
       const after = get().vehicles.find((v) => v.id === id)
       if (patch.status && before && patch.status !== before.status) {
         const labels: Record<string, string> = { available: 'Chưa bán', deposited: 'Đã cọc', sold: 'Đã bán' }
@@ -231,10 +317,36 @@ export const useStore = create<StoreState>()(
     },
 
     deleteVehicle: async (id) => {
+      const before = get().vehicles.find((v) => v.id === id)
+      const imagesToDelete = before?.images ?? []
+      const docsToDelete = before?.documents ?? []
+
       set((s) => ({ vehicles: s.vehicles.filter((v) => v.id !== id) }))
+
       try {
+        // 1. Delete storage files
+        for (const url of imagesToDelete) {
+          try {
+            await storageService.deleteVehicleImage(url)
+          } catch (err) {
+            console.error('🔴 [STORE] Failed to delete image from storage:', err)
+          }
+        }
+        for (const url of docsToDelete) {
+          try {
+            await storageService.deleteVehicleDocument(url)
+          } catch (err) {
+            console.error('🔴 [STORE] Failed to delete document from storage:', err)
+          }
+        }
+
+        // 2. Delete DB metadata rows BEFORE vehicle row
+        await vehicleMediaService.deleteAllVehicleMedia(id)
+
+        // 3. Delete vehicle row
         await vehicleService.deleteVehicle(id)
       } catch (err) {
+        if (before) set((s) => ({ vehicles: [...s.vehicles, before] }))
         console.error('🔴 [STORE] Failed to delete vehicle in Supabase:', err)
       }
     },
@@ -247,12 +359,12 @@ export const useStore = create<StoreState>()(
 
       const log: MoveLog = { id: uid('log'), vehicleId: id, fromPositionId, toPositionId, employeeId: get().currentEmployeeId, createdAt: todayISO() }
 
+      // Optimistic move
       set((s) => ({
         vehicles: s.vehicles.map((v) => (v.id === id ? { ...v, positionId: toPositionId, updatedAt: todayISO() } : v)),
         moveLogs: [log, ...s.moveLogs],
       }))
 
-      // Sync to Supabase
       try {
         await vehicleService.moveVehicle(id, toPositionId)
         await moveLogService.createMoveLog({
@@ -262,8 +374,24 @@ export const useStore = create<StoreState>()(
           employeeId: get().currentEmployeeId,
         })
       } catch (err) {
+        // Rollback
+        set((s) => ({
+          vehicles: s.vehicles.map((v) => (v.id === id ? vehicle : v)),
+          moveLogs: s.moveLogs.filter((l) => l.id !== log.id),
+        }))
         console.error('🔴 [STORE] Failed to move vehicle in Supabase:', err)
       }
+    },
+
+    loadVehicleTimeline: async (vehicleId) => {
+      const activityLogs = get().taskActivityLogs
+      const timeline = await timelineService.getVehicleTimelineWithActivity(vehicleId, activityLogs)
+      set((s) => ({
+        vehicleTimelines: {
+          ...s.vehicleTimelines,
+          [vehicleId]: timeline,
+        },
+      }))
     },
 
     // ====== TASKS ======
@@ -285,7 +413,11 @@ export const useStore = create<StoreState>()(
       set((s) => ({ tasks: [task, ...s.tasks] }))
 
       try {
-        await taskService.createTask(task)
+        const created = await taskService.createTask(task)
+        // Sync real Supabase ID back to Zustand
+        set((s) => ({
+          tasks: s.tasks.map((t) => (t.id === task.id ? created : t)),
+        }))
       } catch (err) {
         console.error('🔴 [STORE] Failed to create task in Supabase:', err)
       }
@@ -357,11 +489,48 @@ export const useStore = create<StoreState>()(
       }
     },
 
+    generateTasksFromSheet: async (sheet, vehiclePlate) => {
+      const generated = generateTasks(sheet, vehiclePlate)
+      if (generated.length === 0) {
+        console.log('🔵 [STORE] No tasks generated from sheet:', sheet.id)
+        return
+      }
+
+      const existingTasks = get().tasks.filter((t) => t.vehicleId === sheet.vehicleId)
+
+      for (const gen of generated) {
+        const match = existingTasks.find((t) => t.title === gen.title && t.vehicleId === gen.vehicleId)
+
+        if (match) {
+          console.log(`  🟡 [STORE] SKIP DUPLICATE TASK: "${gen.title}" — already exists as:`, match.id)
+          continue
+        }
+
+        try {
+          const created = await taskService.createTask({
+            title: gen.title,
+            description: gen.description,
+            checklist: gen.checklist,
+            priority: gen.priority,
+            status: gen.status,
+            vehicleId: gen.vehicleId,
+            assigneeId: null,
+            dueDate: null,
+            dueTime: null,
+          })
+          set((s) => ({ tasks: [created, ...s.tasks] }))
+          console.log(`  🟢 [STORE] CREATE TASK: "${gen.title}" → id:`, created.id)
+        } catch (err) {
+          console.error(`  🔴 [STORE] CREATE TASK FAILED: "${gen.title}"`, err)
+        }
+      }
+    },
+
     // ====== EMPLOYEES ======
     updateEmployee: async (id, patch) => {
       set((s) => ({ employees: s.employees.map((e) => (e.id === id ? { ...e, ...patch } : e)) }))
       try {
-        await employeeService.updateEmployee(id, patch)
+        await usersService.updateEmployee(id, patch)
       } catch (err) {
         console.error('🔴 [STORE] Failed to update employee in Supabase:', err)
       }
@@ -435,18 +604,27 @@ export const useStore = create<StoreState>()(
       const sheet: CheckSheet = { ...c, id: uid('chk'), createdAt: todayISO() }
       set((s) => ({ checkSheets: [sheet, ...s.checkSheets] }))
       try {
-        await checksheetService.createCheckSheet(sheet)
+        const created = await checksheetService.createCheckSheet(sheet)
+        // Sync real Supabase ID back to Zustand
+        set((s) => ({
+          checkSheets: s.checkSheets.map((cs) => (cs.id === sheet.id ? created : cs)),
+        }))
       } catch (err) {
         console.error('🔴 [STORE] Failed to create checkSheet in Supabase:', err)
       }
     },
 
     updateCheckSheet: async (id, patch) => {
+      // Optimistic update for instant UI feedback
       set((s) => ({
         checkSheets: s.checkSheets.map((c) => (c.id === id ? { ...c, ...patch } : c)),
       }))
       try {
-        await checksheetService.updateCheckSheet(id, patch)
+        // Sync full row back from Supabase to keep Zustand in sync
+        const updated = await checksheetService.updateCheckSheet(id, patch)
+        set((s) => ({
+          checkSheets: s.checkSheets.map((c) => (c.id === id ? updated : c)),
+        }))
       } catch (err) {
         console.error('🔴 [STORE] Failed to update checkSheet in Supabase:', err)
       }

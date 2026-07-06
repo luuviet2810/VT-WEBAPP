@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Camera, CheckCircle2, XCircle, Minus, StickyNote, Wrench, Plus, Minus as MinusIcon } from 'lucide-react'
 import { useStore } from '../store/useStore'
+import * as checksheetService from '../services/checksheet.service'
 import {
   CheckOutCheck,
   CheckOutItem,
@@ -36,6 +37,8 @@ import { CollapsibleCard, Modal, SegButton, WheelPicker, BatteryCheck } from './
 import { emptyExteriorCheck } from '../store/useStore'
 import { uid } from '../utils/format'
 import PhotoUploader from './PhotoUploader'
+
+const DEBOUNCE_MS = 500
 
 // ====== CONSTANTS ======
 
@@ -212,12 +215,8 @@ export default function CheckSheetForm({
   const addNotification = useStore((s) => s.addNotification)
   const checkSheets = useStore((s) => s.checkSheets)
 
-  // Tìm existing sheet
-  const existingSheet = useMemo(() => {
-    return checkSheets.find((c) => c.vehicleId === vehicle.id && c.type === type)
-  }, [checkSheets, vehicle.id, type])
-
-  // ====== STATE ĐẦU VÀO =====
+  // ====== STATE — initialized from existing sheet or defaults ======
+  const [sheetId, setSheetId] = useState<string | null>(null)
   const [checkerId, setCheckerId] = useState(currentEmployeeId)
   const [checkDate, setCheckDate] = useState(new Date().toISOString().slice(0, 10))
   const [fuelLevel, setFuelLevel] = useState<FuelLevel>('half')
@@ -231,31 +230,127 @@ export default function CheckSheetForm({
   const [exteriorPhotoModal, setExteriorPhotoModal] = useState<ExteriorSpotKey | null>(null)
   const [exteriorPhotos, setExteriorPhotos] = useState<Partial<Record<ExteriorSpotKey, string[]>>>({})
 
-  // ====== STATE ĐẦU RA =====
+  // ====== STATE ĐẦU RA ======
   const [outCheck, setOutCheck] = useState<CheckOutCheck>(defaultOutCheck())
   const [outNotes, setOutNotes] = useState('')
 
-  // ====== BATTERY STATE (Đầu vào) =====
+  // ====== BATTERY STATE (Đầu vào) ======
   const [inputAcquySOH, setInputAcquySOH] = useState(100)
   const [inputAcquySOC, setInputAcquySOC] = useState(100)
   const [inputAcquyPickerOpen, setInputAcquyPickerOpen] = useState<'soh' | 'soc' | null>(null)
 
-  // ====== TIRE STATE (Đầu vào) =====
+  // ====== TIRE STATE (Đầu vào) ======
   const [inputTireState, setInputTireState] = useState<CheckOutItem>({ status: 'ok' })
 
-  // ====== ĐIỀU HÒA & SƯỞI GHẾ STATE (Đầu vào) =====
+  // ====== ĐIỀU HÒA & SƯỞI GHẾ STATE (Đầu vào) ======
   const [inputDieuHoa, setInputDieuHoa] = useState<DieuHoaItem>({ status: 'good' })
   const [inputSuoiGhe, setInputSuoiGhe] = useState<SuoiGheItem>({ status: 'none' })
 
-  // ====== TIRE STATE (Đầu ra) =====
+  // ====== MEMO ĐẦU VÀO ======
+  const [inputNotes, setInputNotes] = useState('')
+
+  // ====== TIRE STATE (Đầu ra) ======
   const [outTireState, setOutTireState] = useState<CheckOutItem>({ status: 'ok' })
 
-  // ====== BATTERY STATE (Đầu ra) =====
+  // ====== BATTERY STATE (Đầu ra) ======
   const [acquySOH, setAcquySOH] = useState(100)
   const [acquySOC, setAcquySOC] = useState(100)
   const [acquyPickerOpen, setAcquyPickerOpen] = useState<'soh' | 'soc' | null>(null)
 
-  // ====== SUMMARY COUNTS =====
+  // ====== INIT: load existing sheet or create new one ======
+  useEffect(() => {
+    async function init() {
+      try {
+        const sheet = await checksheetService.getOrCreateCheckSheet(vehicle.id, type, {
+          checkerId: currentEmployeeId,
+        })
+        setSheetId(sheet.id)
+        setCheckerId(sheet.checkerId ?? currentEmployeeId)
+        setCheckDate(sheet.checkDate)
+        setFuelLevel(sheet.fuelLevel ?? 'half')
+        setScreen(sheet.screen ?? 'normal')
+        setRearCamera(sheet.rearCamera ?? 'ok')
+        setHipass(sheet.hipass ?? 'none')
+        setRearSensor(sheet.rearSensor ?? 'ok')
+        setDashcam(sheet.dashcam ?? 'none')
+        setInterior(sheet.interior ?? defaultInterior())
+        setExterior(Object.keys(sheet.exterior ?? {}).length > 0 ? sheet.exterior : emptyExteriorCheck())
+        setExteriorPhotos(sheet.exteriorPhotos ?? {})
+        setOutCheck(sheet.outCheck ?? defaultOutCheck())
+        setOutNotes(sheet.outNotes ?? '')
+        setInputAcquySOH(sheet.inputAcquySOH ?? 100)
+        setInputAcquySOC(sheet.inputAcquySOC ?? 100)
+        setAcquySOH(sheet.acquySOH ?? 100)
+        setAcquySOC(sheet.acquySOC ?? 100)
+        setInputDieuHoa(sheet.inputDieuHoa ?? { status: 'good' })
+        setInputSuoiGhe(sheet.inputSuoiGhe ?? { status: 'none' })
+        setInputTireState(sheet.inputTireState ?? { status: 'ok' })
+        setInputNotes(sheet.inputNotes ?? '')
+      } catch (err) {
+        console.error('🔴 [CheckSheetForm] Failed to load/create sheet:', err)
+        addNotification({ type: 'error', title: 'Lỗi tải phiếu', body: 'Không thể tải dữ liệu phiếu kiểm tra.' })
+      }
+    }
+    init()
+  }, [vehicle.id, type])
+
+  // ====== AUTO-SAVE DEBOUNCE ======
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function buildPatch(): Partial<CheckSheet> {
+    const base: Partial<CheckSheet> = {
+      checkerId,
+      checkDate,
+      fuelLevel,
+      screen,
+      rearCamera,
+      hipass,
+      rearSensor,
+      dashcam,
+      interior,
+      exterior,
+      exteriorPhotos,
+      inputDieuHoa,
+      inputSuoiGhe,
+      inputTireState,
+      inputNotes,
+    }
+    if (type === 'out') {
+      return { ...base, outCheck, outNotes, acquySOH, acquySOC }
+    }
+    return { ...base, inputAcquySOH, inputAcquySOC }
+  }
+
+  function scheduleSave() {
+    if (!sheetId) return
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(() => {
+      console.log('🟡 [CheckSheetForm] SAVE CHECKSHEET — debounce elapsed, saving:', sheetId)
+      updateCheckSheet(sheetId!, buildPatch())
+        .then(async () => {
+          console.log('🟢 [CheckSheetForm] SAVE SUCCESS:', sheetId)
+          // Generate tasks from saved checksheet
+          useStore.getState().generateTasksFromSheet(
+            { ...buildPatch(), id: sheetId!, vehicleId: vehicle.id, createdAt: '' } as CheckSheet,
+            vehicle.plate
+          )
+        })
+        .catch((err) => {
+          console.error('🔴 [CheckSheetForm] SAVE FAILED:', err)
+          addNotification({ type: 'error', title: 'Lỗi lưu', body: 'Không thể lưu phiếu kiểm tra. Dữ liệu vẫn còn trên màn hình.' })
+        })
+    }, DEBOUNCE_MS)
+  }
+
+  useEffect(() => {
+    if (!sheetId) return
+    scheduleSave()
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current)
+    }
+  }, [sheetId, checkerId, checkDate, fuelLevel, screen, rearCamera, hipass, rearSensor, dashcam, interior, exterior, exteriorPhotos, inputDieuHoa, inputSuoiGhe, inputTireState, inputNotes, outCheck, outNotes, inputAcquySOH, inputAcquySOC, acquySOH, acquySOC])
+
+  // ====== SUMMARY COUNTS ======
   const summaryCounts = useMemo(() => {
     if (type === 'in') {
       let ok = 0
@@ -380,7 +475,7 @@ export default function CheckSheetForm({
     if (screen === 'broken') items.push({ id: uid('chk'), text: 'Sửa màn hình', done: false })
 
     // Camera lùi - chỉ Hỏng mới tạo
-    if (rearCamera === 'broken') items.push({ id: uid('chk'), text: 'Sửa camera lùi', done: false })
+    if (rearCamera === 'broken') items.push({ id: uid('chk'), text: 'Kiểm tra camera', done: false })
 
     // Cảm biến lùi - Hỏng hoặc Không có đều tạo (task khác nhau)
     if (rearSensor === 'broken') items.push({ id: uid('chk'), text: 'Sửa cảm biến lùi', done: false })
@@ -393,6 +488,9 @@ export default function CheckSheetForm({
     // Điều hòa - Đầu vào
     if (inputDieuHoa.status === 'need_gas') items.push({ id: uid('chk'), text: 'Đổ ga điều hòa', done: false })
 
+    // Hipass - Không có
+    if (hipass === 'none') items.push({ id: uid('chk'), text: 'Kiểm tra Hipass', done: false })
+
     // Sưởi ghế - Đầu vào - chỉ "Hỏng nút" mới tạo
     if (inputSuoiGhe.status === 'broken') items.push({ id: uid('chk'), text: 'Sửa nút sưởi ghế', done: false })
 
@@ -403,7 +501,7 @@ export default function CheckSheetForm({
       { key: 'rearSeat', label: 'Hàng ghế sau' },
     ]
     seats.forEach(({ key, label }) => {
-      if (interior[key].condition === 'dirty') items.push({ id: uid('chk'), text: `Vệ sinh lại ghế`, done: false })
+      if (interior[key].condition === 'dirty') items.push({ id: uid('chk'), text: 'Vệ sinh nội thất', done: false })
       if (interior[key].condition === 'torn') items.push({ id: uid('chk'), text: `Bọc lại ghế`, done: false })
     })
 
@@ -423,10 +521,13 @@ export default function CheckSheetForm({
     }
 
     // Tình trạng lốp - chỉ "Mòn lắm" (none) mới tạo
-    if (inputTireState.status === 'none') items.push({ id: uid('chk'), text: 'Thay lốp', done: false })
+    if (inputTireState.status === 'none') items.push({ id: uid('chk'), text: 'Kiểm tra lốp', done: false })
+
+    // SOC acquy đầu vào < 20%
+    if (inputAcquySOC < 20) items.push({ id: uid('chk'), text: 'Sạc pin', done: false })
 
     return items
-  }, [type, screen, rearCamera, rearSensor, dashcam, inputDieuHoa, inputSuoiGhe, interior, exterior, fuelLevel, vehicle.fuelType, inputTireState])
+  }, [type, screen, rearCamera, rearSensor, dashcam, hipass, inputDieuHoa, inputSuoiGhe, interior, exterior, fuelLevel, vehicle.fuelType, inputTireState, inputAcquySOC])
 
   // Generate tasks from Đầu ra errors
   const outErrorTasks = useMemo(() => {
@@ -607,45 +708,16 @@ export default function CheckSheetForm({
     exteriorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
-  // ====== SAVE ======
+  // ====== SAVE (manual, used by Save button) ======
   function handleSave() {
-    if (!vehicle?.id) {
-      console.error('❌ Cannot save: vehicle ID missing')
+    if (!vehicle?.id || !sheetId) {
+      console.error('❌ Cannot save: vehicle ID or sheet ID missing')
       return null
     }
-
-    const commonData = {
-      vehicleId: vehicle.id,
-      type,
-      checkerId,
-      checkDate,
-      fuelLevel,
-      screen,
-      rearCamera,
-      hipass,
-      rearSensor,
-      dashcam,
-      interior,
-      exterior,
-      exteriorPhotos,
-    }
-
-    const sheetData = type === 'out'
-      ? { ...commonData, outCheck, outNotes }
-      : { ...commonData, outCheck: undefined, outNotes: undefined }
-
-    console.log('🔵 [CheckSheetForm] Saving sheetData:', JSON.stringify(sheetData, null, 2))
-
-    if (existingSheet) {
-      updateCheckSheet(existingSheet.id, sheetData)
-      console.log('🔵 [CheckSheetForm] Updated existing sheet:', existingSheet.id)
-      return existingSheet.id
-    } else {
-      addCheckSheet(sheetData)
-      const newSheet = checkSheets.find((c) => c.vehicleId === vehicle.id && c.type === type)
-      console.log('🔵 [CheckSheetForm] Created new sheet:', newSheet?.id)
-      return newSheet?.id
-    }
+    const patch = buildPatch()
+    updateCheckSheet(sheetId, patch)
+    console.log('🔵 [CheckSheetForm] Manual save for sheet:', sheetId)
+    return sheetId
   }
 
   // ====== TASK GENERATION ======

@@ -2,10 +2,16 @@ import { supabase } from '../lib/supabase'
 import type { Position } from '../types'
 
 export async function getPositions(): Promise<Position[]> {
-  const { data, error } = await supabase
+  const { data, error, status, statusText } = await supabase
     .from('positions')
     .select('*')
     .order('sort_order', { ascending: true })
+
+  console.log('🔵 [position.service] getPositions()')
+  console.log('   data:', JSON.stringify(data, null, 2))
+  console.log('   error:', error)
+  console.log('   status:', status)
+  console.log('   statusText:', statusText)
 
   if (error) throw error
   return (data as Array<{

@@ -27,7 +27,7 @@ export async function getMoveLogsByVehicle(vehicleId: string): Promise<MoveLog[]
     .from('move_logs')
     .select('*')
     .eq('vehicle_id', vehicleId)
-    .order('created_at', { ascending: false })
+    .order('created_at', { ascending: true })
 
   if (error) throw error
   return (data as Record<string, unknown>[]).map(mapRow)
@@ -36,6 +36,12 @@ export async function getMoveLogsByVehicle(vehicleId: string): Promise<MoveLog[]
 export async function createMoveLog(
   log: Omit<MoveLog, 'id' | 'createdAt'>
 ): Promise<MoveLog> {
+  console.log('🟢 [moveLog.service] CREATE MOVE LOG', {
+    vehicleId: log.vehicleId,
+    from: log.fromPositionId,
+    to: log.toPositionId,
+  })
+
   const { data, error } = await supabase
     .from('move_logs')
     .insert({
@@ -47,6 +53,11 @@ export async function createMoveLog(
     .select()
     .single()
 
-  if (error) throw error
+  if (error) {
+    console.error('🔴 [moveLog.service] CREATE MOVE LOG ERROR:', error)
+    throw error
+  }
+
+  console.log('🟢 [moveLog.service] CREATE MOVE LOG SUCCESS:', (data as Record<string, unknown>).id)
   return mapRow(data as Record<string, unknown>)
 }

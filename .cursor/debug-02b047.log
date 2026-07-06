@@ -1,0 +1,3 @@
+{"sessionId":"02b047","runId":"debug","hypothesisId":"H1+H2","location":"VehicleFormModal.tsx:143","message":"handleSave ENTRY","data":{"formPlate":"","formModel":"","plateTrimmed":"","modelTrimmed":"","vehicleId":null},"timestamp":1783272012599}
+{"sessionId":"02b047","runId":"debug","hypothesisId":"H1+H2","location":"VehicleFormModal.tsx:143","message":"handleSave ENTRY","data":{"formPlate":"","formModel":"","plateTrimmed":"","modelTrimmed":"","vehicleId":null},"timestamp":1783272019748}
+{"sessionId":"02b047","runId":"debug","hypothesisId":"H1+H2","location":"VehicleFormModal.tsx:143","message":"handleSave ENTRY","data":{"formPlate":"","formModel":"","plateTrimmed":"","modelTrimmed":"","vehicleId":null},"timestamp":1783272077068}

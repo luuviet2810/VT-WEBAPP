@@ -153,10 +153,13 @@ export default function VehicleDetail() {
 
         {tab === 'history' && (
           <div className="card p-5">
+            <div className="mb-3">
+              <div className="text-sm font-semibold text-slate-700">Lịch sử</div>
+            </div>
             {history.length === 0 ? (
-              <EmptyState icon={<Clock size={30} />} title="Chưa có lịch sử di chuyển" />
+              <EmptyState icon={<Clock size={30} />} title="Chưa có lịch sử." />
             ) : (
-              <ul className="space-y-4">
+              <ul className="space-y-0">
                 {history.map((h) => {
                   const from = positions.find((p) => p.id === h.fromPositionId)
                   const to = positions.find((p) => p.id === h.toPositionId)

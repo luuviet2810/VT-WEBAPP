@@ -140,7 +140,8 @@ export default function VehicleFormModal({
     }
   }, [open, editVehicleId])
 
-  function handleSave() {
+  async function handleSave() {
+    console.log("HANDLE SAVE START");
     if (!form.plate.trim() || !form.model.trim()) return
     const data = {
       plate: form.plate.trim(),
@@ -156,12 +157,15 @@ export default function VehicleFormModal({
       positionId: form.positionId || null,
       note: form.note || undefined,
     }
+    console.log("DATA TO SAVE", data);
     if (vehicleId) {
       updateVehicle(vehicleId, data)
       setTab('photos')
     } else {
-      const id = addVehicle(data)
-      setVehicleId(id)
+      const created = await addVehicle(data)
+      if (created?.id) {
+        setVehicleId(created.id)
+      }
       setTab('photos')
     }
   }

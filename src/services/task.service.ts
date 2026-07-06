@@ -19,10 +19,16 @@ function mapRow(row: Record<string, unknown>): Task {
 }
 
 export async function getTasks(): Promise<Task[]> {
-  const { data, error } = await supabase
+  const { data, error, status, statusText } = await supabase
     .from('tasks')
     .select('*')
     .order('created_at', { ascending: false })
+
+  console.log('🔵 [task.service] getTasks()')
+  console.log('   data:', JSON.stringify(data, null, 2))
+  console.log('   error:', error)
+  console.log('   status:', status)
+  console.log('   statusText:', statusText)
 
   if (error) throw error
   return (data as Record<string, unknown>[]).map(mapRow)
@@ -43,6 +49,7 @@ export async function getTaskById(id: string): Promise<Task | null> {
 }
 
 export async function createTask(task: Omit<Task, 'id' | 'createdAt'>): Promise<Task> {
+  console.log('🟢 [task.service] CREATE TASK', { title: task.title, vehicleId: task.vehicleId, priority: task.priority })
   const { data, error } = await supabase
     .from('tasks')
     .insert({
@@ -59,11 +66,16 @@ export async function createTask(task: Omit<Task, 'id' | 'createdAt'>): Promise<
     .select()
     .single()
 
-  if (error) throw error
+  if (error) {
+    console.error('🔴 [task.service] CREATE TASK ERROR:', error)
+    throw error
+  }
+  console.log('🟢 [task.service] CREATE TASK SUCCESS:', (data as Record<string, unknown>).id)
   return mapRow(data as Record<string, unknown>)
 }
 
 export async function updateTask(id: string, patch: Partial<Task>): Promise<Task> {
+  console.log('🟡 [task.service] UPDATE TASK', { id, patch })
   const updateData: Record<string, unknown> = {}
 
   if (patch.title !== undefined) updateData.title = patch.title
@@ -83,7 +95,11 @@ export async function updateTask(id: string, patch: Partial<Task>): Promise<Task
     .select()
     .single()
 
-  if (error) throw error
+  if (error) {
+    console.error('🔴 [task.service] UPDATE TASK ERROR:', error)
+    throw error
+  }
+  console.log('🟢 [task.service] UPDATE TASK SUCCESS:', id)
   return mapRow(data as Record<string, unknown>)
 }
 

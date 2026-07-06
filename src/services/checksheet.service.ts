@@ -14,20 +14,38 @@ function mapRow(row: Record<string, unknown>): CheckSheet {
     hipass: row.hipass as CheckSheet['hipass'],
     rearSensor: row.rear_sensor as CheckSheet['rearSensor'],
     dashcam: row.dashcam as CheckSheet['dashcam'],
-    interior: row.interior as CheckSheet['interior'],
-    exterior: row.exterior as CheckSheet['exterior'],
+    interior: (row.interior as CheckSheet['interior']) ?? {
+      driverSeat: { condition: 'good' },
+      passengerSeat: { condition: 'good' },
+      rearSeat: { condition: 'good' },
+    },
+    exterior: (row.exterior as CheckSheet['exterior']) ?? {},
     exteriorPhotos: row.exterior_photos as CheckSheet['exteriorPhotos'],
+    inputDieuHoa: row.input_dieu_hoa as CheckSheet['inputDieuHoa'],
+    inputSuoiGhe: row.input_suoi_ghe as CheckSheet['inputSuoiGhe'],
+    inputTireState: row.input_tire_state as CheckSheet['inputTireState'],
+    inputNotes: row.input_notes as string | undefined,
     outCheck: row.out_check as CheckSheet['outCheck'],
     outNotes: row.out_notes as string | undefined,
+    inputAcquySOH: row.input_acquy_soh as number | undefined,
+    inputAcquySOC: row.input_acquy_soc as number | undefined,
+    acquySOH: row.acquy_soh as number | undefined,
+    acquySOC: row.acquy_soc as number | undefined,
     createdAt: row.created_at as string,
   }
 }
 
 export async function getCheckSheets(): Promise<CheckSheet[]> {
-  const { data, error } = await supabase
+  const { data, error, status, statusText } = await supabase
     .from('check_sheets')
     .select('*')
     .order('created_at', { ascending: false })
+
+  console.log('🔵 [checksheet.service] getCheckSheets()')
+  console.log('   data:', JSON.stringify(data, null, 2))
+  console.log('   error:', error)
+  console.log('   status:', status)
+  console.log('   statusText:', statusText)
 
   if (error) throw error
   return (data as Record<string, unknown>[]).map(mapRow)
@@ -61,6 +79,7 @@ export async function getCheckSheetById(id: string): Promise<CheckSheet | null> 
 export async function createCheckSheet(
   sheet: Omit<CheckSheet, 'id' | 'createdAt'>
 ): Promise<CheckSheet> {
+  console.log('🟢 [checksheet.service] CREATE CHECKSHEET', { vehicleId: sheet.vehicleId, type: sheet.type })
   const { data, error } = await supabase
     .from('check_sheets')
     .insert({
@@ -77,13 +96,25 @@ export async function createCheckSheet(
       interior: sheet.interior,
       exterior: sheet.exterior,
       exterior_photos: sheet.exteriorPhotos,
+      input_dieu_hoa: sheet.inputDieuHoa,
+      input_suoi_ghe: sheet.inputSuoiGhe,
+      input_tire_state: sheet.inputTireState,
+      input_notes: sheet.inputNotes,
       out_check: sheet.outCheck,
       out_notes: sheet.outNotes,
+      input_acquy_soh: sheet.inputAcquySOH,
+      input_acquy_soc: sheet.inputAcquySOC,
+      acquy_soh: sheet.acquySOH,
+      acquy_soc: sheet.acquySOC,
     })
     .select()
     .single()
 
-  if (error) throw error
+  if (error) {
+    console.error('🔴 [checksheet.service] CREATE ERROR:', error)
+    throw error
+  }
+  console.log('🟢 [checksheet.service] CREATE SUCCESS:', (data as Record<string, unknown>).id)
   return mapRow(data as Record<string, unknown>)
 }
 
@@ -91,6 +122,7 @@ export async function updateCheckSheet(
   id: string,
   patch: Partial<CheckSheet>
 ): Promise<CheckSheet> {
+  console.log('🟡 [checksheet.service] UPDATE CHECKSHEET', { id, patch })
   const updateData: Record<string, unknown> = {}
 
   if (patch.vehicleId !== undefined) updateData.vehicle_id = patch.vehicleId
@@ -106,8 +138,16 @@ export async function updateCheckSheet(
   if (patch.interior !== undefined) updateData.interior = patch.interior
   if (patch.exterior !== undefined) updateData.exterior = patch.exterior
   if (patch.exteriorPhotos !== undefined) updateData.exterior_photos = patch.exteriorPhotos
+  if (patch.inputDieuHoa !== undefined) updateData.input_dieu_hoa = patch.inputDieuHoa
+  if (patch.inputSuoiGhe !== undefined) updateData.input_suoi_ghe = patch.inputSuoiGhe
+  if (patch.inputTireState !== undefined) updateData.input_tire_state = patch.inputTireState
+  if (patch.inputNotes !== undefined) updateData.input_notes = patch.inputNotes
   if (patch.outCheck !== undefined) updateData.out_check = patch.outCheck
   if (patch.outNotes !== undefined) updateData.out_notes = patch.outNotes
+  if (patch.inputAcquySOH !== undefined) updateData.input_acquy_soh = patch.inputAcquySOH
+  if (patch.inputAcquySOC !== undefined) updateData.input_acquy_soc = patch.inputAcquySOC
+  if (patch.acquySOH !== undefined) updateData.acquy_soh = patch.acquySOH
+  if (patch.acquySOC !== undefined) updateData.acquy_soc = patch.acquySOC
 
   const { data, error } = await supabase
     .from('check_sheets')
@@ -116,8 +156,91 @@ export async function updateCheckSheet(
     .select()
     .single()
 
-  if (error) throw error
+  if (error) {
+    console.error('🔴 [checksheet.service] UPDATE ERROR:', error)
+    throw error
+  }
+  console.log('🟢 [checksheet.service] UPDATE SUCCESS:', id)
   return mapRow(data as Record<string, unknown>)
+}
+
+/**
+ * Get existing check sheet for a vehicle + type, or create one.
+ * Used by CheckSheetForm on mount for auto-save.
+ */
+export async function getOrCreateCheckSheet(
+  vehicleId: string,
+  type: 'in' | 'out',
+  defaults?: {
+    checkerId?: string | null
+    checkDate?: string
+    fuelLevel?: CheckSheet['fuelLevel']
+    screen?: CheckSheet['screen']
+    rearCamera?: CheckSheet['rearCamera']
+    hipass?: CheckSheet['hipass']
+    rearSensor?: CheckSheet['rearSensor']
+    dashcam?: CheckSheet['dashcam']
+    interior?: CheckSheet['interior']
+    exterior?: CheckSheet['exterior']
+    inputDieuHoa?: CheckSheet['inputDieuHoa']
+    inputSuoiGhe?: CheckSheet['inputSuoiGhe']
+    inputTireState?: CheckSheet['inputTireState']
+    inputAcquySOH?: number
+    inputAcquySOC?: number
+  }
+): Promise<CheckSheet> {
+  console.log('🔵 [checksheet.service] LOAD CHECKSHEET', { vehicleId, type })
+
+  const { data, error } = await supabase
+    .from('check_sheets')
+    .select('*')
+    .eq('vehicle_id', vehicleId)
+    .eq('type', type)
+    .maybeSingle()
+
+  if (error && error.code !== 'PGRST116') {
+    console.error('🔴 [checksheet.service] LOAD ERROR:', error)
+    throw error
+  }
+
+  if (data) {
+    console.log('🟢 [checksheet.service] LOAD FOUND:', (data as Record<string, unknown>).id)
+    return mapRow(data as Record<string, unknown>)
+  }
+
+  // No record exists — create one with defaults
+  console.log('🟡 [checksheet.service] CREATE CHECKSHEET — no record found, creating new')
+  const created = await createCheckSheet({
+    vehicleId,
+    type,
+    checkerId: defaults?.checkerId ?? null,
+    checkDate: defaults?.checkDate ?? new Date().toISOString().slice(0, 10),
+    fuelLevel: defaults?.fuelLevel ?? 'half',
+    screen: defaults?.screen ?? 'normal',
+    rearCamera: defaults?.rearCamera ?? 'ok',
+    hipass: defaults?.hipass ?? 'none',
+    rearSensor: defaults?.rearSensor ?? 'ok',
+    dashcam: defaults?.dashcam ?? 'none',
+    interior: defaults?.interior ?? {
+      driverSeat: { condition: 'good' },
+      passengerSeat: { condition: 'good' },
+      rearSeat: { condition: 'good' },
+    },
+    exterior: defaults?.exterior ?? {},
+    exteriorPhotos: undefined,
+    inputDieuHoa: defaults?.inputDieuHoa,
+    inputSuoiGhe: defaults?.inputSuoiGhe,
+    inputTireState: defaults?.inputTireState,
+    inputNotes: undefined,
+    outCheck: undefined,
+    outNotes: undefined,
+    inputAcquySOH: defaults?.inputAcquySOH,
+    inputAcquySOC: defaults?.inputAcquySOC,
+    acquySOH: undefined,
+    acquySOC: undefined,
+  })
+
+  return created
 }
 
 export async function deleteCheckSheet(id: string): Promise<void> {
