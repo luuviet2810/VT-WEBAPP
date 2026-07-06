@@ -9,11 +9,13 @@ import {
   CheckCircle,
   ChevronRight,
   Clock,
+  Lightbulb,
   Package,
   PackageCheck,
   RotateCcw,
   User,
   Users,
+  UserX,
   Wrench,
 } from 'lucide-react'
 import { useStore } from '../../store/useStore'
@@ -24,6 +26,7 @@ import {
   WorkflowCheckSheet,
 } from '../../utils/vehicleWorkflow'
 import { timelineItemTypeLabel } from '../../utils/timeline'
+import { getRecommendations } from '../../utils/RecommendationEngine'
 import { formatDateTime } from '../../utils/format'
 import { Badge } from '../../components/ui'
 import type { VehicleWorkflowStatus } from '../../types'
@@ -467,6 +470,101 @@ export default function GarageDashboard() {
           </div>
         )}
       </section>
+
+      {/* ===== SECTION 7: SMART RECOMMENDATIONS ===== */}
+      {(() => {
+        const recs = getRecommendations({ vehicles, tasks, employees, checkSheets })
+        const total = recs.vehicles.length + recs.tasks.length + recs.employees.length
+        if (total === 0) return null
+        return (
+          <section>
+            <div className="mb-3 flex items-center gap-2">
+              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-500">
+                <Lightbulb size={16} className="text-yellow-500" />
+                Đề xuất thông minh
+              </h2>
+              <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-semibold text-yellow-700">
+                {total}
+              </span>
+            </div>
+
+            <div className="grid gap-3 lg:grid-cols-3">
+              {/* Vehicle recommendations */}
+              {recs.vehicles.length > 0 && (
+                <div className="card divide-y divide-slate-100">
+                  <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
+                    <Car size={14} className="text-slate-400" />
+                    <span className="text-xs font-semibold text-slate-600">Xe ({recs.vehicles.length})</span>
+                  </div>
+                  {recs.vehicles.map((r) => (
+                    <Link
+                      key={`${r.type}-${r.vehicleId}`}
+                      to={`/xe/${r.vehicleId}`}
+                      className="flex items-start gap-2 px-4 py-3 transition-colors hover:bg-slate-50"
+                    >
+                      <span className={`mt-0.5 shrink-0 rounded-full w-2 h-2 ${
+                        r.priority === 'high' ? 'bg-red-500' : 'bg-yellow-400'
+                      }`} />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium text-slate-800">{r.vehiclePlate}</div>
+                        <div className="text-xs text-slate-500 mt-0.5">{r.reason}</div>
+                      </div>
+                      <ChevronRight size={14} className="mt-1 shrink-0 text-slate-300" />
+                    </Link>
+                  ))}
+                </div>
+              )}
+
+              {/* Task recommendations */}
+              {recs.tasks.length > 0 && (
+                <div className="card divide-y divide-slate-100">
+                  <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
+                    <Wrench size={14} className="text-slate-400" />
+                    <span className="text-xs font-semibold text-slate-600">Nhiệm vụ ({recs.tasks.length})</span>
+                  </div>
+                  {recs.tasks.slice(0, 5).map((r) => (
+                    <Link
+                      key={`${r.type}-${r.taskId}`}
+                      to={`/nhiem-vu/${r.taskId}`}
+                      className="flex items-start gap-2 px-4 py-3 transition-colors hover:bg-slate-50"
+                    >
+                      <span className={`mt-0.5 shrink-0 rounded-full w-2 h-2 ${
+                        r.priority === 'high' ? 'bg-red-500' : 'bg-orange-400'
+                      }`} />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium text-slate-800">{r.taskTitle}</div>
+                        <div className="text-xs text-slate-500 mt-0.5">Xe {r.vehiclePlate} · {r.reason}</div>
+                      </div>
+                      <ChevronRight size={14} className="mt-1 shrink-0 text-slate-300" />
+                    </Link>
+                  ))}
+                </div>
+              )}
+
+              {/* Employee recommendations */}
+              {recs.employees.length > 0 && (
+                <div className="card divide-y divide-slate-100">
+                  <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
+                    <UserX size={14} className="text-slate-400" />
+                    <span className="text-xs font-semibold text-slate-600">Nhân viên ({recs.employees.length})</span>
+                  </div>
+                  {recs.employees.slice(0, 5).map((r) => (
+                    <div key={`${r.type}-${r.employeeId}`} className="flex items-start gap-2 px-4 py-3">
+                      <span className={`mt-0.5 shrink-0 rounded-full w-2 h-2 ${
+                        r.type === 'employee_idle' ? 'bg-blue-400' : 'bg-green-400'
+                      }`} />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium text-slate-800">{r.employeeName}</div>
+                        <div className="text-xs text-slate-500 mt-0.5">{r.reason}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )
+      })()}
     </div>
   )
 }

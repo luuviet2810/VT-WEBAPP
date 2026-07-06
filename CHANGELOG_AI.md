@@ -1,5 +1,31 @@
 # CHANGELOG_AI.md
 
+## 2026-07-07 - RBAC: ROLE & PERMISSION SYSTEM
+
+### New Files
+- **New**: `src/rbac/usePermissions.ts` — Centralized permission hooks for all components. Exports `usePermission`, `useAnyPermission`, `useAllPermissions`, `useVehiclePermissions`, `useTaskPermissions`, `usePricePermissions`, `useChecksheetPermissions`, `useCanUpdateTask`, `useCanDeleteVehicle`, `useCanChangePrice`, `useCanChangeWorkflow`.
+
+### Roles (4 levels)
+- **Admin** — Full access.
+- **Manager** — Vehicle management, task management, dashboard, timeline, employees, reports. No system settings.
+- **Staff** — View vehicles, update own tasks, upload photos, complete checklists. No delete or price edit.
+- **Driver** — View assigned vehicles, confirm movement, view info only.
+
+### Permission Model
+- 4 new permissions: `vehicle:upload_photo`, `vehicle:upload_document`, `vehicle:change_price`, `vehicle:change_workflow`.
+- Full role-permission matrix for all 4 roles.
+
+### UI Guards
+- `VehicleDetail.tsx` — Delete, position, assignee, sell price, status, checksheet, photo/document upload buttons guarded by role permissions.
+- `Tasks.tsx` — "Giao việc" button guarded by `task:create`.
+- `PriceList.tsx` — Add/edit/delete guarded by `pricelist:update`/`vehicle:delete`.
+
+### Sidebar
+- All 4 roles have tailored menus via `sidebarConfig.tsx`.
+
+### Changed Files
+- `src/rbac/roles.ts`, `src/rbac/permissions.ts`, `src/rbac/routesConfig.ts`, `src/rbac/dashboardConfig.ts`, `src/rbac/sidebarConfig.tsx`, `src/store/viewModeStore.ts`, `src/hooks/useAuthRole.ts`, `src/types.ts`, `src/App.tsx`, `src/components/ViewModeToggle.tsx`, `src/pages/VehicleDetail.tsx`, `src/pages/Tasks.tsx`, `src/pages/PriceList.tsx`.
+
 ## 2026-07-07 - GARAGE DASHBOARD v1
 
 ### New Files

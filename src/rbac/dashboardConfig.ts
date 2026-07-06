@@ -15,7 +15,19 @@ export const DASHBOARD_CONFIG: Record<UserRole, DashboardConfig> = {
     path: '/',
   },
 
+  manager: {
+    title: 'Tổng quan',
+    subtitle: 'Quản lý',
+    path: '/',
+  },
+
   staff: {
+    title: 'Hôm nay',
+    subtitle: 'Công việc của bạn',
+    path: '/',
+  },
+
+  driver: {
     title: 'Hôm nay',
     subtitle: 'Công việc của bạn',
     path: '/',

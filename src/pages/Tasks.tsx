@@ -9,6 +9,7 @@ import { Employee, Position, Task, TaskChecklistItem, TaskPriority, TaskStatus, 
 import { formatDate, uid } from '../utils/format'
 import clsx from 'clsx'
 import { getVehicleWorkflowStatus, WORKFLOW_STATUS_TONE, WORKFLOW_STATUS_LABEL } from '../utils/vehicleWorkflow'
+import { useTaskPermissions } from '../rbac/usePermissions'
 
 const PRIORITY_LABEL: Record<TaskPriority, string> = {
   low: 'Thấp',
@@ -41,6 +42,7 @@ export default function Tasks() {
   const positions = useStore((s) => s.positions)
   const checkSheets = useStore((s) => s.checkSheets)
   const toggleTaskChecklistItem = useStore((s) => s.toggleTaskChecklistItem)
+  const taskPerms = useTaskPermissions()
   const [assigneeFilter, setAssigneeFilter] = useState('all')
   const [modalOpen, setModalOpen] = useState(false)
 
@@ -100,10 +102,12 @@ export default function Tasks() {
               </option>
             ))}
           </select>
-          <button className="btn-primary hidden md:flex" onClick={() => setModalOpen(true)}>
-            <Plus size={16} />
-            Giao việc
-          </button>
+          {taskPerms.canCreate && (
+            <button className="btn-primary hidden md:flex" onClick={() => setModalOpen(true)}>
+              <Plus size={16} />
+              Giao việc
+            </button>
+          )}
         </div>
       </div>
 

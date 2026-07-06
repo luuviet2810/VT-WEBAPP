@@ -11,6 +11,7 @@ import {
   Settings,
   Task,
   TaskActivityLogEntry,
+  TaskTemplate,
   TimelineItem,
   Vehicle,
 } from '../types'
@@ -29,6 +30,7 @@ import * as vehicleMediaService from '../services/vehicleMedia.service'
 import * as storageService from '../services/storage.service'
 import * as timelineService from '../services/timeline.service'
 import * as vehicleWorkflowService from '../services/vehicleWorkflow.service'
+import { templateService } from '../services/template.service'
 
 function emptyExterior(): ExteriorCheck {
   const out = {} as ExteriorCheck
@@ -94,6 +96,7 @@ export async function initializeFromSupabase(): Promise<void> {
       moveLogs,
       isInitialized: true,
     })
+    useStore.getState().loadTemplates()
   } catch (err) {
     console.error('\uD83D\uDD34 [STORE] Failed to initialize from Supabase:', err)
     useStore.setState({ isInitialized: true })
@@ -114,6 +117,7 @@ interface StoreState {
   vehicleTimelines: Record<string, TimelineItem[]>
   currentEmployeeId: string
   isInitialized: boolean
+  templates: TaskTemplate[]
 
   addVehicle: (v: Partial<Vehicle>) => Promise<Vehicle>
   updateVehicle: (id: string, patch: Partial<Vehicle>) => Promise<void>
@@ -127,6 +131,7 @@ interface StoreState {
   toggleTaskChecklistItem: (taskId: string, itemId: string) => Promise<void>
   addTaskActivity: (taskId: string, action: string, employeeId?: string | null) => Promise<void>
   generateTasksFromSheet: (sheet: CheckSheet, vehiclePlate: string) => Promise<void>
+  applyTemplate: (templateId: string, vehicleId: string) => Promise<void>
 
   updateEmployee: (id: string, patch: Partial<Employee>) => Promise<void>
   setCurrentEmployee: (id: string) => void
@@ -148,6 +153,14 @@ interface StoreState {
   markAllNotificationsRead: () => Promise<void>
 
   updateSettings: (patch: Partial<Settings>) => void
+
+  // Template actions
+  loadTemplates: () => void
+  createTemplate: (data: Omit<TaskTemplate, 'id' | 'usageCount' | 'createdAt' | 'updatedAt'>) => void
+  updateTemplate: (id: string, patch: Partial<Omit<TaskTemplate, 'id' | 'createdAt'>>) => void
+  deleteTemplate: (id: string) => void
+  duplicateTemplate: (id: string) => void
+  toggleTemplateFavorite: (id: string) => void
 
   upsertVehicleFromRealtime: (row: Record<string, unknown>) => void
   upsertTaskFromRealtime: (row: Record<string, unknown>) => void
@@ -171,6 +184,7 @@ export const useStore = create<StoreState>()(
     vehicleTimelines: {},
     currentEmployeeId: '',
     isInitialized: false,
+    templates: [],
 
     addVehicle: async (v) => {
       const created = await vehicleService.createVehicle({
@@ -983,6 +997,87 @@ export const useStore = create<StoreState>()(
       set((s) => {
         const exists = s.taskActivityLogs.some((x) => x.id === a.id)
         return { taskActivityLogs: exists ? s.taskActivityLogs : [a, ...s.taskActivityLogs] }
+      })
+    },
+
+    // ====== TEMPLATE ACTIONS ======
+
+    loadTemplates() {
+      const templates = templateService.getTemplates()
+      set({ templates })
+    },
+
+    createTemplate(data) {
+      const created = templateService.createTemplate(data)
+      set((s) => ({ templates: [...s.templates, created] }))
+    },
+
+    updateTemplate(id, patch) {
+      const updated = templateService.updateTemplate(id, patch)
+      if (!updated) return
+      set((s) => ({ templates: s.templates.map((t) => (t.id === id ? updated : t)) }))
+    },
+
+    deleteTemplate(id) {
+      templateService.deleteTemplate(id)
+      set((s) => ({ templates: s.templates.filter((t) => t.id !== id) }))
+    },
+
+    duplicateTemplate(id) {
+      const copy = templateService.duplicateTemplate(id)
+      if (!copy) return
+      set((s) => ({ templates: [...s.templates, copy] }))
+    },
+
+    toggleTemplateFavorite(id) {
+      const updated = templateService.toggleFavorite(id)
+      if (!updated) return
+      set((s) => ({ templates: s.templates.map((t) => (t.id === id ? updated : t)) }))
+    },
+
+    async applyTemplate(templateId, vehicleId) {
+      const templates = get().templates
+      const template = templates.find((t) => t.id === templateId)
+      if (!template) return
+
+      // Increment usage count optimistically
+      templateService.incrementUsage(templateId)
+      set((s) => ({
+        templates: s.templates.map((t) =>
+          t.id === templateId ? { ...t, usageCount: t.usageCount + 1 } : t
+        ),
+      }))
+
+      // Generate tasks from template
+      const newTasks = templateService.applyTemplateToVehicle(template, vehicleId)
+      const vehicle = get().vehicles.find((v) => v.id === vehicleId)
+      const existingTasks = get().tasks.filter((t) => t.vehicleId === vehicleId)
+
+      // Merge: for tasks with same ruleId, merge checklist items (add new items, preserve done state)
+      const createPromises: Promise<unknown>[] = []
+      for (const newTask of newTasks) {
+        const existing = existingTasks.find((et) => et.ruleId === newTask.ruleId)
+        if (existing) {
+          const existingTexts = new Set(existing.checklist.map((i) => i.text))
+          const newItems = newTask.checklist.filter((i) => !existingTexts.has(i.text))
+          if (newItems.length > 0) {
+            get().updateTask(existing.id, { checklist: [...existing.checklist, ...newItems] })
+          }
+          continue
+        }
+
+        // Create brand new task
+        const p = taskService.createTask(newTask).then((created) => {
+          set((s) => ({ tasks: [created, ...s.tasks] }))
+        })
+        createPromises.push(p)
+      }
+
+      await Promise.all(createPromises)
+      get().addNotification({
+        type: 'task_created',
+        title: 'Mẫu công việc',
+        body: `Đã áp dụng "${template.name}" cho xe ${vehicle?.plate || ''}`,
       })
     },
   })

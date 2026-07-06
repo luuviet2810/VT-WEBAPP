@@ -26,11 +26,13 @@ import ForbiddenPage from './pages/Forbidden'
 import GarageDashboard from './pages/dashboards/GarageDashboard'
 import StatisticsDashboard from './pages/dashboards/StatisticsDashboard'
 import StaffDashboard from './pages/dashboards/StaffDashboard'
+import TemplatesPage from './pages/Templates'
 
 import { useAuthStore } from './store/useAuthStore'
 import { useViewModeStore } from './store/viewModeStore'
 import { useState } from 'react'
 import { UserRole } from './rbac/roles'
+import { hasPermission } from './rbac/permissions'
 
 // Auth layout (no sidebar)
 function AuthLayout({ children }: { children: React.ReactNode }) {
@@ -100,11 +102,10 @@ function RoleGuard({ allowedRoles, children }: { allowedRoles: UserRole[]; child
 
   // Always use ACTUAL user role for route access check
   const userRole = currentUser.role as UserRole
-  
-  // Admin always has access (can preview any UI)
-  // Non-admin users are checked against allowedRoles
+
+  // Admin has full access; others are checked against allowedRoles
   const hasAccess = userRole === 'admin' || allowedRoles.includes(userRole)
-  
+
   if (!hasAccess) {
     return <ForbiddenPage />
   }
@@ -117,10 +118,10 @@ function DashboardRouter() {
   const { currentUser } = useAuthStore()
   const viewMode = useViewModeStore((s) => s.viewMode)
 
-  // Admin can preview different dashboards, others use their actual role
+  // Admin can preview any role; others use their actual role
   const effectiveRole = currentUser?.role === 'admin' ? viewMode : (currentUser?.role as UserRole)
 
-  // Admin/Staff all use the GarageDashboard at root
+  // All roles use the GarageDashboard at root
   return <GarageDashboard />
 }
 
@@ -307,6 +308,18 @@ export default function App() {
                 <h2 className="text-lg font-semibold">Cài đặt</h2>
                 <p className="mt-2 text-slate-500">Chức năng đang phát triển...</p>
               </div>
+            </MainLayout>
+          </RoleGuard>
+        }
+      />
+
+      {/* Templates - Admin / Manager */}
+      <Route
+        path="/mau-cong-viec"
+        element={
+          <RoleGuard allowedRoles={['admin', 'manager']}>
+            <MainLayout>
+              <TemplatesPage />
             </MainLayout>
           </RoleGuard>
         }

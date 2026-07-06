@@ -6,9 +6,11 @@ import { Badge, EmptyState, Modal, Tabs } from '../components/ui'
 import PhotoUploader from '../components/PhotoUploader'
 import VehicleGallery from '../components/VehicleGallery'
 import CheckSheetForm from '../components/CheckSheetForm'
+import { ApplyTemplateModal } from '../components/ApplyTemplateModal'
 import { formatDateTime } from '../utils/format'
 import { TaskPriority, TaskStatus, VehicleStatus } from '../types'
 import { getVehicleWorkflowStatus, WORKFLOW_STATUS_TONE, WORKFLOW_STATUS_LABEL } from '../utils/vehicleWorkflow'
+import { useCanDeleteVehicle, useCanChangePrice, useVehiclePermissions, useChecksheetPermissions } from '../rbac/usePermissions'
 
 const STATUS_LABEL: Record<VehicleStatus, string> = {
   available: 'Chưa bán',
@@ -45,8 +47,14 @@ export default function VehicleDetail() {
   const moveVehicle = useStore((s) => s.moveVehicle)
   const deleteVehicle = useStore((s) => s.deleteVehicle)
 
+  const canDelete = useCanDeleteVehicle()
+  const canChangePrice = useCanChangePrice()
+  const vehiclePerms = useVehiclePermissions()
+  const checksheetPerms = useChecksheetPermissions()
+
   const [tab, setTab] = useState('info')
   const [checkModal, setCheckModal] = useState<'in' | 'out' | null>(null)
+  const [applyTemplateOpen, setApplyTemplateOpen] = useState(false)
   const [timelineLoading, setTimelineLoading] = useState(false)
 
   const vehicle = vehicles.find((v) => v.id === id)
@@ -102,42 +110,48 @@ export default function VehicleDetail() {
             <p className="text-sm text-slate-500">{currentVehicle.model}</p>
           </div>
         </div>
-        <button onClick={handleDelete} className="btn-danger">
-          <Trash2 size={16} />
-        </button>
+        {canDelete && (
+          <button onClick={handleDelete} className="btn-danger">
+            <Trash2 size={16} />
+          </button>
+        )}
       </div>
 
       <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="card p-4">
           <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Vị trí hiện tại</div>
           <div className="mt-1 font-semibold text-brand-600">{position ? position.name : 'Chưa phân bổ'}</div>
-          <select
-            className="input mt-2"
-            value={currentVehicle.positionId || ''}
-            onChange={(e) => moveVehicle(currentVehicle.id, e.target.value)}
-          >
-            <option value="">— Chưa phân bổ —</option>
-            {positions.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+          {vehiclePerms.canMove && (
+            <select
+              className="input mt-2"
+              value={currentVehicle.positionId || ''}
+              onChange={(e) => moveVehicle(currentVehicle.id, e.target.value)}
+            >
+              <option value="">— Chưa phân bổ —</option>
+              {positions.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
         <div className="card p-4">
           <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Người đang xử lý</div>
-          <select
-            className="input mt-2"
-            value={currentVehicle.assigneeId || ''}
-            onChange={(e) => updateVehicle(currentVehicle.id, { assigneeId: e.target.value || null })}
-          >
-            <option value="">— Chưa phân công —</option>
-            {employees.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.name}
-              </option>
-            ))}
-          </select>
+          {vehiclePerms.canAssign && (
+            <select
+              className="input mt-2"
+              value={currentVehicle.assigneeId || ''}
+              onChange={(e) => updateVehicle(currentVehicle.id, { assigneeId: e.target.value || null })}
+            >
+              <option value="">— Chưa phân công —</option>
+              {employees.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 
@@ -160,22 +174,30 @@ export default function VehicleDetail() {
                 value={currentVehicle.costPrice !== undefined ? String(currentVehicle.costPrice) : ''}
                 onSave={(v) => updateVehicle(currentVehicle.id, { costPrice: v ? Number(v) : undefined })}
               />
-              <Field
-                label="Giá bán"
-                value={currentVehicle.sellPrice !== undefined ? String(currentVehicle.sellPrice) : ''}
-                onSave={(v) => updateVehicle(currentVehicle.id, { sellPrice: v ? Number(v) : undefined })}
-              />
+              {canChangePrice && (
+                <Field
+                  label="Giá bán"
+                  value={currentVehicle.sellPrice !== undefined ? String(currentVehicle.sellPrice) : ''}
+                  onSave={(v) => updateVehicle(currentVehicle.id, { sellPrice: v ? Number(v) : undefined })}
+                />
+              )}
               <div>
                 <label className="label">Tình trạng</label>
-                <select
-                  className="input"
-                  value={currentVehicle.status}
-                  onChange={(e) => updateVehicle(currentVehicle.id, { status: e.target.value as VehicleStatus })}
-                >
-                  <option value="available">Chưa bán</option>
-                  <option value="deposited">Đã cọc</option>
-                  <option value="sold">Đã bán</option>
-                </select>
+                {vehiclePerms.canChangeWorkflow ? (
+                  <select
+                    className="input"
+                    value={currentVehicle.status}
+                    onChange={(e) => updateVehicle(currentVehicle.id, { status: e.target.value as VehicleStatus })}
+                  >
+                    <option value="available">Chưa bán</option>
+                    <option value="deposited">Đã cọc</option>
+                    <option value="sold">Đã bán</option>
+                  </select>
+                ) : (
+                  <div className="mt-1 font-medium text-slate-700">
+                    {currentVehicle.status === 'available' ? 'Chưa bán' : currentVehicle.status === 'deposited' ? 'Đã cọc' : 'Đã bán'}
+                  </div>
+                )}
               </div>
             </div>
             <div className="mt-4">
@@ -290,14 +312,19 @@ export default function VehicleDetail() {
 
         {tab === 'checksheet' && (
           <div>
-            <div className="mb-4 flex gap-3">
-              <button className="btn-secondary" onClick={() => setCheckModal('in')}>
-                + Phiếu đầu vào
-              </button>
-              <button className="btn-secondary" onClick={() => setCheckModal('out')}>
-                + Phiếu đầu ra
-              </button>
-            </div>
+            {checksheetPerms.canCreate && (
+              <div className="mb-4 flex gap-3">
+                <button className="btn-secondary" onClick={() => setCheckModal('in')}>
+                  + Phiếu đầu vào
+                </button>
+                <button className="btn-secondary" onClick={() => setCheckModal('out')}>
+                  + Phiếu đầu ra
+                </button>
+                <button className="btn-primary" onClick={() => setApplyTemplateOpen(true)}>
+                  + Áp dụng mẫu
+                </button>
+              </div>
+            )}
             {sheets.length === 0 ? (
               <div className="card">
                 <EmptyState icon={<ListChecks size={30} />} title="Chưa có checksheet nào" />
@@ -325,19 +352,51 @@ export default function VehicleDetail() {
 
         {tab === 'files' && (
           <div className="space-y-6">
-            <VehicleGallery
-              title="Ảnh xe"
-              images={currentVehicle.images}
-              onChange={(images) => updateVehicle(currentVehicle.id, { images })}
-            />
-            <div>
-              <h3 className="mb-2 text-sm font-semibold text-slate-700">Giấy tờ</h3>
-              <PhotoUploader
-                images={currentVehicle.documents}
-                onChange={(documents) => updateVehicle(currentVehicle.id, { documents })}
-                label="Thêm giấy tờ"
+            {vehiclePerms.canUploadPhoto ? (
+              <VehicleGallery
+                title="Ảnh xe"
+                images={currentVehicle.images}
+                onChange={(images) => updateVehicle(currentVehicle.id, { images })}
               />
-            </div>
+            ) : (
+              <div className="card p-4">
+                <div className="mb-2 text-sm font-semibold text-slate-700">Ảnh xe</div>
+                {currentVehicle.images.length === 0 ? (
+                  <p className="text-sm text-slate-400">Chưa có ảnh</p>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2">
+                    {currentVehicle.images.map((img, i) => (
+                      <img key={i} src={img} alt="" className="aspect-square w-full rounded-lg object-cover" />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {vehiclePerms.canUploadDoc ? (
+              <div>
+                <h3 className="mb-2 text-sm font-semibold text-slate-700">Giấy tờ</h3>
+                <PhotoUploader
+                  images={currentVehicle.documents}
+                  onChange={(documents) => updateVehicle(currentVehicle.id, { documents })}
+                  label="Thêm giấy tờ"
+                />
+              </div>
+            ) : (
+              <div className="card p-4">
+                <div className="mb-2 text-sm font-semibold text-slate-700">Giấy tờ</div>
+                {currentVehicle.documents.length === 0 ? (
+                  <p className="text-sm text-slate-400">Chưa có giấy tờ</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {currentVehicle.documents.map((doc, i) => (
+                      <a key={i} href={doc} target="_blank" rel="noreferrer" className="text-sm text-brand-600 underline">
+                        Giấy tờ {i + 1}
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -352,6 +411,13 @@ export default function VehicleDetail() {
           <CheckSheetForm vehicle={vehicle} type={checkModal} onCancel={() => setCheckModal(null)} onSaved={() => setCheckModal(null)} />
         )}
       </Modal>
+
+      <ApplyTemplateModal
+        open={applyTemplateOpen}
+        onClose={() => setApplyTemplateOpen(false)}
+        vehicleId={currentVehicle.id}
+        vehiclePlate={currentVehicle.plate}
+      />
     </div>
   )
 }

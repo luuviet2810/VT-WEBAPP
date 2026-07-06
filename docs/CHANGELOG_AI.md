@@ -1,5 +1,103 @@
 # CHANGELOG_AI.md
 
+## 2026-07-07 - FEATURE #012: SMART SCHEDULING ENGINE
+
+### New Files
+- **New**: `src/utils/RecommendationEngine.ts` — Deterministic rule-based scheduling engine. NOT AI, NOT machine learning. Pure conditional logic. Isolates all scheduling rules from UI.
+  - Types: `RecommendationInput`, `VehicleRecommendation`, `TaskRecommendation`, `EmployeeRecommendation`, `PositionRecommendation`, `Recommendations`
+  - Exports: `getRecommendations(input)`, `suggestEmployeeForTask(taskId, tasks, employees)`
+  - Rules implemented:
+    - Vehicle: `vehicle_needs_final_check` (all tasks done), `vehicle_needs_ready` (final check done), `vehicle_overdue` (>7d working or >14d any workflow), `vehicle_blocked` (new with no checksheet)
+    - Task: `task_unassigned`, `task_overdue`, `task_high_priority`
+    - Employee: `employee_idle` (0 active tasks), `employee_underloaded` (< 2 active tasks)
+    - Position: `position_crowded` (>5 vehicles), `position_empty` (0 vehicles)
+
+### Dashboard Integration
+- `pages/dashboards/GarageDashboard.tsx` — Added new Section 7 "Đề xuất thông minh" below Recent Activity. Shows vehicle, task, and employee recommendations in 3-column grid with priority-colored dots. Only renders when recommendations exist. Links to VehicleDetail and TaskDetail.
+
+### No New UI Pages
+- No new routes, no new sidebar items.
+- Engine is purely in `utils/RecommendationEngine.ts`.
+
+---
+
+## 2026-07-07 - FEATURE #011: TASK & CHECKSHEET TEMPLATES
+
+### New Files
+- **New**: `src/types.ts` — Added `TaskTemplate`, `TaskTemplateTask`, `TaskTemplateChecklistItem` interfaces and `TaskTemplateType` union.
+- **New**: `src/services/template.service.ts` — Template CRUD service (Zustand/localStorage persistence, no DB table). Includes 7 seed templates: Kiểm tra tổng quát, Thay dầu máy, Vệ sinh nội thất, Đánh bóng ngoại thất, Sửa chữa sơn, Dịch vụ toàn diện, Mẫu tuỳ chỉnh.
+- **New**: `src/components/TemplateLibrary.tsx` — Full template library component with search, sort (by usage/name/date), filter by type, CRUD modals, duplicate, favorite toggle, and RBAC-gated management actions.
+- **New**: `src/components/ApplyTemplateModal.tsx` — Modal for applying a template to a vehicle. Shows which tasks will be created, marks already-applied templates, and displays a success animation.
+- **New**: `src/pages/Templates.tsx` — Full-page template library route at `/mau-cong-viec`.
+
+### Templates Page & Route
+- Added `/mau-cong-viec` route in `App.tsx`, protected by `RoleGuard` for admin + manager.
+- Added "Mẫu công việc" sidebar menu item for admin and manager (using `FileText` icon).
+
+### Store Integration
+- Added `templates: TaskTemplate[]` state, `loadTemplates`, `createTemplate`, `updateTemplate`, `deleteTemplate`, `duplicateTemplate`, `toggleTemplateFavorite`, `applyTemplate` actions to `useStore`.
+- Templates loaded from localStorage on `initializeFromSupabase()`.
+- `applyTemplate` is idempotent: skips tasks with matching `ruleId`, merges checklist items for same task, creates only net-new items.
+
+### RBAC Integration
+- Added `template:read` and `template:write` permissions in `permissions.ts`.
+- admin + manager: full CRUD on templates.
+- staff: read-only template list, can apply templates to vehicles.
+- driver: read-only template list.
+- `useTemplatePermissions()` hook in `usePermissions.ts` for components.
+
+### VehicleDetail Integration
+- "Áp dụng mẫu" button added to the checksheet tab (visible when `checksheet:create` is granted).
+- Opens `ApplyTemplateModal` filtered to current vehicle.
+
+### No Database Changes
+- Templates stored entirely in Zustand → localStorage.
+- No new Supabase tables created.
+
+---
+
+## 2026-07-07 - RBAC: ROLE & PERMISSION SYSTEM
+
+### New Files
+- **New**: `src/rbac/usePermissions.ts` — Centralized permission hooks for all components. Exports `usePermission`, `useAnyPermission`, `useAllPermissions`, `useVehiclePermissions`, `useTaskPermissions`, `usePricePermissions`, `useChecksheetPermissions`, `useCanUpdateTask`, `useCanDeleteVehicle`, `useCanChangePrice`, `useCanChangeWorkflow`.
+
+### Roles (4 levels)
+- **Admin** — Full access to everything including system settings and user management.
+- **Manager** — Vehicle management (create, update, move, assign), task management, dashboard, timeline, employees, reports. Cannot manage system settings.
+- **Staff** — View assigned vehicles, update own tasks, upload photos, complete checklists. Cannot delete vehicles, change workflow manually, or edit pricing.
+- **Driver** — View assigned move jobs, confirm vehicle movement, view vehicle information only.
+
+### Permission Model
+- 4 new permissions added: `vehicle:upload_photo`, `vehicle:upload_document`, `vehicle:change_price`, `vehicle:change_workflow`.
+- Role-permission matrix fully defined for all 4 roles.
+- Centralized `hasPermission`, `hasAnyPermission`, `hasAllPermissions` utilities.
+
+### Route Protection
+- `routesConfig.ts` updated: admin + manager + staff + driver route access lists. Staff/Driver go to `/viec-cua-toi` instead of `/nhiem-vu`.
+- `RoleGuard` in `App.tsx` updated to support manager role.
+
+### UI Guards (pages)
+- `VehicleDetail.tsx` — Delete button hidden unless `vehicle:delete`. Position/assignee selectors hidden unless `vehicle:move`/`vehicle:assign`. Sell price field hidden unless `vehicle:change_price`. Status selector hidden unless `vehicle:change_workflow`. Checksheet creation buttons hidden unless `checksheet:create`. Photo/document upload hidden unless `vehicle:upload_photo`/`vehicle:upload_document`. Read-only fallback shown otherwise.
+- `Tasks.tsx` — "Giao việc" button hidden unless `task:create`.
+- `PriceList.tsx` — Add vehicle button, edit/status/delete actions hidden unless `pricelist:update`/`vehicle:delete`.
+
+### Sidebar
+- `sidebarConfig.tsx` — All 4 roles have tailored menus. Driver sees only Overview, Vehicle List, Attendance, Profile. Staff sees Overview, Vehicle List, Price List, My Tasks, Attendance. Manager sees all admin menus except Settings. Admin sees everything.
+
+### View Mode Toggle
+- `ViewModeToggle.tsx` — Preview options expanded to all 4 roles (Admin/Manager/Staff/Driver).
+
+### Changed Files
+- `src/rbac/roles.ts` — Added `manager` and `driver` to `UserRole`. Updated hierarchy and labels.
+- `src/rbac/permissions.ts` — Complete rewrite with all permissions and 4-role mapping.
+- `src/rbac/routesConfig.ts` — Updated allowedRoles for all routes.
+- `src/rbac/dashboardConfig.ts` — Added manager and driver entries.
+- `src/rbac/sidebarConfig.tsx` — Full rewrite with 4-role config.
+- `src/store/viewModeStore.ts` — `UserRole` widened to all 4 roles.
+- `src/hooks/useAuthRole.ts` — Added `useIsManagerMode`, `useIsDriverMode`; updated `useEffectiveRole`.
+- `src/types.ts` — Updated `UserRole` to include manager and driver.
+- `src/App.tsx` — Cleaned up `RoleGuard` comment, updated imports.
+
 ## 2026-07-06
 
 - **Sprint**: Feature Sprint

@@ -269,7 +269,7 @@ export interface CheckSheet {
 
 // ====== AUTH TYPES ======
 
-export type UserRole = 'admin' | 'staff'
+export type UserRole = 'admin' | 'manager' | 'staff' | 'driver'
 export type UserStatus = 'pending' | 'approved' | 'rejected' | 'disabled'
 
 export interface User {
@@ -299,6 +299,44 @@ export interface AuthState {
   user: User | null
   isAuthenticated: boolean
   isLoading: boolean
+}
+
+// ====== TASK TEMPLATE TYPES ======
+
+export type TaskTemplateType =
+  | 'general_inspection'
+  | 'oil_change'
+  | 'interior_cleaning'
+  | 'exterior_detailing'
+  | 'paint_repair'
+  | 'full_service'
+  | 'custom'
+
+export interface TaskTemplateChecklistItem {
+  id: string
+  text: string
+}
+
+export interface TaskTemplateTask {
+  id: string
+  title: string
+  description: string
+  priority: TaskPriority
+  checklist: TaskTemplateChecklistItem[]
+}
+
+export interface TaskTemplate {
+  id: string
+  name: string
+  description: string
+  type: TaskTemplateType
+  tasks: TaskTemplateTask[]
+  estimatedDurationMinutes: number
+  defaultAssigneeId: string | null
+  isFavorite: boolean
+  usageCount: number
+  createdAt: string
+  updatedAt: string
 }
 
 // Legacy Employee type - kept for backwards compatibility
