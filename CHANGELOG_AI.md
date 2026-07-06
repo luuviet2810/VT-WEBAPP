@@ -1,5 +1,55 @@
 # CHANGELOG_AI.md
 
+## 2026-07-07 - GARAGE DASHBOARD v1
+
+### New Files
+- **New**: `src/pages/dashboards/GarageDashboard.tsx` — Operational garage dashboard with 6 sections. Replaces `OverviewDashboard` as the default post-login page.
+
+### Sections
+1. **Garage Overview** — Summary cards: Total vehicles, Active, Waiting check-in, Final check, Ready for sale, Sold, Overdue. All counts derived from existing store data.
+2. **Today's Work** — Employee task progress: avatar, name, progress bar, % complete, done-today count. Sorted busiest first. Uses only Zustand store data (no extra queries).
+3. **Vehicles In Progress** — Card grid (responsive 1–4 cols) showing plate, model, position, workflow badge, active task count, progress %, assigned employee. Click opens Vehicle Detail.
+4. **Overdue Vehicles** — List of vehicles with overdue tasks, sorted longest delay first. Shows plate, workflow badge, assignee, days delayed. Click opens Vehicle Detail.
+5. **Recent Activity** — Latest task activity logs (newest first). Uses existing `taskActivityLogs` from store. Shows activity description, type label, employee, timestamp.
+6. **Employee Workload** — Small ranking table: employee, assigned tasks, completed today, working vehicles count. Sorted most-loaded first.
+
+### Technical Notes
+- All data computed from existing Zustand store via `useStore` selectors; no new Supabase queries.
+- All expensive computations wrapped in `useMemo` to avoid recalculating on re-renders.
+- Workflow status for each vehicle derived via existing `getVehicleWorkflowStatus()` with `WorkflowCheckSheet` minimal type.
+- Realtime updates are automatic — dashboard re-renders whenever Zustand state changes (vehicles, tasks, move logs, etc. are already subscribed via `useRealtimeSync`).
+- `App.tsx` updated to use `GarageDashboard` as the default post-login route (`/`).
+
+### Changed Files
+- `src/App.tsx` — Replaced `OverviewDashboard` import with `GarageDashboard`, updated `DashboardRouter()` to render `GarageDashboard`.
+- `src/pages/dashboards/GarageDashboard.tsx` — New file.
+
+## 2026-07-07 - VEHICLE WORKFLOW STATUS
+
+### Build Fixes
+- Fixed `getVehicleWorkflowStatus()` taking a `CheckSheet[]` parameter — replaced with a minimal `WorkflowCheckSheet` interface (`{ type, checkDate }`) so callers with minimal checksheet data can satisfy the type without casts.
+- Fixed `Badge` component receiving unsupported `className` prop in `Tasks.tsx` and `VehicleList.tsx` — removed `className="text-xs"` from both usages.
+
+### New Files
+- **New**: `src/utils/vehicleWorkflow.ts` — Derives a vehicle's pipeline/workflow status from tasks and checksheets. Exports `getVehicleWorkflowStatus(vehicle, tasks, sheets)`, `WORKFLOW_STATUS_LABEL`, and `WORKFLOW_STATUS_TONE`. The workflow pipeline: `NEW → INPUT → WORKING → FINAL_CHECK → READY → SOLD`.
+- **New**: `src/services/vehicleWorkflow.service.ts` — Persists workflow status changes to the new `vehicle_workflow_logs` table. Exports `getVehicleWorkflowLogs()` and `addVehicleWorkflowLog()`.
+- **New**: `migrations/003_add_vehicle_workflow_log.sql` — Creates the `vehicle_workflow_logs` table for storing workflow state transitions.
+
+### Changes
+- **Modified**: `src/types.ts` — Added `VehicleWorkflowStatus` type (`'new' | 'input' | 'working' | 'final_check' | 'ready' | 'sold'`). Added `'vehicle_workflow_changed'` to `TimelineItemType` union.
+- **Modified**: `src/store/useStore.ts` — `addCheckSheet` now records workflow status transitions in the vehicle timeline and persists to `vehicle_workflow_logs`. `generateTasksFromSheet` records workflow status after task generation. `updateTask` records workflow status transitions when task state changes affect the vehicle's pipeline position.
+- **Modified**: `src/pages/VehicleList.tsx` — Each vehicle card now shows a workflow status badge alongside the sale status badge.
+- **Modified**: `src/pages/VehicleDetail.tsx` — Header now shows the workflow status badge next to the plate number.
+- **Modified**: `src/pages/Tasks.tsx` — Each task card now shows the workflow status badge next to the vehicle plate.
+
+### Workflow Rules (evaluated top-to-bottom, first match wins)
+1. `SOLD` — `vehicle.status === 'sold'`
+2. `READY` — output checksheet exists (vehicle passed final inspection)
+3. `FINAL_CHECK` — all tasks done AND output checksheet not yet completed
+4. `WORKING` — vehicle has at least one unfinished task
+5. `INPUT` — input checksheet exists
+6. `NEW` — default (vehicle created, no checksheets)
+
 ## 2026-07-06 - SPRINT #2: SUPABASE REALTIME FOUNDATION
 
 ### New Files

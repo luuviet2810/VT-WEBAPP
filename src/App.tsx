@@ -23,7 +23,7 @@ import MyTasks from './pages/MyTasks'
 import ForbiddenPage from './pages/Forbidden'
 
 // Dashboards
-import OverviewDashboard from './pages/dashboards/OverviewDashboard'
+import GarageDashboard from './pages/dashboards/GarageDashboard'
 import StatisticsDashboard from './pages/dashboards/StatisticsDashboard'
 import StaffDashboard from './pages/dashboards/StaffDashboard'
 
@@ -116,12 +116,12 @@ function RoleGuard({ allowedRoles, children }: { allowedRoles: UserRole[]; child
 function DashboardRouter() {
   const { currentUser } = useAuthStore()
   const viewMode = useViewModeStore((s) => s.viewMode)
-  
+
   // Admin can preview different dashboards, others use their actual role
   const effectiveRole = currentUser?.role === 'admin' ? viewMode : (currentUser?.role as UserRole)
 
-  // Admin/Staff all use the same overview dashboard at root
-  return <OverviewDashboard />
+  // Admin/Staff all use the GarageDashboard at root
+  return <GarageDashboard />
 }
 
 // Get statistics dashboard (admin only)

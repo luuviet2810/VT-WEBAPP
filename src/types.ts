@@ -1,5 +1,7 @@
 export type VehicleStatus = 'available' | 'deposited' | 'sold'
 
+export type VehicleWorkflowStatus = 'new' | 'input' | 'working' | 'final_check' | 'ready' | 'sold'
+
 export interface Vehicle {
   id: string
   plate: string // 4 số cuối biển số
@@ -44,6 +46,7 @@ export type TimelineItemType =
   | 'task_status_changed'
   | 'move_log'
   | 'vehicle_status_changed'
+  | 'vehicle_workflow_changed'
   | 'photo_uploaded'
   | 'document_uploaded'
   | 'custom'

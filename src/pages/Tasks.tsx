@@ -8,6 +8,7 @@ import { Badge, Modal } from '../components/ui'
 import { Employee, Position, Task, TaskChecklistItem, TaskPriority, TaskStatus, Vehicle } from '../types'
 import { formatDate, uid } from '../utils/format'
 import clsx from 'clsx'
+import { getVehicleWorkflowStatus, WORKFLOW_STATUS_TONE, WORKFLOW_STATUS_LABEL } from '../utils/vehicleWorkflow'
 
 const PRIORITY_LABEL: Record<TaskPriority, string> = {
   low: 'Thấp',
@@ -38,6 +39,7 @@ export default function Tasks() {
   const employees = useStore((s) => s.employees)
   const vehicles = useStore((s) => s.vehicles)
   const positions = useStore((s) => s.positions)
+  const checkSheets = useStore((s) => s.checkSheets)
   const toggleTaskChecklistItem = useStore((s) => s.toggleTaskChecklistItem)
   const [assigneeFilter, setAssigneeFilter] = useState('all')
   const [modalOpen, setModalOpen] = useState(false)
@@ -75,7 +77,7 @@ export default function Tasks() {
       result.push({ vehicleId, vehicle, tasks: groupedTasks, total, done, section })
     }
     return result
-  }, [filtered, vehicles])
+  }, [filtered, vehicles, checkSheets])
 
   return (
     <div className="pb-16 md:pb-0">
@@ -118,6 +120,8 @@ export default function Tasks() {
                   group={group}
                   positions={positions}
                   employees={employees}
+                  checkSheets={checkSheets}
+                  allTasks={tasks}
                   onToggleChecklist={(taskId, itemId) => toggleTaskChecklistItem(taskId, itemId)}
                 />
               ))}
@@ -225,11 +229,15 @@ function WorkBoardVehicleCard({
   group,
   positions,
   employees,
+  checkSheets,
+  allTasks,
   onToggleChecklist,
 }: {
   group: VehicleGroup
   positions: Position[]
   employees: Employee[]
+  checkSheets: { id: string; vehicleId: string; type: 'in' | 'out'; checkDate: string }[]
+  allTasks: Task[]
   onToggleChecklist: (taskId: string, itemId: string) => void
 }) {
   const { vehicle, tasks, total, done } = group
@@ -237,6 +245,9 @@ function WorkBoardVehicleCard({
   const image = vehicle?.images?.[0]
   const position = vehicle ? positions.find((p) => p.id === vehicle.positionId) : undefined
   const assignee = vehicle?.assigneeId ? employees.find((e) => e.id === vehicle.assigneeId) : undefined
+  const vehicleSheets = vehicle ? checkSheets.filter((c) => c.vehicleId === vehicle.id) : []
+  const vehicleTasks = vehicle ? allTasks.filter((t) => t.vehicleId === vehicle.id) : []
+  const workflowStatus = vehicle ? getVehicleWorkflowStatus(vehicle, vehicleTasks, vehicleSheets) : null
 
   const prevSectionRef = useRef(group.section)
   const [sectionClass, setSectionClass] = useState('')
@@ -274,7 +285,12 @@ function WorkBoardVehicleCard({
         {/* CENTER: Vehicle info */}
         <div className="flex w-full md:w-[30%] shrink-0 flex-col justify-between md:border-l md:border-slate-100 p-3">
           <div className="space-y-1">
-            <div className="text-base font-bold text-slate-900">{vehicle?.plate || '—'}</div>
+            <div className="flex items-center gap-2">
+              <div className="text-base font-bold text-slate-900">{vehicle?.plate || '—'}</div>
+              {vehicle && workflowStatus && (
+                <Badge tone={WORKFLOW_STATUS_TONE[workflowStatus]}>{WORKFLOW_STATUS_LABEL[workflowStatus]}</Badge>
+              )}
+            </div>
             <div className="text-xs text-slate-500">{vehicle?.model}</div>
             <div className="text-xs text-slate-500">{position ? position.name : 'Chưa phân bổ'}</div>
             <div className="flex items-center gap-1 text-xs text-slate-500">

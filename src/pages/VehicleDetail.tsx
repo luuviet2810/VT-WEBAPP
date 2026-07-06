@@ -8,6 +8,7 @@ import VehicleGallery from '../components/VehicleGallery'
 import CheckSheetForm from '../components/CheckSheetForm'
 import { formatDateTime } from '../utils/format'
 import { TaskPriority, TaskStatus, VehicleStatus } from '../types'
+import { getVehicleWorkflowStatus, WORKFLOW_STATUS_TONE, WORKFLOW_STATUS_LABEL } from '../utils/vehicleWorkflow'
 
 const STATUS_LABEL: Record<VehicleStatus, string> = {
   available: 'Chưa bán',
@@ -60,6 +61,8 @@ export default function VehicleDetail() {
 
   const position = positions.find((p) => p.id === currentVehicle.positionId)
   const sheets = checkSheets.filter((c) => c.vehicleId === currentVehicle.id)
+  const vehicleTasks = tasks.filter((t) => t.vehicleId === currentVehicle.id)
+  const workflowStatus = getVehicleWorkflowStatus(currentVehicle, vehicleTasks, sheets)
   const timeline = vehicleTimelines[currentVehicle.id] || []
   const relatedTasks = useMemo(
     () =>
@@ -92,7 +95,10 @@ export default function VehicleDetail() {
             <ArrowLeft size={20} />
           </button>
           <div>
-            <h1 className="text-xl font-bold text-slate-900">{currentVehicle.plate || '—'}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold text-slate-900">{currentVehicle.plate || '—'}</h1>
+              <Badge tone={WORKFLOW_STATUS_TONE[workflowStatus]}>{WORKFLOW_STATUS_LABEL[workflowStatus]}</Badge>
+            </div>
             <p className="text-sm text-slate-500">{currentVehicle.model}</p>
           </div>
         </div>

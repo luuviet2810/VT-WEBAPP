@@ -8,6 +8,7 @@ import { Badge, EmptyState, Modal } from '../components/ui'
 import VehicleFilterBar from '../components/VehicleFilterBar'
 import { formatCurrency } from '../utils/format'
 import { VehicleStatus, FuelLevel } from '../types'
+import { getVehicleWorkflowStatus, WORKFLOW_STATUS_TONE, WORKFLOW_STATUS_LABEL } from '../utils/vehicleWorkflow'
 
 const STATUS_LABEL: Record<VehicleStatus, string> = {
   available: 'Chưa bán',
@@ -32,6 +33,7 @@ export default function VehicleList() {
   const positions = useStore((s) => s.positions)
   const employees = useStore((s) => s.employees)
   const checkSheets = useStore((s) => s.checkSheets)
+  const tasks = useStore((s) => s.tasks)
   const [filters, setFilters] = useState({
     query: '',
     status: 'all',
@@ -53,7 +55,7 @@ export default function VehicleList() {
         v.assigneeId === filters.assigneeId
       return matchesQuery && matchesPosition && matchesStatus && matchesAssignee
     })
-  }, [vehicles, filters])
+  }, [vehicles, tasks, filters])
 
   // Get latest check sheets for a vehicle
   const getLatestCheckSheets = (vehicleId: string) => {
@@ -96,7 +98,10 @@ export default function VehicleList() {
             const assignee = employees.find((e) => e.id === v.assigneeId)
             const { latestIn, latestOut } = getLatestCheckSheets(v.id)
             const hasCheckSheet = !!latestIn || !!latestOut
-            
+            const vehicleSheets = checkSheets.filter((c) => c.vehicleId === v.id)
+            const vehicleTasks = tasks.filter((t) => t.vehicleId === v.id)
+            const workflowStatus = getVehicleWorkflowStatus(v, vehicleTasks, vehicleSheets)
+
             return (
               <Link
                 key={v.id}
@@ -119,6 +124,7 @@ export default function VehicleList() {
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-lg font-bold text-slate-900">{v.plate || '—'}</span>
                     <div className="flex flex-col items-end gap-1">
+                      <Badge tone={WORKFLOW_STATUS_TONE[workflowStatus]}>{WORKFLOW_STATUS_LABEL[workflowStatus]}</Badge>
                       <Badge tone={STATUS_TONE[v.status]}>{STATUS_LABEL[v.status]}</Badge>
                       {hasCheckSheet && (
                         <div className="flex items-center gap-1 text-xs text-brand-600">

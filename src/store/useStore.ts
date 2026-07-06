@@ -15,6 +15,7 @@ import {
   Vehicle,
 } from '../types'
 import { generateTasks } from '../utils/taskRules'
+import { getVehicleWorkflowStatus, WORKFLOW_STATUS_LABEL } from '../utils/vehicleWorkflow'
 import { todayISO, uid } from '../utils/format'
 import * as vehicleService from '../services/vehicle.service'
 import * as positionService from '../services/position.service'
@@ -27,6 +28,7 @@ import * as moveLogService from '../services/moveLog.service'
 import * as vehicleMediaService from '../services/vehicleMedia.service'
 import * as storageService from '../services/storage.service'
 import * as timelineService from '../services/timeline.service'
+import * as vehicleWorkflowService from '../services/vehicleWorkflow.service'
 
 function emptyExterior(): ExteriorCheck {
   const out = {} as ExteriorCheck
@@ -433,7 +435,19 @@ export const useStore = create<StoreState>()(
     },
 
     updateTask: async (id, patch) => {
+      const stateBefore = get()
+      const taskBefore = stateBefore.tasks.find((t) => t.id === id)
+      const vehicleId = taskBefore?.vehicleId
+
       set((s) => ({ tasks: s.tasks.map((t) => (t.id === id ? { ...t, ...patch } : t)) }))
+
+      const prevStatus = vehicleId
+        ? getVehicleWorkflowStatus(
+            stateBefore.vehicles.find((v) => v.id === vehicleId)!,
+            stateBefore.tasks.filter((t) => t.vehicleId === vehicleId),
+            stateBefore.checkSheets.filter((s2) => s2.vehicleId === vehicleId)
+          )
+        : null
 
       try {
         await taskService.updateTask(id, patch)
@@ -445,6 +459,37 @@ export const useStore = create<StoreState>()(
       const task = get().tasks.find((t) => t.id === id)
       if (task) {
         get().addTaskActivity(id, `${emp?.name || 'Ai \u0111\u00f3'} \u0111\u00e3 c\u1eadp nh\u1eadt nhi\u1ec7m v\u1ee5`, get().currentEmployeeId)
+      }
+
+      // Record workflow status change if it changed
+      if (vehicleId && prevStatus !== null) {
+        const stateAfter = get()
+        const nextStatus = getVehicleWorkflowStatus(
+          stateAfter.vehicles.find((v) => v.id === vehicleId)!,
+          stateAfter.tasks.filter((t) => t.vehicleId === vehicleId),
+          stateAfter.checkSheets.filter((s2) => s2.vehicleId === vehicleId)
+        )
+        if (nextStatus !== prevStatus) {
+          const newEntry: TimelineItem = {
+            id: uid('wf'),
+            time: todayISO(),
+            type: 'vehicle_workflow_changed',
+            title: 'Cập nhật tiến độ',
+            description: `Tình trạng: ${WORKFLOW_STATUS_LABEL[nextStatus]}`,
+            vehicleId,
+          }
+          set((s) => ({
+            vehicleTimelines: {
+              ...s.vehicleTimelines,
+              [vehicleId]: [newEntry, ...(s.vehicleTimelines[vehicleId] ?? [])],
+            },
+          }))
+          try {
+            await vehicleWorkflowService.addVehicleWorkflowLog(vehicleId, nextStatus, stateAfter.currentEmployeeId)
+          } catch (logErr) {
+            console.error('\uD83D\uDD34 [STORE] Failed to record workflow log:', logErr)
+          }
+        }
       }
     },
 
@@ -497,6 +542,17 @@ export const useStore = create<StoreState>()(
 
     generateTasksFromSheet: async (sheet, vehiclePlate) => {
       const generated = generateTasks(sheet, vehiclePlate)
+      const stateBefore = get()
+      const vehicleId = sheet.vehicleId
+
+      // Capture workflow status before changes
+      const prevStatus = vehicleId
+        ? getVehicleWorkflowStatus(
+            stateBefore.vehicles.find((v) => v.id === vehicleId)!,
+            stateBefore.tasks.filter((t) => t.vehicleId === vehicleId),
+            stateBefore.checkSheets.filter((s2) => s2.vehicleId === vehicleId)
+          )
+        : null
 
       const existingTasks = get().tasks.filter((t) => t.vehicleId === sheet.vehicleId)
       const generatedTaskMap = new Map(generated.map((gen) => [gen.title, gen]))
@@ -550,6 +606,37 @@ export const useStore = create<StoreState>()(
           set((s) => ({ tasks: [created, ...s.tasks] }))
         } catch (err) {
           console.error(`  \uD83D\uDD34 [STORE] CREATE TASK FAILED: "${gen.title}"`, err)
+        }
+      }
+
+      // Record workflow status change after all tasks are generated
+      if (vehicleId && prevStatus !== null) {
+        const stateAfter = get()
+        const nextStatus = getVehicleWorkflowStatus(
+          stateAfter.vehicles.find((v) => v.id === vehicleId)!,
+          stateAfter.tasks.filter((t) => t.vehicleId === vehicleId),
+          stateAfter.checkSheets.filter((s2) => s2.vehicleId === vehicleId)
+        )
+        if (nextStatus !== prevStatus) {
+          const newEntry: TimelineItem = {
+            id: uid('wf'),
+            time: todayISO(),
+            type: 'vehicle_workflow_changed',
+            title: 'Cập nhật tiến độ',
+            description: `Tình trạng: ${WORKFLOW_STATUS_LABEL[nextStatus]}`,
+            vehicleId,
+          }
+          set((s) => ({
+            vehicleTimelines: {
+              ...s.vehicleTimelines,
+              [vehicleId]: [newEntry, ...(s.vehicleTimelines[vehicleId] ?? [])],
+            },
+          }))
+          try {
+            await vehicleWorkflowService.addVehicleWorkflowLog(vehicleId, nextStatus, stateAfter.currentEmployeeId)
+          } catch (logErr) {
+            console.error('\uD83D\uDD34 [STORE] Failed to record workflow log:', logErr)
+          }
         }
       }
     },
@@ -632,6 +719,40 @@ export const useStore = create<StoreState>()(
         set((s) => ({
           checkSheets: s.checkSheets.map((cs) => (cs.id === sheet.id ? created : cs)),
         }))
+
+        // Record workflow status change in timeline
+        if (c.vehicleId) {
+          const state = get()
+          const vehicle = state.vehicles.find((v) => v.id === c.vehicleId)
+          const vehicleTasks = state.tasks.filter((t) => t.vehicleId === c.vehicleId)
+          const vehicleSheets = state.checkSheets.filter((s2) => s2.vehicleId === c.vehicleId)
+          const newStatus = getVehicleWorkflowStatus(vehicle!, vehicleTasks, vehicleSheets)
+          const timeline = state.vehicleTimelines[c.vehicleId] ?? []
+          const prevStatus = timeline[0]?.description?.startsWith('Tình trạng:')
+            ? (timeline[0].description.replace('Tình trạng: ', '') as ReturnType<typeof getVehicleWorkflowStatus>)
+            : null
+          if (prevStatus !== newStatus) {
+            const newEntry: TimelineItem = {
+              id: uid('wf'),
+              time: todayISO(),
+              type: 'vehicle_workflow_changed',
+              title: 'Cập nhật tiến độ',
+              description: `Tình trạng: ${WORKFLOW_STATUS_LABEL[newStatus]}`,
+              vehicleId: c.vehicleId,
+            }
+            set((s) => ({
+              vehicleTimelines: {
+                ...s.vehicleTimelines,
+                [c.vehicleId!]: [newEntry, ...(s.vehicleTimelines[c.vehicleId!] ?? [])],
+              },
+            }))
+            try {
+              await vehicleWorkflowService.addVehicleWorkflowLog(c.vehicleId!, newStatus, state.currentEmployeeId)
+            } catch (logErr) {
+              console.error('\uD83D\uDD34 [STORE] Failed to record workflow log:', logErr)
+            }
+          }
+        }
       } catch (err) {
         console.error('\uD83D\uDD34 [STORE] Failed to create checkSheet in Supabase:', err)
       }

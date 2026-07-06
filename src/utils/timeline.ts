@@ -21,6 +21,7 @@ export function timelineItemTypeLabel(type: TimelineItemType) {
     task_status_changed: 'Task',
     move_log: 'Di chuyển',
     vehicle_status_changed: 'Trạng thái xe',
+    vehicle_workflow_changed: 'Tiến độ',
     photo_uploaded: 'Ảnh',
     document_uploaded: 'Giấy tờ',
     custom: 'Sự kiện',
