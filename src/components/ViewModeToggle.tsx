@@ -23,10 +23,8 @@ export default function ViewModeToggle({ className = '' }: ViewModeToggleProps) 
   const resetToActualRole = useViewModeStore((s) => s.resetToActualRole)
   
   const options: { value: UserRole; label: string; icon: React.ReactNode }[] = [
-    { value: 'admin',   label: 'Admin',   icon: <ShieldCheck size={14} /> },
-    { value: 'manager', label: 'Manager', icon: <Eye size={14} /> },
-    { value: 'staff',   label: 'Staff',   icon: <Eye size={14} /> },
-    { value: 'driver',  label: 'Driver',  icon: <Eye size={14} /> },
+    { value: 'admin', label: 'Admin', icon: <ShieldCheck size={14} /> },
+    { value: 'staff', label: 'Staff', icon: <Eye size={14} /> },
   ]
   
   const handleChange = (role: UserRole) => {

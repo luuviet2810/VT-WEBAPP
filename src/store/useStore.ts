@@ -13,6 +13,7 @@ import {
   TaskActivityLogEntry,
   TaskTemplate,
   TimelineItem,
+  User,
   Vehicle,
 } from '../types'
 import { generateTasks } from '../utils/taskRules'
@@ -31,6 +32,15 @@ import * as storageService from '../services/storage.service'
 import * as timelineService from '../services/timeline.service'
 import * as vehicleWorkflowService from '../services/vehicleWorkflow.service'
 import { templateService } from '../services/template.service'
+import {
+  dispatchTaskCreated,
+  dispatchTaskAssigned,
+  dispatchTaskOverdue,
+  dispatchVehicleReady,
+  dispatchVehicleSold,
+  dispatchWorkflowChanged,
+  checkAndNotifyOverdueTasks,
+} from '../services/telegramDispatcher.service'
 
 function emptyExterior(): ExteriorCheck {
   const out = {} as ExteriorCheck
@@ -74,10 +84,18 @@ export async function initializeFromSupabase(): Promise<void> {
       }
     })
 
+    const mappedEmployees: Employee[] = (employees as User[]).map((u) => ({
+      id: u.id,
+      name: u.fullName,
+      phone: u.phone ?? u.avatar ?? undefined,
+      isAdmin: u.role === 'admin',
+      disabled: u.disabled ?? false,
+    }))
+
     useStore.setState({
       vehicles: mappedVehicles,
       positions,
-      employees,
+      employees: mappedEmployees,
       tasks,
       checkSheets,
       attendance,
@@ -331,8 +349,19 @@ export const useStore = create<StoreState>()(
 
       const after = get().vehicles.find((v) => v.id === id)
       if (patch.status && before && patch.status !== before.status) {
-        const labels: Record<string, string> = { available: 'Ch\u01b0a b\u00e1n', deposited: '\u0110\u00e3 c\u1ecdc', sold: '\u0110\u00e3 b\u00e1n' }
-        get().addNotification({ type: 'vehicle_status', title: 'Xe \u0111\u1ed5i tr\u1ea1ng th\u00e1i', body: `${after?.model} (${after?.plate}) chuy\u1ec3n sang "${labels[patch.status]}"` })
+        const labels: Record<string, string> = { available: 'Chưa bán', deposited: 'Đã cọc', sold: 'Đã bán' }
+        get().addNotification({ type: 'vehicle_status', title: 'Xe đổi trạng thái', body: `${after?.model} (${after?.plate}) chuyển sang "${labels[patch.status]}"` })
+
+        // Telegram: notify on vehicle sold or ready status changes
+        if (patch.status === 'sold') {
+          dispatchVehicleSold(after!).catch((err) => {
+            console.error('[STORE] Telegram dispatchVehicleSold failed:', err)
+          })
+        } else if (patch.status === 'available' && before.status !== 'available') {
+          dispatchVehicleReady(after!).catch((err) => {
+            console.error('[STORE] Telegram dispatchVehicleReady failed:', err)
+          })
+        }
       }
     },
 
@@ -438,7 +467,14 @@ export const useStore = create<StoreState>()(
       }
 
       const emp = get().employees.find((e) => e.id === get().currentEmployeeId)
-      get().addNotification({ type: 'task_created', title: 'Nhi\u1ec7m v\u1ee5 m\u1edbi', body: `${emp?.name || 'Ai \u0111\u00f3'} v\u1eeba t\u1ea1o nhi\u1ec7m v\u1ee5 "${task.title}"` })
+      get().addNotification({ type: 'task_created', title: 'Nhiệm vụ mới', body: `${emp?.name || 'Ai đó'} vừa tạo nhiệm vụ "${task.title}"` })
+
+      // Telegram notification - fire and forget, never blocks business flow
+      const vehicle = get().vehicles.find((v) => v.id === task.vehicleId)
+      const assignee = task.assigneeId ? get().employees.find((e) => e.id === task.assigneeId) : undefined
+      dispatchTaskCreated(task, vehicle, assignee).catch((err) => {
+        console.error('[STORE] Telegram dispatchTaskCreated failed:', err)
+      })
     },
 
     updateTask: async (id, patch) => {
@@ -495,6 +531,14 @@ export const useStore = create<StoreState>()(
             await vehicleWorkflowService.addVehicleWorkflowLog(vehicleId, nextStatus, stateAfter.currentEmployeeId)
           } catch (logErr) {
             console.error('\uD83D\uDD34 [STORE] Failed to record workflow log:', logErr)
+          }
+
+          // Telegram: notify on workflow status change
+          const changedVehicle = stateAfter.vehicles.find((v) => v.id === vehicleId)
+          if (changedVehicle) {
+            dispatchWorkflowChanged(changedVehicle, prevStatus!, nextStatus, emp?.name).catch((err) => {
+              console.error('[STORE] Telegram dispatchWorkflowChanged failed:', err)
+            })
           }
         }
       }

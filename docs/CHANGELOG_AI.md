@@ -1,5 +1,462 @@
 # CHANGELOG_AI.md
 
+## 2026-07-07 - FEATURE #018: Global Search Command Center
+
+### Overview
+Implemented a fast, global search system as the primary navigation tool. Search across vehicles, tasks, employees, and positions using in-memory Zustand state (no duplicate Supabase queries). Includes Ctrl+K / Cmd+K shortcut, debounced real-time results, keyboard navigation, recent search history, and quick filters.
+
+### New Files
+None — implemented entirely within existing `src/components/GlobalSearch.tsx`.
+
+### Modified Files
+- `src/components/GlobalSearch.tsx` — Full rewrite with: grouped result display, quick filters (all/vehicle/task/employee/position), debounced 200ms search, keyboard navigation (Arrow Up/Down, Enter, Escape), recent search history with localStorage persistence, vehicle thumbnail images, status badges, and mobile-friendly layout.
+
+### Search Coverage
+- **Vehicles**: plate, model, brand, color, status, VIN, year — navigates to VehicleDetail
+- **Tasks**: title, description, status, priority — navigates to TaskDetail
+- **Employees**: name, phone, role — navigates to Employees page
+- **Positions**: position name/code — navigates to Positions page
+
+### Performance
+- All searches operate on Zustand state already loaded at app init — zero extra Supabase queries
+- `useMemo` on result computation to avoid recalculation on re-renders
+- Debounce: 200ms maximum response delay
+
+### Acceptance Criteria
+- ✅ Ctrl+K / Cmd+K opens search
+- ✅ Search bar works with debounce
+- ✅ Vehicle search with plate, model, color
+- ✅ Task search with title, status
+- ✅ Employee search with name, phone
+- ✅ Position search by name
+- ✅ Keyboard navigation (Arrow Up/Down/Enter/Escape)
+- ✅ Recent searches with clear history
+- ✅ Mobile full-screen sheet via Modal
+- ✅ No duplicate Supabase requests
+- ✅ `npm run build` passes
+
+---
+
+## 2026-07-07 - HOTFIX: Supabase Auth Crash After Login
+
+### Overview
+Fixed a post-login crash in `src/components/Sidebar.tsx` caused by calling `.trim()` on `currentUser.fullName` while profile data was still loading or temporarily missing. The auth service/store already hydrated profiles from Supabase, but the sidebar was not resilient to transient `undefined` name values. Updated profile mapping to use safer defaults as well.
+
+### Fixed Files
+- `src/components/Sidebar.tsx` — Made `getInitials()` and profile display resilient to missing `fullName` by guarding `.trim()` and `.slice()` calls with `(name || '')`.
+- `src/services/auth.service.ts` — Strengthened `mapProfileRow()` to provide safe defaults for required UI fields, especially `name` and `email`, so returned profiles are complete even if DB values are missing/null.
+- `src/store/useAuthStore.ts` — Verified sign-in/sign-up/session-restore paths set `currentUser` only from a complete profile; confirmed refresh and auth-state-change handlers clear state on missing profiles.
+
+### Verification
+- Confirmed login flow: `supabase.auth.signInWithPassword()` -> `loadProfile()` -> mapped `AuthProfile` -> auth store `currentUser`.
+- Confirmed `loadOrCreateProfile()` creates a complete profile or returns `null`; `mapProfileRow()` now ensures required fields exist with safe defaults.
+- Confirmed `currentUser` is fully populated before protected layout renders after login.
+- Updated `docs/CHANGELOG_AI.md`.
+
+---
+
+## 2026-07-07 - FEATURE #023: SUPABASE AUTHENTICATION MIGRATION
+
+### Overview
+Migrated authentication from the custom client-side auth system to Supabase Auth as the only authentication path. Removed local password hashing, local user arrays, and custom session persistence. All login, registration, logout, and session restoration now go through Supabase Auth and `public.users` profiles.
+
+### New Files
+- `src/services/auth.service.ts` — Auth service wrapper around Supabase Auth: sign-up, sign-in, sign-out, session restore, auth state listener, profile mapping.
+
+### Modified Files
+- `src/types.ts` — Removed `passwordHash` from `User`; auth now uses `auth_id` and Supabase Auth session instead of local password state.
+- `src/types/database.ts` — Kept `auth_id` as the canonical link to `auth.users`; retained legacy auth-shape comments for migration clarity.
+- `src/lib/supabase.ts` — Kept as the single Supabase client import; auth service uses it for both Auth and `public.users` access.
+- `src/store/useAuthStore.ts` — Replaced custom auth actions with Supabase Auth-backed actions; removed `hashPassword`, `verifyPassword`, local users/passkeys arrays, and `loginWithPasskey`; kept UI-facing auth state and persisted profile cache.
+- `src/pages/Login.tsx` — Switched to `signIn` flow using Supabase Auth; removed simulated delay and custom login validation.
+- `src/pages/Register.tsx` — Switched to `signUp` flow using Supabase Auth; first-admin behavior preserved through profile role update after sign-up.
+- `src/pages/Employees.tsx` — Updated to async auth actions and profile-backed user state; passkey UI preserved but wired to simplified store methods.
+- `src/components/RouteGuard.tsx` — Kept route protection behavior; now relies on Supabase-backed `isAuthenticated` and profile role from auth store.
+
+### Removed Auth Patterns
+- Client-side `hashPassword()` and `verifyPassword()`
+- Local `users` and `passkeys` arrays as source of truth
+- Custom login validation against stored password hashes
+- Local session persistence as the primary auth mechanism
+
+### Migration
+- `migrations/004_supabase_auth.sql` added for Supabase Auth migration path.
+- Existing `public.users` employee data preserved; `auth_id` used as canonical identity for auth mapping.
+
+### Acceptance Criteria
+- ✅ Registration creates `auth.users` record and `public.users` profile via auth service
+- ✅ Login uses `signInWithPassword` and loads profile from `public.users`
+- ✅ Logout uses `signOut`
+- ✅ Session restore uses `getSession` + `onAuthStateChange`
+- ✅ Current user profile loaded using `auth.uid` mapping
+- ✅ Route guards use Supabase-backed auth state
+- ✅ Admin mode and role behavior preserved
+- ✅ Telegram mapping continues via `public.users.auth_id`
+- ✅ Build passes
+
+---
+
+## 2026-07-07 - FEATURE #017.5: TELEGRAM INFRASTRUCTURE HARDENING
+
+### Overview
+Refactored Telegram integration into a production-safe architecture. Bot token is no longer stored in the browser. Frontend communicates with a dedicated backend server, `gara-bot-server`, for all Telegram operations. Employee linking is handled automatically via `/start` in Telegram.
+
+### New Files
+
+#### Backend: `gara-bot-server/`
+- `gara-bot-server/package.json` — Node/Express backend with dependencies: `telegraf`, `@supabase/supabase-js`, `express`, `cors`
+- `gara-bot-server/tsconfig.json` — TypeScript config for backend
+- `gara-bot-server/.env.example` — Example env with `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `FRONTEND_URL`
+- `gara-bot-server/src/index.ts` — Express app bootstrap with health check and Telegram routes
+- `gara-bot-server/src/supabase.ts` — Admin Supabase client using service role for backend-only DB access
+- `gara-bot-server/src/telegram/types.ts` — Backend Telegram/bot types
+- `gara-bot-server/src/telegram/link.service.ts` — Employee Telegram linking logic with `telegram_users` table
+- `gara-bot-server/src/telegram/bot.ts` — Telegram bot setup with `/start` auto-link flow and admin callback handlers
+- `gara-bot-server/src/telegram/webhook.ts` — Webhook setup/forwarding helpers
+- `gara-bot-server/src/telegram/server.ts` — Server-side bot lifecycle and webhook handler creation
+- `gara-bot-server/src/api/telegram.service.ts` — Backend business logic: status, linked users, test message
+- `gara-bot-server/src/api/telegram.routes.ts` — Express routes: `/api/telegram/status`, `/linked`, `/test`, `/notify`, `/answer`
+
+#### Database
+- `gara-bot-server/migrations/20250101000000_telegram_users.sql` — Minimal `telegram_users` table for employee ↔ Telegram account linking with unique constraints and service-role policy
+
+### Frontend Changes
+
+#### `src/services/telegramConfig.service.ts`
+- Removed `botToken` from config model and all token getter/setter methods
+- Frontend now stores only `webhookUrl`, `chatMapping`, `notificationRules`, `retryPolicy`, and `enabled`
+- Token-related comments removed
+
+#### `src/services/telegram.service.ts`
+- Replaced direct Telegram API client with backend API client
+- Methods now call backend endpoints: `/api/telegram/notify`, `/api/telegram/answer`, `/api/telegram/test`
+- Added `getStatus()` and `getLinkedEmployees()` to query backend state
+- Removed local `localStorage` log storage; logs are backend-managed
+- `processUpdate()` and `processCallbackQuery()` now return no-op placeholders because webhook processing is backend-only
+- Retry removed from frontend; backend owns delivery retry policy
+
+#### `src/pages/TelegramSettings.tsx`
+- Removed Bot Token field entirely
+- Config tab removed; UI now shows connection status card with backend health, webhook URL, and linked employee count
+- Mappings tab guidance updated to emphasize `/start` auto-link instead of manual Chat ID entry
+- Manual Chat ID input still supported as admin override
+- Test message now calls backend `/api/telegram/test`
+
+#### `src/services/telegramWebhookHandler.service.ts`
+- Marked as legacy; no longer part of active webhook flow
+- Webhook handling moved to `gara-bot-server`
+
+### Backend Architecture
+```
+React Web App
+  ↓
+gara-bot-server (Node.js/Express)
+  ↓
+Telegram Bot API
+  ↓
+Telegram
+  ↓
+Webhook
+  ↓
+gara-bot-server
+  ↓
+Supabase
+  ↓
+Realtime
+  ↓
+React
+```
+
+### Security
+- Bot token exists only in `gara-bot-server/.env`
+- Frontend never reads, stores, or transmits bot token
+- Webhook secret validation via `TELEGRAM_WEBHOOK_SECRET`
+- Unknown Telegram users are rejected in bot `/start` flow
+- Backend uses Supabase service role; no client secrets exposed to browser
+
+### Employee Auto-Link
+- Employee opens Telegram bot and sends `/start`
+- Bot captures `telegram_user_id`, `chat_id`, `username`, `first_name`, `last_name`, `language_code`
+- Backend writes to `telegram_users`
+- Subsequent webhook callbacks resolve employee via `telegram_users`
+
+### Configuration
+- Frontend settings page now displays: connection status, webhook URL, linked employees, test message
+- No bot token display or storage in frontend
+- Backend owns bot token, retry policy, and delivery logging
+
+### Error Handling
+- Telegram failures remain fire-and-forget from the web app perspective
+- Backend logs `sent`, `failed`, `retried`, `webhook` events
+- Business workflow continues if Telegram backend is unreachable
+
+### Acceptance Criteria
+- ✅ Bot token moved to backend `.env`
+- ✅ Webhook handled only by backend
+- ✅ Frontend uses backend API only
+- ✅ Employee auto-link via `/start`
+- ✅ No secret stored in browser
+- ✅ Existing Telegram features continue working via backend bridge
+- ✅ Frontend build remains valid
+
+---
+
+## 2026-07-07 - FEATURE #017: TELEGRAM AUTOMATION ENGINE v1
+
+### Overview
+Integrated the Garage Management System with Telegram Bot for staff notification and interaction. Telegram becomes the primary notification channel while the web app remains the single source of truth.
+
+### Architecture
+```
+Web App → Rule Engine → Telegram Service → Telegram Bot → Staff
+                                                      ↓
+                                                   Webhook
+                                                      ↓
+                                                   Backend
+                                                      ↓
+                                                   Supabase
+                                                      ↓
+                                                  Realtime
+                                                      ↓
+                                                 Web App
+```
+
+### New Files
+
+#### Types (`src/types/telegram.ts`)
+- Central type definitions for the Telegram Automation Engine
+- Types: `TelegramConfig`, `TelegramChatMapping`, `TelegramNotificationRule`, `TelegramRetryPolicy`
+- Event types: `task_created`, `task_assigned`, `task_overdue`, `vehicle_ready`, `vehicle_sold`, `workflow_changed`, `approval_required`, `daily_summary`
+- Command types: `start_task`, `complete_task`, `view_task`, `approve`, `reject`, `help`
+- Logging types: `TelegramLogEntry` with levels: sent, delivered, failed, retried, received, callback
+
+#### Services
+
+##### `src/services/telegramConfig.service.ts`
+- `TelegramConfigService` class managing all Telegram configuration in localStorage
+- Bot token, webhook URL, chat mappings, notification rules, retry policy
+- Methods: `getConfig()`, `setEnabled()`, `setBotToken()`, `setWebhookUrl()`, `getChatIdByEmployee()`, `isEventEnabled()`, `updateNotificationRule()`, etc.
+- Default retry policy: 3 retries, 1000ms delay, exponential backoff
+
+##### `src/services/telegramFormatter.service.ts`
+- `TelegramNotificationFormatter` — formats business events into Telegram-ready messages
+- Uses Telegram MarkdownV2 for rich formatting
+- Formatters: `formatTaskCreated`, `formatTaskAssigned`, `formatTaskOverdue`, `formatVehicleReady`, `formatVehicleSold`, `formatWorkflowChanged`, `formatApprovalRequired`, `formatDailySummary`
+- Includes Vietnamese labels and emoji for priority/status indicators
+- Builds inline keyboard buttons for actions (Start, Complete, View, Approve, Reject)
+
+##### `src/services/telegram.service.ts`
+- `TelegramService` singleton — core Telegram Bot API integration
+- Methods: `sendMessage()`, `sendToEmployee()`, `broadcastToAll()`, `editMessageText()`, `answerCallbackQuery()`
+- Retry logic with exponential backoff using configured policy
+- Command parsing from callback data and text messages
+- Local storage-based logging with 500-entry limit
+- Process update handling for webhook delivery
+
+##### `src/services/telegramDispatcher.service.ts`
+- Bridges Zustand store events → Telegram notifications
+- NEVER writes directly to Supabase; uses existing store actions
+- Dispatchers: `dispatchTaskCreated()`, `dispatchTaskAssigned()`, `dispatchTaskOverdue()`, `dispatchVehicleReady()`, `dispatchVehicleSold()`, `dispatchWorkflowChanged()`, `dispatchApprovalRequired()`
+- Priority threshold filtering for overdue notifications
+- `checkAndNotifyOverdueTasks()` for batch overdue checks
+
+##### `src/services/telegramWebhookHandler.service.ts`
+- Processes inbound Telegram updates (callback queries + text commands)
+- Security: validates sender against chat mapping; rejects unknown users
+- Command handlers: `handleStartTask()`, `handleCompleteTask()`, `handleViewTask()`, `handleApprove()`, `handleReject()`, `handleHelp()`
+- Dispatches custom `window` events for store integration
+- `setupTelegramEventBridge()` for reactive event handling
+- `onTelegramCommand()` for command subscription
+
+#### UI
+
+##### `src/pages/TelegramSettings.tsx`
+- Admin configuration page for Telegram integration
+- Tabs: Cấu hình (Config), Liên kết (Mappings), Thông báo (Rules), Nhật ký (Logs)
+- Config: bot token (masked), webhook URL, retry policy settings
+- Mappings: link employees to Telegram chat IDs with enable/disable
+- Rules: toggle notifications per event type with role targeting
+- Logs: view sent/delivered/failed/retried/callback entries
+- Test message button for connectivity verification
+- Real-time reload of config and logs
+
+### Store Integration (`src/store/useStore.ts`)
+- Added Telegram dispatcher calls to:
+  - `addTask`: dispatches `dispatchTaskCreated()` after task creation
+  - `updateVehicle`: dispatches `dispatchVehicleSold()` and `dispatchVehicleReady()` on status changes
+  - `updateTask`: dispatches `dispatchWorkflowChanged()` after workflow status change
+- All dispatches are fire-and-forget; never block business workflow
+- Errors logged but do not interrupt user experience
+
+### Routes & Navigation
+- Added `/telegram` route (admin only) in `App.tsx`
+- Added "Telegram" menu item in sidebar (admin role, using Truck icon)
+- Route protected by `RoleGuard` for admin only
+
+### Key Design Decisions
+- **Browser SPA + Telegram**: Since this is a browser SPA, direct Telegram Bot API calls go through a configurable webhook proxy URL
+- **Configurable proxy**: The `webhookUrl` points to a proxy (e.g., Cloudflare Worker, Vercel Edge Function) that handles Telegram API calls and CORS
+- **Bot token stored client-side**: Token is stored in localStorage for reference; the proxy uses it for API calls
+- **Never blocks business flow**: All Telegram operations are async and fail silently to the user
+- **No database changes**: All configuration stored in localStorage
+- **Reuses existing services**: Business logic stays in Rule Engine / store; Telegram layer only handles delivery and inbound parsing
+
+### Security
+- All inbound commands validated against chat mapping
+- Unknown Telegram users are rejected
+- Sender ID validated before executing any action
+
+### Acceptance Criteria Met
+- ✅ Task notifications sent via Telegram on task creation
+- ✅ Start task action dispatched via Telegram callback
+- ✅ Complete task action dispatched via Telegram callback
+- ✅ Approval request support (approve/reject buttons)
+- ✅ Workflow notifications (workflow_changed events)
+- ✅ Retry policy with exponential backoff
+- ✅ Logging of sent, failed, retried, received, callback events
+- ✅ Existing workflow unchanged (fire-and-forget, never blocks)
+- ✅ Build passes (zero TypeScript errors)
+
+---
+
+## 2026-07-07 - FEATURE #016: DASHBOARD ANALYTICS
+
+### GarageDashboard Enhancements
+
+#### Top KPI Cards
+- Added new KPI section showing key metrics:
+  - Total vehicles
+  - Vehicles processing (not sold)
+  - Vehicles ready for sale (available)
+  - Vehicles sold
+  - Tasks pending
+  - Tasks completed today (from activity logs)
+
+#### Workflow Overview
+- Added workflow overview section showing vehicle count by status:
+  - Waiting (new)
+  - Input (received)
+  - Working (repair)
+  - Final check
+  - Ready
+  - Sold
+- Displayed as colored progress cards
+
+#### Position Overview
+- Added position overview section:
+  - Shows up to 6 positions
+  - Displays vehicle count per position
+  - Visual occupancy indicator
+  - Link to position management
+
+#### Task Overview
+- Added task overview section:
+  - Todo count
+  - Doing count
+  - Done count
+  - Completion percentage with progress bar
+  - Link to task management
+
+#### Employee Overview
+- Added employee overview section:
+  - Working today (checked in, not checked out)
+  - Absent (not checked in)
+  - Total checked in
+  - Total active employees
+- Uses attendance data from Zustand store
+
+#### Quick Actions
+- Added quick action buttons in header:
+  - Add vehicle (navigates to /xe?add=true)
+  - Create task (navigates to /nhiem-vu?add=true)
+  - Positions (navigates to /vi-tri)
+  - Attendance (navigates to /cham-cong)
+
+### New Dashboard Components
+- `KPICard`: KPI display card with icon, value, and colored background
+- `WorkflowCard`: Workflow status card with count and progress bar
+- `TaskStatusCard`: Task status card with border accent
+- `EmployeeStatCard`: Employee stat card with icon
+
+### Build Verification
+- `npm run build` passes with zero TypeScript errors
+- No database schema changes
+- No business logic changes
+- Reuses Zustand state (vehicles, tasks, employees, positions, attendance, taskActivityLogs)
+
+---
+
+## 2026-07-07 - FEATURE #015: PRODUCTION UX POLISH
+
+### UX Component Enhancements
+
+#### New UI Components (`src/components/ui.tsx`)
+- **ConfirmDialog**: Reusable confirmation dialog component with variants (danger, warning, default)
+  - Mobile-friendly bottom sheet design
+  - Loading state with spinner
+  - Accessible focus management
+- **Skeleton Loading Components**:
+  - `Skeleton`: Base skeleton component with variants (text, circular, rectangular)
+  - `SkeletonCard`: Ready-to-use card skeleton for vehicle lists
+  - `SkeletonTable`: Table skeleton with configurable rows
+  - `SkeletonList`: List skeleton for employee/task lists
+- **Spinner Component**: Animated loading spinner with size variants (sm, md, lg)
+- **LoadingOverlay**: Full loading state with message
+
+#### EmptyState Enhancement
+- Added optional `action` prop for CTA buttons
+- Improved padding and max-width for better readability
+- Separated icon from text with consistent spacing
+
+### Search UX Improvements
+
+#### GlobalSearch Enhancements (`src/components/GlobalSearch.tsx`)
+- Added 200ms debounce to prevent excessive filtering
+- Separated `query` (raw input) from `debouncedQuery` (filtered)
+- Improved "no results" message to show the search term
+- Added `useCallback` for navigation function to prevent unnecessary re-renders
+- Clears debounced query when modal closes
+
+### Confirmation Dialogs (Replaced browser confirm/alert)
+
+#### Employees Page (`src/pages/Employees.tsx`)
+- Replaced `confirm()` with `ConfirmDialog` for self-disable warning
+- Replaced `confirm()` with `ConfirmDialog` for self-admin removal
+- Replaced inline delete modal with reusable `ConfirmDialog`
+
+#### VehicleDetail Page (`src/pages/VehicleDetail.tsx`)
+- Replaced `confirm()` with `ConfirmDialog` for vehicle deletion
+
+#### PriceList Page (`src/pages/PriceList.tsx`)
+- Replaced `confirm()` with `ConfirmDialog` for vehicle deletion
+
+#### TaskDetail Page (`src/pages/TaskDetail.tsx`)
+- Replaced `confirm()` with `ConfirmDialog` for task deletion
+
+#### Positions Page (`src/pages/Positions.tsx`)
+- Replaced `confirm()` with `ConfirmDialog` for position deletion
+- Replaced `alert()` with `ConfirmDialog` for position with vehicles blocking
+
+### Loading States for Forms
+
+#### VehicleFormModal (`src/pages/VehicleFormModal.tsx`)
+- Added `isSaving` state to prevent double-submit
+- Disabled submit button while saving
+- Shows "Đang lưu..." text during save operation
+
+#### CheckSheetForm (`src/components/CheckSheetForm.tsx`)
+- Added `isSaving` state to prevent double-submit
+- Disabled save/cancel buttons while saving
+- Shows "Đang lưu..." text during save operation
+
+### Build Verification
+- `npm run build` passes with zero TypeScript errors
+- No business logic changes
+- No folder restructuring
+- All existing features continue working
+
+---
+
 ## 2026-07-07 - FEATURE #014: WORKFLOW VALIDATION & PRODUCTION HARDENING
 
 ### Production Hardening

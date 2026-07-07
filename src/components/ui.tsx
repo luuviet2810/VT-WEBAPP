@@ -313,6 +313,56 @@ export function SegButton({
   )
 }
 
+// ====== CONFIRM DIALOG ======
+
+interface ConfirmDialogProps {
+  open: boolean
+  title: string
+  message: string
+  confirmLabel?: string
+  cancelLabel?: string
+  variant?: 'default' | 'danger'
+  onConfirm: () => void
+  onCancel: () => void
+}
+
+export function ConfirmDialog({
+  open,
+  title,
+  message,
+  confirmLabel = 'Xác nhận',
+  cancelLabel = 'Huỷ',
+  variant = 'default',
+  onConfirm,
+  onCancel,
+}: ConfirmDialogProps) {
+  if (!open) return null
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="fixed inset-0 bg-black/40" onClick={onCancel} />
+      <div className="relative z-10 w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
+        <h3 className="text-base font-semibold text-gray-900">{title}</h3>
+        <p className="mt-2 text-sm text-gray-600">{message}</p>
+        <div className="mt-5 flex justify-end gap-2">
+          <button className="btn-secondary text-sm" onClick={onCancel}>
+            {cancelLabel}
+          </button>
+          <button
+            className={`text-sm rounded-lg px-4 py-2 font-medium text-white transition-colors ${
+              variant === 'danger'
+                ? 'bg-red-500 hover:bg-red-600'
+                : 'bg-brand-500 hover:bg-brand-600'
+            }`}
+            onClick={onConfirm}
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ====== BATTERY CHECK COMPONENT ======
 
 interface BatteryCheckProps {

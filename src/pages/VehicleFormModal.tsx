@@ -141,6 +141,7 @@ export default function VehicleFormModal({
   }, [open, editVehicleId])
 
   async function handleSave() {
+    console.log("HANDLE SAVE START");
     if (!form.plate.trim() || !form.model.trim()) return
     const data = {
       plate: form.plate.trim(),
@@ -156,6 +157,7 @@ export default function VehicleFormModal({
       positionId: form.positionId || null,
       note: form.note || undefined,
     }
+    console.log("DATA TO SAVE", data);
     if (vehicleId) {
       updateVehicle(vehicleId, data)
       setTab('photos')

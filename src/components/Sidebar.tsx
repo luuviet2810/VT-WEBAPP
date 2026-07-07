@@ -66,12 +66,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
 function DrawerContent({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate()
-  const { currentUser, logout, getPendingUsers } = useAuthStore()
+  const { currentUser, logout } = useAuthStore()
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
 
   const effectiveRole = useEffectiveRole()
   const sidebarConfig = getSidebarConfig(effectiveRole)
-  const pendingUsers = getPendingUsers()
 
   const handleLogout = () => {
     logout()
@@ -79,11 +78,16 @@ function DrawerContent({ onClose }: { onClose: () => void }) {
   }
 
   const getInitials = (name: string) => {
-    const parts = name.trim().split(' ')
+    if (!name) return '?'
+    const trimmed = name.trim()
+    if (!trimmed) return '?'
+    const parts = trimmed.split(' ')
     if (parts.length >= 2) {
-      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+      const first = parts[0]?.[0] ?? ''
+      const last = parts[parts.length - 1]?.[0] ?? ''
+      return (first + last).toUpperCase()
     }
-    return name.slice(0, 2).toUpperCase()
+    return trimmed.slice(0, 2).toUpperCase()
   }
 
   return (
@@ -128,7 +132,7 @@ function DrawerContent({ onClose }: { onClose: () => void }) {
       {/* Navigation - Top items */}
       <nav className="flex-1 overflow-y-auto px-3 py-2">
         {sidebarConfig.top.map((item) => {
-          const showBadge = item.key === 'employees' && pendingUsers.length > 0
+          const showBadge = item.key === 'employees' && false
 
           return (
             <NavLink
@@ -144,7 +148,7 @@ function DrawerContent({ onClose }: { onClose: () => void }) {
               <span>{item.label}</span>
               {showBadge && (
                 <span className="ml-auto flex h-6 min-w-6 items-center justify-center rounded-full bg-red-500 px-2 text-xs font-bold text-white">
-                  {pendingUsers.length}
+                  0
                 </span>
               )}
             </NavLink>
@@ -235,12 +239,11 @@ function DrawerContent({ onClose }: { onClose: () => void }) {
 
 function DesktopSidebarContent() {
   const navigate = useNavigate()
-  const { currentUser, logout, getPendingUsers } = useAuthStore()
+  const { currentUser, logout } = useAuthStore()
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
 
   const effectiveRole = useEffectiveRole()
   const sidebarConfig = getSidebarConfig(effectiveRole)
-  const pendingUsers = getPendingUsers()
 
   const handleLogout = () => {
     logout()
@@ -248,11 +251,16 @@ function DesktopSidebarContent() {
   }
 
   const getInitials = (name: string) => {
-    const parts = name.trim().split(' ')
+    if (!name) return '?'
+    const trimmed = name.trim()
+    if (!trimmed) return '?'
+    const parts = trimmed.split(' ')
     if (parts.length >= 2) {
-      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+      const first = parts[0]?.[0] ?? ''
+      const last = parts[parts.length - 1]?.[0] ?? ''
+      return (first + last).toUpperCase()
     }
-    return name.slice(0, 2).toUpperCase()
+    return trimmed.slice(0, 2).toUpperCase()
   }
 
   return (
@@ -288,7 +296,7 @@ function DesktopSidebarContent() {
       {/* Navigation - Top items */}
       <nav className="flex-1 space-y-0.5 px-3">
         {sidebarConfig.top.map((item) => {
-          const showBadge = item.key === 'employees' && pendingUsers.length > 0
+          const showBadge = item.key === 'employees' && false
 
           return (
             <NavLink
@@ -304,7 +312,7 @@ function DesktopSidebarContent() {
               {item.label}
               {showBadge && (
                 <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">
-                  {pendingUsers.length}
+                  0
                 </span>
               )}
             </NavLink>

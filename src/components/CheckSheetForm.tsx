@@ -219,6 +219,7 @@ export default function CheckSheetForm({
 
   // ====== STATE — initialized from existing sheet or defaults ======
   const [sheetId, setSheetId] = useState<string | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
   const [checkerId, setCheckerId] = useState(currentEmployeeId)
   const [checkDate, setCheckDate] = useState(new Date().toISOString().slice(0, 10))
   const [fuelLevel, setFuelLevel] = useState<FuelLevel>('half')
@@ -968,22 +969,28 @@ export default function CheckSheetForm({
   }
 
   function handleSaveAndClose() {
+    if (isSaving) return
+    setIsSaving(true)
 
-    // 1. Tạo/Cập nhật Tasks
-    handleCreateOrUpdateTasks()
+    try {
+      // 1. Tạo/Cập nhật Tasks
+      handleCreateOrUpdateTasks()
 
-    // 2. Lưu CheckSheet
-    handleSave()
+      // 2. Lưu CheckSheet
+      handleSave()
 
-    // 3. Notification
-    addNotification({
-      type: 'task_done',
-      title: 'Lưu thành công',
-      body: `Đã lưu phiếu ${type === 'in' ? 'đầu vào' : 'đầu ra'} cho xe ${vehicle.plate}`,
-    })
+      // 3. Notification
+      addNotification({
+        type: 'task_done',
+        title: 'Lưu thành công',
+        body: `Đã lưu phiếu ${type === 'in' ? 'đầu vào' : 'đầu ra'} cho xe ${vehicle.plate}`,
+      })
 
-    // 4. Gọi callback để đóng popup
-    onSaved()
+      // 4. Gọi callback để đóng popup
+      onSaved()
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   // ====== RENDER ======
@@ -1339,11 +1346,11 @@ export default function CheckSheetForm({
         </div>
         {/* Buttons */}
         <div className="flex shrink-0 gap-3 border-t border-slate-200 bg-white pt-4">
-          <button className="btn-secondary flex-1" onClick={onCancel} type="button">
+          <button className="btn-secondary flex-1" onClick={onCancel} type="button" disabled={isSaving}>
             Huỷ
           </button>
-          <button className="btn-primary flex-1" onClick={handleSaveAndClose} type="button">
-            Lưu {type === 'in' ? 'đầu vào' : 'đầu ra'}
+          <button className="btn-primary flex-1" onClick={handleSaveAndClose} type="button" disabled={isSaving}>
+            {isSaving ? 'Đang lưu...' : `Lưu ${type === 'in' ? 'đầu vào' : 'đầu ra'}`}
           </button>
         </div>
       </div>

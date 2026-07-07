@@ -58,6 +58,7 @@ export interface PasskeyCredential {
 // Register a new passkey
 export async function registerPasskey(options: PasskeyRegistrationOptions): Promise<PasskeyCredential | null> {
   if (!isWebAuthnSupported()) {
+    console.error('WebAuthn not supported')
     return null
   }
 
@@ -94,6 +95,7 @@ export async function registerPasskey(options: PasskeyRegistrationOptions): Prom
     })) as PublicKeyCredential | null
 
     if (!credential) {
+      console.error('Failed to create credential')
       return null
     }
 
@@ -108,6 +110,7 @@ export async function registerPasskey(options: PasskeyRegistrationOptions): Prom
       deviceName,
     }
   } catch (error) {
+    console.error('Error registering passkey:', error)
     return null
   }
 }
@@ -167,9 +170,12 @@ export async function authenticateWithPasskey(
       return { success: false, error: 'Xác thực bị hủy' }
     }
 
+    console.log('✅ Passkey authentication successful')
+
     return { success: true }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    console.error('Error authenticating with passkey:', errorMessage)
 
     if (errorMessage.includes('NotAllowedError')) {
       return { success: false, error: 'Xác thực bị hủy hoặc hết thời gian' }

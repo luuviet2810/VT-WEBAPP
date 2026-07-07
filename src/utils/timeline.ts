@@ -1,4 +1,25 @@
-import type { TimelineItem, TimelineItemType } from '../types'
+export type TimelineItemType =
+  | 'vehicle_created'
+  | 'check_sheet_created'
+  | 'task_generated'
+  | 'task_status_changed'
+  | 'move_log'
+  | 'vehicle_status_changed'
+  | 'custom'
+
+export interface TimelineItem {
+  id: string
+  time: string
+  type: TimelineItemType
+  title: string
+  description: string
+  user?: string
+  userId?: string | null
+  vehicleId?: string
+  checkSheetId?: string
+  taskId?: string
+  moveLogId?: string
+}
 
 export function formatTimelineTime(time: string) {
   const d = new Date(time)
@@ -15,15 +36,11 @@ export function formatTimelineTime(time: string) {
 export function timelineItemTypeLabel(type: TimelineItemType) {
   const labels: Record<TimelineItemType, string> = {
     vehicle_created: 'Tạo xe',
-    vehicle_updated: 'Cập nhật xe',
     check_sheet_created: 'Checksheet',
     task_generated: 'Task',
     task_status_changed: 'Task',
     move_log: 'Di chuyển',
     vehicle_status_changed: 'Trạng thái xe',
-    vehicle_workflow_changed: 'Tiến độ',
-    photo_uploaded: 'Ảnh',
-    document_uploaded: 'Giấy tờ',
     custom: 'Sự kiện',
   }
   return labels[type] ?? type

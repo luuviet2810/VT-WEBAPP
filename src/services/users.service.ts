@@ -26,10 +26,16 @@ function mapRowToEmployee(row: UserRow): Employee {
 }
 
 export async function getEmployees(): Promise<Employee[]> {
-  const { data, error } = await supabase
+  const { data, error, status, statusText } = await supabase
     .from('users')
     .select('*')
     .order('name', { ascending: true })
+
+  console.log('🔵 [users.service] getEmployees()')
+  console.log('   data:', JSON.stringify(data, null, 2))
+  console.log('   error:', error)
+  console.log('   status:', status)
+  console.log('   statusText:', statusText)
 
   if (error) throw error
   return (data as UserRow[]).map(mapRowToEmployee)

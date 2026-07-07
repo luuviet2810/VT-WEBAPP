@@ -2,11 +2,8 @@
 
 import { UserRole } from './roles'
 
-// Permission keys — each represents a specific action
+// Permission keys - each represents a specific action
 export type Permission =
-  // Dashboard
-  | 'dashboard:read'
-
   // Vehicle permissions
   | 'vehicle:create'
   | 'vehicle:read'
@@ -14,12 +11,6 @@ export type Permission =
   | 'vehicle:delete'
   | 'vehicle:move'
   | 'vehicle:assign'
-  | 'vehicle:upload_photo'
-  | 'vehicle:upload_document'
-  | 'vehicle:delete_photo'
-  | 'vehicle:delete_document'
-  | 'vehicle:change_price'
-  | 'vehicle:change_workflow'
 
   // Task permissions
   | 'task:create'
@@ -71,11 +62,17 @@ export type Permission =
   | 'template:read'
   | 'template:write'
 
+  // Vehicle detail permissions
+  | 'vehicle:upload_photo'
+  | 'vehicle:upload_document'
+  | 'vehicle:delete_photo'
+  | 'vehicle:delete_document'
+  | 'vehicle:change_price'
+  | 'vehicle:change_workflow'
+
 // Role-Permission mapping
 export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   admin: [
-    'dashboard:read',
-
     // Full vehicle access
     'vehicle:create',
     'vehicle:read',
@@ -83,12 +80,6 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'vehicle:delete',
     'vehicle:move',
     'vehicle:assign',
-    'vehicle:upload_photo',
-    'vehicle:upload_document',
-    'vehicle:delete_photo',
-    'vehicle:delete_document',
-    'vehicle:change_price',
-    'vehicle:change_workflow',
 
     // Full task access
     'task:create',
@@ -139,115 +130,40 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     // Templates
     'template:read',
     'template:write',
-  ],
 
-  manager: [
-    'dashboard:read',
-
-    // Vehicle — create, read, update, move, assign; cannot delete, cannot change price, cannot change workflow manually
-    'vehicle:create',
-    'vehicle:read',
-    'vehicle:update',
-    'vehicle:move',
-    'vehicle:assign',
+    // Vehicle detail
     'vehicle:upload_photo',
     'vehicle:upload_document',
     'vehicle:delete_photo',
     'vehicle:delete_document',
-
-    // Task — full access
-    'task:create',
-    'task:read',
-    'task:update',
-    'task:delete',
-    'task:assign',
-
-    // CheckSheet — full access
-    'checksheet:create',
-    'checksheet:read',
-    'checksheet:update',
-
-    // User — read and update only
-    'user:read',
-    'user:update',
-
-    // Position — read and update
-    'position:read',
-    'position:update',
-
-    // Attendance — full
-    'attendance:read',
-    'attendance:create',
-    'attendance:update',
-
-    // Settings — read only
-    'settings:read',
-
-    // Price list — full
-    'pricelist:read',
-    'pricelist:update',
-
-    // Statistics — full
-    'statistics:read',
-    'statistics:export',
-
-    // Templates
-    'template:read',
-    'template:write',
+    'vehicle:change_price',
+    'vehicle:change_workflow',
   ],
 
   staff: [
-    'dashboard:read',
-
-    // Vehicle — read, upload photos, cannot delete, cannot change price
+    // Vehicle - read only (can view assigned vehicles)
     'vehicle:read',
-    'vehicle:upload_photo',
-    'vehicle:upload_document',
 
-    // Task — read and update own tasks (update is checked via task ownership in components)
+    // Task - read and update own tasks
     'task:read',
     'task:update',
 
-    // CheckSheet — create and read for assigned vehicles
+    // CheckSheet - create for assigned vehicles
     'checksheet:create',
     'checksheet:read',
 
-    // User — read own profile
+    // User - read own profile
     'user:read',
 
-    // Position — read only
+    // Position - read only
     'position:read',
 
-    // Attendance — create own check-in/out
+    // Attendance - create own check-in/out
     'attendance:read',
     'attendance:create',
 
-    // Templates — read only (can apply templates to assigned vehicles)
+    // Templates - read only
     'template:read',
-  ],
-
-  driver: [
-    'dashboard:read',
-
-    // Vehicle — read only (view assigned move jobs / vehicle info)
-    'vehicle:read',
-
-    // Task — read and update (only vehicle movement confirmations)
-    'task:read',
-    'task:update',
-
-    // CheckSheet — read only
-    'checksheet:read',
-
-    // User — read own profile
-    'user:read',
-
-    // Position — read only
-    'position:read',
-
-    // Attendance — create own check-in/out
-    'attendance:read',
-    'attendance:create',
   ],
 }
 

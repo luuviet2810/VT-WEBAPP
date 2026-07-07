@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { ArrowLeft, Check, Clock, Plus, Trash2, X } from 'lucide-react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useStore } from '../store/useStore'
-import { Badge, EmptyState, Modal } from '../components/ui'
+import { Badge, EmptyState, Modal, ConfirmDialog } from '../components/ui'
 import { TaskChecklistItem, TaskPriority, TaskStatus } from '../types'
 import { formatDateTime, uid } from '../utils/format'
 import clsx from 'clsx'
@@ -33,6 +33,7 @@ export default function TaskDetail() {
   const [editText, setEditText] = useState('')
   const [newChecklistText, setNewChecklistText] = useState('')
   const [showAddChecklist, setShowAddChecklist] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const task = tasks.find((t) => t.id === id)
   if (!task) {
@@ -71,10 +72,12 @@ export default function TaskDetail() {
   }
 
   function handleDelete() {
-    if (confirm('Xoá nhiệm vụ này?')) {
-      deleteTask(currentTask.id)
-      navigate('/nhiem-vu')
-    }
+    setShowDeleteConfirm(true)
+  }
+
+  function confirmDelete() {
+    deleteTask(currentTask.id)
+    navigate('/nhiem-vu')
   }
 
   const vehicle = vehicles.find((v) => v.id === currentTask.vehicleId)
@@ -245,6 +248,16 @@ export default function TaskDetail() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        title="Xóa nhiệm vụ?"
+        message={`Bạn có chắc muốn xóa nhiệm vụ "${currentTask.title}"? Hành động này không thể hoàn tác.`}
+        confirmLabel="Xóa"
+        variant="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   )
 }

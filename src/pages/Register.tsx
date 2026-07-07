@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { UserPlus, Eye, EyeOff, AlertCircle, CheckCircle2, ArrowLeft, Clock } from 'lucide-react'
+import { UserPlus, Eye, EyeOff, AlertCircle, ArrowLeft, Clock } from 'lucide-react'
 import { useAuthStore } from '../store/useAuthStore'
+import { signUpWithEmail } from '../services/auth.service'
 
 export default function RegisterPage() {
   const navigate = useNavigate()
-  const { register, isAuthenticated } = useAuthStore()
+  const { isAuthenticated, authLoading } = useAuthStore()
 
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
@@ -14,11 +15,18 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [registerResult, setRegisterResult] = useState<{ isFirstAdmin: boolean } | null>(null)
+  const [pending, setPending] = useState(false)
 
-  // Redirect if already logged in
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-50 to-slate-100">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-600 border-t-transparent" />
+      </div>
+    )
+  }
+
   if (isAuthenticated) {
-    navigate('/')
+    navigate('/', { replace: true })
     return null
   }
 
@@ -26,7 +34,6 @@ export default function RegisterPage() {
     e.preventDefault()
     setError('')
 
-    // Validate passwords match
     if (password !== confirmPassword) {
       setError('Mật khẩu xác nhận không khớp')
       return
@@ -34,18 +41,13 @@ export default function RegisterPage() {
 
     setIsLoading(true)
 
-    // Simulate network delay
-    await new Promise((r) => setTimeout(r, 500))
+    const result = await signUpWithEmail(fullName, email, password)
 
-    const result = register({ fullName, email, password })
-
-    if (result.success) {
-      // If first admin, redirect to home (already logged in)
-      if (result.isFirstAdmin) {
-        navigate('/')
+    if (result.ok) {
+      if (result.user.status === 'pending') {
+        setPending(true)
       } else {
-        // Otherwise show pending message
-        setRegisterResult({ isFirstAdmin: false })
+        navigate('/')
       }
     } else {
       setError(result.error || 'Đăng ký thất bại')
@@ -54,8 +56,7 @@ export default function RegisterPage() {
     setIsLoading(false)
   }
 
-  // Success State - Pending Approval
-  if (registerResult && !registerResult.isFirstAdmin) {
+  if (pending) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-50 to-slate-100 p-4">
         <div className="w-full max-w-md text-center">
@@ -86,7 +87,6 @@ export default function RegisterPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-50 to-slate-100 p-4">
       <div className="w-full max-w-md">
-        {/* Back Button */}
         <Link
           to="/login"
           className="mb-6 inline-flex items-center gap-1 text-sm text-slate-600 hover:text-brand-600"
@@ -95,7 +95,6 @@ export default function RegisterPage() {
           Quay lại đăng nhập
         </Link>
 
-        {/* Logo & Title */}
         <div className="mb-8 text-center">
           <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-600 shadow-lg">
             <span className="text-2xl font-bold text-white">GM</span>
@@ -104,9 +103,7 @@ export default function RegisterPage() {
           <p className="mt-1 text-sm text-slate-500">Điền thông tin bên dưới để đăng ký</p>
         </div>
 
-        {/* Register Card */}
         <div className="rounded-2xl bg-white p-6 shadow-xl">
-          {/* Error Alert */}
           {error && (
             <div className="mb-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4">
               <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-500" />
@@ -116,7 +113,6 @@ export default function RegisterPage() {
             </div>
           )}
 
-          {/* Register Form */}
           <form onSubmit={handleRegister} className="space-y-4">
             <div>
               <label className="label">Họ và tên</label>
@@ -200,7 +196,6 @@ export default function RegisterPage() {
             </button>
           </form>
 
-          {/* Info */}
           <div className="mt-6 rounded-xl border border-blue-100 bg-blue-50 p-4">
             <p className="text-xs text-blue-700">
               Sau khi đăng ký, tài khoản của bạn sẽ được Admin phê duyệt trước khi có thể đăng nhập.
@@ -208,7 +203,6 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        {/* Login Link */}
         <p className="mt-6 text-center text-sm text-slate-600">
           Đã có tài khoản?{' '}
           <Link to="/login" className="font-medium text-brand-600 hover:text-brand-700">

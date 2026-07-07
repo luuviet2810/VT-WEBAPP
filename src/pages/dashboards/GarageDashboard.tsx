@@ -1,7 +1,7 @@
-// ====== GARAGE DASHBOARD v1 - Operational Overview ======
+// ====== GARAGE DASHBOARD v2 - Management Dashboard ======
 
 import { useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   AlertTriangle,
   ArrowRight,
@@ -9,12 +9,17 @@ import {
   CheckCircle,
   ChevronRight,
   Clock,
+  LayoutGrid,
   Lightbulb,
+  MapPin,
   Package,
   PackageCheck,
+  Plus,
   RotateCcw,
   User,
   Users,
+  UserCheck,
+  UserPlus,
   UserX,
   Wrench,
 } from 'lucide-react'
@@ -37,12 +42,14 @@ function daysDiff(a: Date, b: Date): number {
 }
 
 export default function GarageDashboard() {
+  const navigate = useNavigate()
   const vehicles = useStore((s) => s.vehicles)
   const tasks = useStore((s) => s.tasks)
   const positions = useStore((s) => s.positions)
   const employees = useStore((s) => s.employees)
   const checkSheets = useStore((s) => s.checkSheets)
   const taskActivityLogs = useStore((s) => s.taskActivityLogs)
+  const attendance = useStore((s) => s.attendance)
 
   const today = new Date().toISOString().slice(0, 10)
 
@@ -205,7 +212,7 @@ export default function GarageDashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Bảng điều khiển</h1>
           <p className="mt-0.5 text-sm text-slate-500">
@@ -217,7 +224,227 @@ export default function GarageDashboard() {
             })}
           </p>
         </div>
+        {/* Quick Actions */}
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => navigate('/xe?add=true')}
+            className="btn-secondary text-sm flex items-center gap-1.5"
+          >
+            <Plus size={14} />
+            Thêm xe
+          </button>
+          <button
+            onClick={() => navigate('/nhiem-vu?add=true')}
+            className="btn-secondary text-sm flex items-center gap-1.5"
+          >
+            <Plus size={14} />
+            Tạo nhiệm vụ
+          </button>
+          <button
+            onClick={() => navigate('/vi-tri')}
+            className="btn-secondary text-sm flex items-center gap-1.5"
+          >
+            <MapPin size={14} />
+            Vị trí
+          </button>
+          <button
+            onClick={() => navigate('/cham-cong')}
+            className="btn-secondary text-sm flex items-center gap-1.5"
+          >
+            <UserCheck size={14} />
+            Chấm công
+          </button>
+        </div>
       </div>
+
+      {/* ===== TOP KPI CARDS ===== */}
+      <section>
+        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-500">
+          <CheckCircle size={16} />
+          Chỉ số chính
+        </h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+          <KPICard label="Tổng xe" value={vehicles.length} icon={<Car size={16} />} tone="slate" />
+          <KPICard label="Đang xử lý" value={vehicles.filter((v) => v.status !== 'sold').length} icon={<Wrench size={16} />} tone="blue" />
+          <KPICard label="Sẵn sàng bán" value={vehicles.filter((v) => v.status === 'available').length} icon={<PackageCheck size={16} />} tone="green" />
+          <KPICard label="Đã bán" value={vehicles.filter((v) => v.status === 'sold').length} icon={<CheckCircle size={16} />} tone="purple" />
+          <KPICard label="Việc đang chờ" value={tasks.filter((t) => t.status !== 'done').length} icon={<Clock size={16} />} tone="orange" />
+          <KPICard label="Hoàn thành hôm nay" value={
+            new Set(
+              taskActivityLogs
+                .filter((log) => log.createdAt?.slice(0, 10) === today && log.action?.includes('hoàn thành'))
+                .map((log) => log.taskId)
+            ).size
+          } icon={<CheckCircle size={16} />} tone="green" />
+        </div>
+      </section>
+
+      {/* ===== WORKFLOW OVERVIEW ===== */}
+      <section>
+        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-500">
+          <LayoutGrid size={16} />
+          Quy trình xe
+        </h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          <WorkflowCard label="Chờ nhận" count={overviewStats.new} color="slate" />
+          <WorkflowCard label="Nhận xe" count={overviewStats.input} color="blue" />
+          <WorkflowCard label="Sửa chữa" count={overviewStats.working} color="orange" />
+          <WorkflowCard label="Kiểm tra cuối" count={overviewStats.finalCheck} color="yellow" />
+          <WorkflowCard label="Sẵn sàng" count={overviewStats.ready} color="green" />
+          <WorkflowCard label="Đã bán" count={overviewStats.sold} color="purple" />
+        </div>
+      </section>
+
+      {/* ===== POSITION OVERVIEW ===== */}
+      <section>
+        <h2 className="mb-3 flex items-center justify-between gap-2 text-sm font-semibold uppercase tracking-wide text-slate-500">
+          <span className="flex items-center gap-2">
+            <MapPin size={16} />
+            Tình trạng vị trí
+          </span>
+          <Link to="/vi-tri" className="text-xs normal-case font-medium text-brand-600 hover:text-brand-700">
+            Quản lý <ArrowRight size={12} className="inline" />
+          </Link>
+        </h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+          {positions.slice(0, 6).map((pos) => {
+            const posVehicles = vehicles.filter((v) => v.positionId === pos.id)
+            const occupancy = 1 // capacity unknown, show as 1 vehicle per position
+            return (
+              <div
+                key={pos.id}
+                className={`card p-3 flex flex-col gap-2 ${
+                  posVehicles.length > 0 ? 'bg-slate-50' : 'bg-white'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-sm text-slate-800 truncate">{pos.name}</span>
+                  {posVehicles.length > 0 && (
+                    <Badge tone="blue">{posVehicles.length}</Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        posVehicles.length > 0 ? 'bg-brand-500' : 'bg-slate-200'
+                      }`}
+                      style={{ width: posVehicles.length > 0 ? '100%' : '0%' }}
+                    />
+                  </div>
+                  <span className="text-xs text-slate-500">
+                    {posVehicles.length} xe
+                  </span>
+                </div>
+              </div>
+            )
+          })}
+          {positions.length === 0 && (
+            <div className="col-span-full card p-6 text-center text-sm text-slate-400">
+              Chưa có vị trí nào
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ===== TASK OVERVIEW ===== */}
+      <section>
+        <div className="mb-3 flex items-center justify-between gap-2 text-sm font-semibold uppercase tracking-wide text-slate-500">
+          <span className="flex items-center gap-2">
+            <Wrench size={16} />
+            Tổng quan nhiệm vụ
+          </span>
+          <Link to="/nhiem-vu" className="text-xs normal-case font-medium text-brand-600 hover:text-brand-700">
+            Xem tất cả <ArrowRight size={12} className="inline" />
+          </Link>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <TaskStatusCard
+            label="Chưa làm"
+            count={tasks.filter((t) => t.status === 'todo').length}
+            color="slate"
+            icon={<Clock size={16} />}
+          />
+          <TaskStatusCard
+            label="Đang làm"
+            count={tasks.filter((t) => t.status === 'doing').length}
+            color="blue"
+            icon={<Wrench size={16} />}
+          />
+          <TaskStatusCard
+            label="Hoàn thành"
+            count={tasks.filter((t) => t.status === 'done').length}
+            color="green"
+            icon={<CheckCircle size={16} />}
+          />
+        </div>
+        {tasks.length > 0 && (
+          <div className="mt-3 card p-4">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-600">Tỷ lệ hoàn thành</span>
+              <span className="font-semibold text-slate-800">
+                {Math.round((tasks.filter((t) => t.status === 'done').length / tasks.length) * 100)}%
+              </span>
+            </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-green-500 transition-all"
+                style={{
+                  width: `${Math.round((tasks.filter((t) => t.status === 'done').length / tasks.length) * 100)}%`,
+                }}
+              />
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* ===== EMPLOYEE OVERVIEW ===== */}
+      <section>
+        <div className="mb-3 flex items-center justify-between gap-2 text-sm font-semibold uppercase tracking-wide text-slate-500">
+          <span className="flex items-center gap-2">
+            <Users size={16} />
+            Nhân viên hôm nay
+          </span>
+          <Link to="/nhan-vien" className="text-xs normal-case font-medium text-brand-600 hover:text-brand-700">
+            Quản lý <ArrowRight size={12} className="inline" />
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <EmployeeStatCard
+            label="Đang làm"
+            count={employees.filter((e) => {
+              const att = attendance.find((a) => a.employeeId === e.id && a.date === today)
+              return !e.disabled && att?.checkIn && !att.checkOut
+            }).length}
+            icon={<UserCheck size={16} />}
+            color="green"
+          />
+          <EmployeeStatCard
+            label="Vắng mặt"
+            count={employees.filter((e) => {
+              const att = attendance.find((a) => a.employeeId === e.id && a.date === today)
+              return !e.disabled && !att?.checkIn
+            }).length}
+            icon={<UserX size={16} />}
+            color="slate"
+          />
+          <EmployeeStatCard
+            label="Đã check-in"
+            count={employees.filter((e) => {
+              const att = attendance.find((a) => a.employeeId === e.id && a.date === today)
+              return !e.disabled && !!att?.checkIn
+            }).length}
+            icon={<User size={16} />}
+            color="blue"
+          />
+          <EmployeeStatCard
+            label="Tổng nhân viên"
+            count={employees.filter((e) => !e.disabled).length}
+            icon={<Users size={16} />}
+            color="purple"
+          />
+        </div>
+      </section>
 
       {/* ===== SECTION 1: GARAGE OVERVIEW ===== */}
       <section>
@@ -597,6 +824,135 @@ function SummaryCard({
       <div className={`rounded-lg p-2 ${cls}`}>{icon}</div>
       <div className="text-xl font-bold text-slate-800">{value}</div>
       <div className="text-xs text-slate-500">{label}</div>
+    </div>
+  )
+}
+
+// ===== NEW DASHBOARD COMPONENTS =====
+
+function KPICard({
+  label,
+  value,
+  icon,
+  tone,
+}: {
+  label: string
+  value: number
+  icon: React.ReactNode
+  tone: 'slate' | 'blue' | 'green' | 'orange' | 'red' | 'purple'
+}) {
+  const toneClasses: Record<typeof tone, { text: string; bg: string; icon: string }> = {
+    slate: { text: 'text-slate-700', bg: 'bg-slate-50', icon: 'text-slate-500' },
+    blue: { text: 'text-blue-700', bg: 'bg-blue-50', icon: 'text-blue-500' },
+    green: { text: 'text-green-700', bg: 'bg-green-50', icon: 'text-green-500' },
+    orange: { text: 'text-orange-700', bg: 'bg-orange-50', icon: 'text-orange-500' },
+    red: { text: 'text-red-700', bg: 'bg-red-50', icon: 'text-red-500' },
+    purple: { text: 'text-purple-700', bg: 'bg-purple-50', icon: 'text-purple-500' },
+  }
+  const styles = toneClasses[tone]
+
+  return (
+    <div className={`card flex flex-col items-center gap-2 p-4 text-center ${styles.bg}`}>
+      <div className={`p-2 rounded-lg ${styles.bg}`}>{icon}</div>
+      <div className={`text-2xl font-bold ${styles.text}`}>{value}</div>
+      <div className="text-xs text-slate-500">{label}</div>
+    </div>
+  )
+}
+
+function WorkflowCard({
+  label,
+  count,
+  color,
+}: {
+  label: string
+  count: number
+  color: 'slate' | 'blue' | 'orange' | 'yellow' | 'green' | 'purple'
+}) {
+  const colorClasses: Record<typeof color, { bar: string; bg: string; text: string }> = {
+    slate: { bar: 'bg-slate-400', bg: 'bg-slate-100', text: 'text-slate-600' },
+    blue: { bar: 'bg-blue-500', bg: 'bg-blue-50', text: 'text-blue-700' },
+    orange: { bar: 'bg-orange-500', bg: 'bg-orange-50', text: 'text-orange-700' },
+    yellow: { bar: 'bg-yellow-500', bg: 'bg-yellow-50', text: 'text-yellow-700' },
+    green: { bar: 'bg-green-500', bg: 'bg-green-50', text: 'text-green-700' },
+    purple: { bar: 'bg-purple-500', bg: 'bg-purple-50', text: 'text-purple-700' },
+  }
+  const styles = colorClasses[color]
+
+  return (
+    <div className={`card p-3 ${styles.bg}`}>
+      <div className="text-center">
+        <div className={`text-2xl font-bold ${styles.text}`}>{count}</div>
+        <div className="mt-1 text-xs text-slate-500">{label}</div>
+      </div>
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/80">
+        <div className={`h-full rounded-full ${styles.bar} transition-all`} style={{ width: count > 0 ? '100%' : '0%' }} />
+      </div>
+    </div>
+  )
+}
+
+function TaskStatusCard({
+  label,
+  count,
+  color,
+  icon,
+}: {
+  label: string
+  count: number
+  color: 'slate' | 'blue' | 'green'
+  icon: React.ReactNode
+}) {
+  const colorClasses: Record<typeof color, { border: string; icon: string; bg: string }> = {
+    slate: { border: 'border-slate-300', icon: 'text-slate-500', bg: 'bg-slate-50' },
+    blue: { border: 'border-blue-300', icon: 'text-blue-500', bg: 'bg-blue-50' },
+    green: { border: 'border-green-300', icon: 'text-green-500', bg: 'bg-green-50' },
+  }
+  const styles = colorClasses[color]
+
+  return (
+    <div className={`card p-4 border-t-4 ${styles.border}`}>
+      <div className="flex items-center gap-3">
+        <div className={`p-2 rounded-lg ${styles.bg}`}>
+          <span className={styles.icon}>{icon}</span>
+        </div>
+        <div>
+          <div className={`text-xl font-bold ${styles.border.replace('border-', 'text-').replace('-300', '-700')}`}>{count}</div>
+          <div className="text-xs text-slate-500">{label}</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function EmployeeStatCard({
+  label,
+  count,
+  icon,
+  color,
+}: {
+  label: string
+  count: number
+  icon: React.ReactNode
+  color: 'slate' | 'blue' | 'green' | 'purple'
+}) {
+  const colorClasses: Record<typeof color, { icon: string; bg: string; text: string }> = {
+    slate: { icon: 'text-slate-500', bg: 'bg-slate-100', text: 'text-slate-700' },
+    blue: { icon: 'text-blue-500', bg: 'bg-blue-100', text: 'text-blue-700' },
+    green: { icon: 'text-green-500', bg: 'bg-green-100', text: 'text-green-700' },
+    purple: { icon: 'text-purple-500', bg: 'bg-purple-100', text: 'text-purple-700' },
+  }
+  const styles = colorClasses[color]
+
+  return (
+    <div className="card p-4 flex items-center gap-3">
+      <div className={`p-2 rounded-lg ${styles.bg}`}>
+        <span className={styles.icon}>{icon}</span>
+      </div>
+      <div>
+        <div className={`text-xl font-bold ${styles.text}`}>{count}</div>
+        <div className="text-xs text-slate-500">{label}</div>
+      </div>
     </div>
   )
 }

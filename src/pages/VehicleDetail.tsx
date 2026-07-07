@@ -2,7 +2,7 @@ import { useMemo, useEffect, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Clock, FileImage, Info, ListChecks, Trash2 } from 'lucide-react'
 import { useStore } from '../store/useStore'
-import { Badge, EmptyState, Modal, Tabs } from '../components/ui'
+import { Badge, EmptyState, Modal, Tabs, ConfirmDialog } from '../components/ui'
 import PhotoUploader from '../components/PhotoUploader'
 import VehicleGallery from '../components/VehicleGallery'
 import CheckSheetForm from '../components/CheckSheetForm'
@@ -56,6 +56,7 @@ export default function VehicleDetail() {
   const [checkModal, setCheckModal] = useState<'in' | 'out' | null>(null)
   const [applyTemplateOpen, setApplyTemplateOpen] = useState(false)
   const [timelineLoading, setTimelineLoading] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const vehicle = vehicles.find((v) => v.id === id)
   if (!vehicle) {
@@ -91,10 +92,12 @@ export default function VehicleDetail() {
   }, [currentVehicle.id, loadVehicleTimeline])
 
   function handleDelete() {
-    if (confirm('Xoá xe này khỏi hệ thống?')) {
-      deleteVehicle(currentVehicle.id)
-      navigate('/')
-    }
+    setShowDeleteConfirm(true)
+  }
+
+  function confirmDelete() {
+    deleteVehicle(currentVehicle.id)
+    navigate('/')
   }
 
   return (
@@ -419,6 +422,16 @@ export default function VehicleDetail() {
         onClose={() => setApplyTemplateOpen(false)}
         vehicleId={currentVehicle.id}
         vehiclePlate={currentVehicle.plate}
+      />
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        title="Xóa xe?"
+        message={`Bạn có chắc muốn xóa xe "${currentVehicle.plate}" khỏi hệ thống? Hành động này không thể hoàn tác.`}
+        confirmLabel="Xóa"
+        variant="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
       />
     </div>
   )

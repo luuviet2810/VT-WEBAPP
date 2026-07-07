@@ -146,7 +146,13 @@ interface TemplateFormData {
   description: string
   type: TaskTemplateType
   estimatedDurationMinutes: number
-  tasks: { id: string; title: string; description: string; priority: string; checklist: { id: string; text: string }[] }[]
+  tasks: {
+    id: string
+    title: string
+    description: string
+    priority: 'low' | 'medium' | 'high' | 'urgent'
+    checklist: { id: string; text: string; done: boolean }[]
+  }[]
 }
 
 function buildEmptyTask(): TemplateFormData['tasks'][0] {
@@ -177,9 +183,9 @@ function EditTemplateModal({ open, onClose, template, onSave }: EditTemplateModa
           tasks: template.tasks.map((t) => ({
             id: t.id,
             title: t.title,
-            description: t.description,
+            description: t.description ?? '',
             priority: t.priority,
-            checklist: t.checklist.map((c) => ({ id: c.id, text: c.text })),
+            checklist: t.checklist.map(({ id, text, done }) => ({ id, text, done })),
           })),
         }
       : {
@@ -209,7 +215,7 @@ function EditTemplateModal({ open, onClose, template, onSave }: EditTemplateModa
     updateTask(taskIdx, {
       checklist: [
         ...form.tasks[taskIdx].checklist,
-        { id: `i_${Date.now()}`, text: '' },
+        { id: `i_${Date.now()}`, text: '', done: false },
       ],
     })
 
@@ -238,10 +244,10 @@ function EditTemplateModal({ open, onClose, template, onSave }: EditTemplateModa
           id: t.id,
           title: t.title.trim(),
           description: t.description.trim(),
-          priority: t.priority as 'low' | 'medium' | 'high',
+          priority: t.priority,
           checklist: t.checklist
             .filter((c) => c.text.trim())
-            .map((c) => ({ id: c.id, text: c.text.trim() })),
+            .map((c) => ({ id: c.id, text: c.text.trim(), done: c.done })),
         })),
       defaultAssigneeId: null,
       isFavorite: template?.isFavorite ?? false,
@@ -330,11 +336,12 @@ function EditTemplateModal({ open, onClose, template, onSave }: EditTemplateModa
                   <select
                     className="input text-sm w-28"
                     value={task.priority}
-                    onChange={(e) => updateTask(ti, { priority: e.target.value })}
+                    onChange={(e) => updateTask(ti, { priority: e.target.value as 'low' | 'medium' | 'high' | 'urgent' })}
                   >
                     <option value="low">Thấp</option>
                     <option value="medium">Trung bình</option>
                     <option value="high">Cao</option>
+                    <option value="urgent">Khẩn cấp</option>
                   </select>
                   {form.tasks.length > 1 && (
                     <button

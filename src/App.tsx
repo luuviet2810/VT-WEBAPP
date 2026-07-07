@@ -5,10 +5,7 @@ import Sidebar from './components/Sidebar'
 import GlobalSearch from './components/GlobalSearch'
 import { useEffect } from 'react'
 import { initializeFromSupabase } from './store/useStore'
-import { useRealtimeSync } from './hooks/useRealtimeSync'
 
-
-// Pages
 import VehicleList from './pages/VehicleList'
 import PriceList from './pages/PriceList'
 import VehicleDetail from './pages/VehicleDetail'
@@ -22,36 +19,28 @@ import RegisterPage from './pages/Register'
 import MyTasks from './pages/MyTasks'
 import ForbiddenPage from './pages/Forbidden'
 
-// Dashboards
-import GarageDashboard from './pages/dashboards/GarageDashboard'
+import OverviewDashboard from './pages/dashboards/OverviewDashboard'
 import StatisticsDashboard from './pages/dashboards/StatisticsDashboard'
 import StaffDashboard from './pages/dashboards/StaffDashboard'
-import TemplatesPage from './pages/Templates'
 
 import { useAuthStore } from './store/useAuthStore'
 import { useViewModeStore } from './store/viewModeStore'
 import { useState } from 'react'
 import { UserRole } from './rbac/roles'
-import { hasPermission } from './rbac/permissions'
 
-// Auth layout (no sidebar)
 function AuthLayout({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-// Main layout (with sidebar)
 function MainLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#f5f8fc]">
-      {/* Sidebar as Drawer - hidden by default on mobile */}
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      {/* Main Content - always full width */}
       <main className="flex-1 overflow-y-auto overflow-x-hidden">
         <div className="px-4 py-4 pb-24 md:px-6 md:py-6">
-          {/* Mobile header with hamburger on left */}
           <div className="mb-4 flex items-center justify-between md:hidden">
             <button
               onClick={() => setSidebarOpen(true)}
@@ -67,7 +56,6 @@ function MainLayout({ children }: { children: React.ReactNode }) {
             <GlobalSearch />
           </div>
 
-          {/* Desktop search in header */}
           <div className="hidden md:mb-4 md:flex md:justify-end">
             <GlobalSearch />
           </div>
@@ -79,9 +67,16 @@ function MainLayout({ children }: { children: React.ReactNode }) {
   )
 }
 
-// Protected route wrapper - requires authentication
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, currentUser } = useAuthStore()
+  const { isAuthenticated, authLoading, currentUser } = useAuthStore()
+
+  if (authLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-600 border-t-transparent" />
+      </div>
+    )
+  }
 
   if (!isAuthenticated || !currentUser) {
     return <Navigate to="/login" replace />
@@ -90,20 +85,22 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-// Role-based route guard
-// IMPORTANT: This uses ACTUAL user role, NOT viewMode.
-// viewMode only affects UI rendering, not route access.
 function RoleGuard({ allowedRoles, children }: { allowedRoles: UserRole[]; children: React.ReactNode }) {
-  const { isAuthenticated, currentUser } = useAuthStore()
+  const { isAuthenticated, authLoading, currentUser } = useAuthStore()
+
+  if (authLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-600 border-t-transparent" />
+      </div>
+    )
+  }
 
   if (!isAuthenticated || !currentUser) {
     return <Navigate to="/login" replace />
   }
 
-  // Always use ACTUAL user role for route access check
   const userRole = currentUser.role as UserRole
-
-  // Admin has full access; others are checked against allowedRoles
   const hasAccess = userRole === 'admin' || allowedRoles.includes(userRole)
 
   if (!hasAccess) {
@@ -113,32 +110,24 @@ function RoleGuard({ allowedRoles, children }: { allowedRoles: UserRole[]; child
   return <>{children}</>
 }
 
-// Get dashboard component based on user role (or view mode)
 function DashboardRouter() {
   const { currentUser } = useAuthStore()
   const viewMode = useViewModeStore((s) => s.viewMode)
-
-  // Admin can preview any role; others use their actual role
   const effectiveRole = currentUser?.role === 'admin' ? viewMode : (currentUser?.role as UserRole)
-
-  // All roles use the GarageDashboard at root
-  return <GarageDashboard />
+  return <OverviewDashboard />
 }
 
-// Get statistics dashboard (admin only)
 function StatisticsRouter() {
   return <StatisticsDashboard />
 }
 
 export default function App() {
-  const { isAuthenticated, currentUser } = useAuthStore()
+  const { initializeAuth, authLoading, isAuthenticated, currentUser } = useAuthStore()
 
   useEffect(() => {
+    initializeAuth()
     initializeFromSupabase()
   }, [])
-
-  // Subscribe to Supabase Realtime when authenticated, unsubscribe on logout
-  useRealtimeSync()
 
   return (
     <Routes>
@@ -146,7 +135,11 @@ export default function App() {
       <Route
         path="/login"
         element={
-          isAuthenticated && currentUser ? (
+          authLoading ? (
+            <div className="flex h-screen items-center justify-center bg-gradient-to-br from-brand-50 to-slate-100">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-600 border-t-transparent" />
+            </div>
+          ) : isAuthenticated && currentUser ? (
             <Navigate to="/" replace />
           ) : (
             <AuthLayout>
@@ -158,7 +151,11 @@ export default function App() {
       <Route
         path="/register"
         element={
-          isAuthenticated && currentUser ? (
+          authLoading ? (
+            <div className="flex h-screen items-center justify-center bg-gradient-to-br from-brand-50 to-slate-100">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-600 border-t-transparent" />
+            </div>
+          ) : isAuthenticated && currentUser ? (
             <Navigate to="/" replace />
           ) : (
             <AuthLayout>
@@ -170,7 +167,6 @@ export default function App() {
 
       {/* ====== PROTECTED ROUTES ====== */}
 
-      {/* Dashboard / Tổng quan - accessible by all authenticated users */}
       <Route
         path="/"
         element={
@@ -182,7 +178,6 @@ export default function App() {
         }
       />
 
-      {/* Vehicle routes */}
       <Route
         path="/xe"
         element={
@@ -204,7 +199,6 @@ export default function App() {
         }
       />
 
-      {/* Task routes - Admin only */}
       <Route
         path="/nhiem-vu"
         element={
@@ -226,7 +220,6 @@ export default function App() {
         }
       />
 
-      {/* My Tasks - Staff only */}
       <Route
         path="/viec-cua-toi"
         element={
@@ -238,7 +231,6 @@ export default function App() {
         }
       />
 
-      {/* Position routes - accessible by all */}
       <Route
         path="/vi-tri"
         element={
@@ -250,7 +242,6 @@ export default function App() {
         }
       />
 
-      {/* Statistics - Admin only */}
       <Route
         path="/thong-ke"
         element={
@@ -262,7 +253,6 @@ export default function App() {
         }
       />
 
-      {/* Attendance - accessible by all */}
       <Route
         path="/cham-cong"
         element={
@@ -274,7 +264,6 @@ export default function App() {
         }
       />
 
-      {/* Employee management - Admin only */}
       <Route
         path="/nhan-vien"
         element={
@@ -286,7 +275,6 @@ export default function App() {
         }
       />
 
-      {/* Price list - Admin only */}
       <Route
         path="/bang-gia"
         element={
@@ -298,7 +286,6 @@ export default function App() {
         }
       />
 
-      {/* Settings - Admin only */}
       <Route
         path="/cai-dat"
         element={
@@ -313,19 +300,6 @@ export default function App() {
         }
       />
 
-      {/* Templates - Admin / Manager */}
-      <Route
-        path="/mau-cong-viec"
-        element={
-          <RoleGuard allowedRoles={['admin', 'manager']}>
-            <MainLayout>
-              <TemplatesPage />
-            </MainLayout>
-          </RoleGuard>
-        }
-      />
-
-      {/* Profile - accessible by all */}
       <Route
         path="/ho-so"
         element={
@@ -340,14 +314,20 @@ export default function App() {
         }
       />
 
-      {/* 403 Forbidden */}
       <Route
         path="/403"
         element={<ForbiddenPage />}
       />
 
-      {/* Catch all - redirect to home or login */}
-      <Route path="*" element={<Navigate to={isAuthenticated ? '/' : '/login'} replace />} />
+      <Route
+        path="*"
+        element={
+          <Navigate
+            to={isAuthenticated ? '/' : '/login'}
+            replace
+          />
+        }
+      />
     </Routes>
-  );
+  )
 }

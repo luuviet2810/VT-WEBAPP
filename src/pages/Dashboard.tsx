@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { AlertTriangle, BarChart2, Car, CheckCircle, Clock, Image as ImageIcon, Tag, TrendingUp, Users, Wrench, CheckCircle2, XCircle } from 'lucide-react'
+import { AlertTriangle, BarChart2, Car, CheckCircle, Clock, Image as ImageIcon, Tag, TrendingUp, Users, Wrench } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import { useAuthStore } from '../store/useAuthStore'
 import { formatDateTime } from '../utils/format'
@@ -14,8 +14,8 @@ export default function Dashboard() {
   const positions = useStore((s) => s.positions)
   const employees = useStore((s) => s.employees)
   const attendance = useStore((s) => s.attendance)
-  const { currentUser, isAdmin } = useAuthStore()
-  const isAdminUser = isAdmin()
+  const currentUser = useAuthStore((s) => s.currentUser)
+  const isAdminUser = currentUser?.role === 'admin'
 
   const sold = vehicles.filter((v) => v.status === 'sold')
   const revenue = sold.reduce((sum, v) => sum + (v.sellPrice || 0), 0) / 1_000_000
@@ -62,26 +62,21 @@ export default function Dashboard() {
 
   const recentLogs = [...moveLogs].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)).slice(0, 4)
 
-  // Get users from authStore
-  const { users, approveUser, rejectUser, getPendingUsers } = useAuthStore()
-  const pendingUsers = getPendingUsers()
-
-  // Get initials for avatar
-  const getInitials = (name: string) => {
-    const parts = name.trim().split(' ')
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-    }
-    return name.slice(0, 2).toUpperCase()
-  }
-
-  // Format date
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('vi-VN', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
     })
+  }
+
+  const getInitials = (name: string) => {
+    if (!name) return '?'
+    const parts = name.trim().split(' ')
+    if (parts.length >= 2) {
+      return ((parts[0]?.[0] ?? '') + (parts[parts.length - 1]?.[0] ?? '')).toUpperCase()
+    }
+    return name.slice(0, 2).toUpperCase()
   }
 
   return (
@@ -105,50 +100,6 @@ export default function Dashboard() {
         <StatCard label="Đang online" value={onlineToday} tone="text-brand-600" icon={<Users size={16} />} />
       </div>
 
-      {/* Pending User Registrations - Admin only */}
-      {isAdminUser && pendingUsers.length > 0 && (
-        <div className="mt-5 rounded-2xl border-2 border-amber-200 bg-amber-50 p-5">
-          <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-amber-700">
-            <Clock size={18} />
-            Tài khoản chờ duyệt ({pendingUsers.length})
-          </div>
-          <div className="space-y-3">
-            {pendingUsers.map((user) => (
-              <div
-                key={user.id}
-                className="flex flex-wrap items-center gap-3 rounded-xl bg-white p-4 shadow-sm"
-              >
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-sm font-semibold text-amber-700">
-                  {getInitials(user.fullName)}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="font-medium text-slate-800">{user.fullName}</div>
-                  <div className="text-xs text-slate-500">{user.email}</div>
-                  <div className="mt-1 text-xs text-slate-400">
-                    Đăng ký: {formatDate(user.createdAt)}
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => approveUser(user.id)}
-                    className="flex items-center gap-1 rounded-lg bg-green-100 px-3 py-1.5 text-sm font-medium text-green-700 transition-colors hover:bg-green-200"
-                  >
-                    <CheckCircle2 size={16} />
-                    Duyệt
-                  </button>
-                  <button
-                    onClick={() => rejectUser(user.id)}
-                    className="flex items-center gap-1 rounded-lg bg-red-100 px-3 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-200"
-                  >
-                    <XCircle size={16} />
-                    Từ chối
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Admin-only sections */}
       {isAdminUser && (

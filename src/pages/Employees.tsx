@@ -1,7 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   ShieldCheck,
-  ShieldOff,
   UserRound,
   CheckCircle2,
   XCircle,
@@ -12,14 +11,14 @@ import {
   Fingerprint,
   KeyRound,
   AlertCircle,
-  Plus,
 } from 'lucide-react'
 import { useAuthStore } from '../store/useAuthStore'
 import { useStore } from '../store/useStore'
-import { isWebAuthnSupported, registerPasskey } from '../utils/webauthn'
-import { User, UserStatus } from '../types'
+import { isWebAuthnSupported } from '../utils/webauthn'
+import type { AuthProfile } from '../services/auth.service'
+import { UserStatus } from '../types'
 
-const STATUS_CONFIG: Record<UserStatus, { label: string; color: string; bg: string }> = {
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   pending: { label: 'Chờ duyệt', color: 'text-amber-600', bg: 'bg-amber-100' },
   approved: { label: 'Đã duyệt', color: 'text-green-600', bg: 'bg-green-100' },
   rejected: { label: 'Từ chối', color: 'text-red-600', bg: 'bg-red-100' },
@@ -27,127 +26,151 @@ const STATUS_CONFIG: Record<UserStatus, { label: string; color: string; bg: stri
 }
 
 export default function Employees() {
-  const authStore = useAuthStore()
+  const { currentUser } = useAuthStore()
   const addNotification = useStore((s) => s.addNotification)
+  const isAdminUser = currentUser?.role === 'admin'
 
-  const {
-    users,
-    currentUser,
-    isAdmin,
-    getPendingUsers,
-    approveUser,
-    rejectUser,
-    enableUser,
-    disableUser,
-    updateUser,
-    deleteUser,
-    setUserRole,
-    getUserPasskeys,
-    removePasskey,
-    hasPasskey,
-  } = authStore
-
+  const [users, setUsers] = useState<AuthProfile[]>([])
+  const [loading, setLoading] = useState(true)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
   const [showPasskeySetup, setShowPasskeySetup] = useState(false)
   const [passkeySetupError, setPasskeySetupError] = useState('')
   const [passkeySetupSuccess, setPasskeySetupSuccess] = useState(false)
 
-  // Profile form state
-  const [fullName, setFullName] = useState(currentUser?.fullName || '')
-  const [phone, setPhone] = useState('')
+  const [fullName, setFullName] = useState(currentUser?.name || '')
 
-  const pendingUsers = getPendingUsers()
-  const isCurrentUserAdmin = isAdmin()
+  const pendingUsers = users.filter((u) => u.status === 'pending')
+  const approvedUsers = users.filter((u) => u.status === 'approved')
 
-  // Update profile
-  const handleUpdateProfile = () => {
-    if (!currentUser) return
-    updateUser(currentUser.id, { fullName })
-  }
+  const loadUsers = useCallback(async () => {
+    const { supabase } = await import('../lib/supabase')
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .order('created_at', { ascending: true })
 
-  // Register passkey
-  const handleRegisterPasskey = async () => {
-    if (!currentUser) return
-    setPasskeySetupError('')
-    setPasskeySetupSuccess(false)
-
-    const credential = await registerPasskey({
-      userId: currentUser.id,
-      userName: currentUser.email,
-      userDisplayName: currentUser.fullName,
-    })
-
-    if (credential) {
-      authStore.registerPasskey(
-        currentUser.id,
-        credential.credentialId,
-        credential.publicKey,
-        credential.deviceName
-      )
-      setPasskeySetupSuccess(true)
-    } else {
-      setPasskeySetupError('Không thể đăng ký sinh trắc học. Vui lòng thử lại.')
+    if (error || !data) {
+      setLoading(false)
+      return
     }
+
+    const rows = data as Record<string, unknown>[]
+    setUsers(
+      rows.map((row) => {
+        const name = row.name as string
+        return {
+          id: row.id as string,
+          authId: row.auth_id as string,
+          name,
+          fullName: name,
+          email: row.email as string,
+          role: (row.role as 'admin' | 'staff') ?? 'staff',
+          status: (row.status as 'pending' | 'approved' | 'rejected' | 'disabled') ?? 'pending',
+          disabled: Boolean(row.disabled),
+          passkeyEnabled: Boolean(row.passkey_enabled),
+          phone: (row.phone as string | null) ?? null,
+          avatar: (row.avatar as string | null) ?? null,
+          createdAt: row.created_at as string,
+          updatedAt: row.updated_at as string,
+        } satisfies AuthProfile
+      })
+    )
+    setLoading(false)
+  }, [])
+
+  useEffect(() => {
+    loadUsers()
+  }, [loadUsers])
+
+  const handleUpdateProfile = async () => {
+    if (!currentUser) return
+    const { supabase } = await import('../lib/supabase')
+    await supabase
+      .from('users')
+      .update({ name: fullName, updated_at: new Date().toISOString() })
+      .eq('auth_id', currentUser.authId)
+    await loadUsers()
+    addNotification({ type: 'system', title: 'Hồ sơ', body: 'Hồ sơ đã được cập nhật' })
   }
 
-  // Approve user
-  const handleApprove = (user: User) => {
-    approveUser(user.id)
+  const handleApprove = async (user: AuthProfile) => {
+    const { supabase } = await import('../lib/supabase')
+    await supabase
+      .from('users')
+      .update({ status: 'approved', updated_at: new Date().toISOString() })
+      .eq('id', user.id)
+    await loadUsers()
     addNotification({
       type: 'user_approved',
       title: 'Phê duyệt tài khoản',
-      body: `Tài khoản "${user.fullName}" đã được phê duyệt`,
+      body: `Tài khoản "${user.name}" đã được phê duyệt`,
     })
   }
 
-  // Reject user
-  const handleReject = (user: User) => {
-    rejectUser(user.id)
+  const handleReject = async (user: AuthProfile) => {
+    const { supabase } = await import('../lib/supabase')
+    await supabase
+      .from('users')
+      .update({ status: 'rejected', updated_at: new Date().toISOString() })
+      .eq('id', user.id)
+    await loadUsers()
     addNotification({
       type: 'user_rejected',
       title: 'Từ chối tài khoản',
-      body: `Tài khoản "${user.fullName}" đã bị từ chối`,
+      body: `Tài khoản "${user.name}" đã bị từ chối`,
     })
   }
 
-  // Delete user
-  const handleDelete = (userId: string) => {
-    deleteUser(userId)
+  const handleDelete = async (userId: string) => {
+    const { supabase } = await import('../lib/supabase')
+    await supabase.from('users').delete().eq('id', userId)
+    await loadUsers()
     setShowDeleteConfirm(null)
   }
 
-  // Toggle role
-  const handleToggleRole = (user: User) => {
+  const handleToggleRole = async (user: AuthProfile) => {
     const newRole = user.role === 'admin' ? 'staff' : 'admin'
     if (newRole === 'staff' && user.id === currentUser?.id) {
       if (!confirm('Bạn có chắc muốn gỡ quyền Admin của chính mình?')) return
     }
-    setUserRole(user.id, newRole)
+    const { supabase } = await import('../lib/supabase')
+    await supabase
+      .from('users')
+      .update({ role: newRole, is_admin: newRole === 'admin', updated_at: new Date().toISOString() })
+      .eq('id', user.id)
+    await loadUsers()
   }
 
-  // Toggle status
-  const handleToggleStatus = (user: User) => {
+  const handleToggleStatus = async (user: AuthProfile) => {
     if (user.status === 'disabled') {
-      enableUser(user.id)
+      const { supabase } = await import('../lib/supabase')
+      await supabase
+        .from('users')
+        .update({ disabled: false, status: 'approved', updated_at: new Date().toISOString() })
+        .eq('id', user.id)
     } else {
       if (user.id === currentUser?.id) {
         alert('Bạn không thể vô hiệu hóa tài khoản của chính mình')
         return
       }
-      disableUser(user.id)
+      const { supabase } = await import('../lib/supabase')
+      await supabase
+        .from('users')
+        .update({ disabled: true, status: 'disabled', updated_at: new Date().toISOString() })
+        .eq('id', user.id)
     }
+    await loadUsers()
   }
 
-  // Get initials for avatar
   const getInitials = (name: string) => {
+    if (!name) return '?'
     const parts = name.trim().split(' ')
     if (parts.length >= 2) {
-      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+      return ((parts[0]?.[0] ?? '') + (parts[parts.length - 1]?.[0] ?? '')).toUpperCase()
     }
     return name.slice(0, 2).toUpperCase()
   }
 
-  // Format date
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('vi-VN', {
       day: '2-digit',
@@ -156,14 +179,20 @@ export default function Employees() {
     })
   }
 
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-600 border-t-transparent" />
+      </div>
+    )
+  }
+
   return (
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900">Nhân viên</h1>
         <p className="mt-1 text-sm text-slate-500">
-          {isCurrentUserAdmin
-            ? 'Quản lý tài khoản và phê duyệt đăng ký'
-            : 'Thông tin tài khoản của bạn'}
+          {isAdminUser ? 'Quản lý tài khoản và phê duyệt đăng ký' : 'Thông tin tài khoản của bạn'}
         </p>
       </div>
 
@@ -190,53 +219,13 @@ export default function Employees() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <button onClick={handleUpdateProfile} className="btn-primary">
-            Lưu thay đổi
-          </button>
-
-          {/* Passkey setup */}
-          {isWebAuthnSupported() && (
-            <button
-              onClick={() => setShowPasskeySetup(true)}
-              className="btn-secondary"
-              disabled={hasPasskey(currentUser?.id || '')}
-            >
-              <Fingerprint size={16} />
-              {hasPasskey(currentUser?.id || '') ? 'Đã bật sinh trắc học' : 'Bật Face ID / Vân tay'}
-            </button>
-          )}
-        </div>
-
-        {/* Passkey devices */}
-        {hasPasskey(currentUser?.id || '') && (
-          <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
-            <div className="mb-2 flex items-center gap-2 text-xs font-medium text-slate-600">
-              <KeyRound size={14} />
-              Thiết bị đã đăng ký sinh trắc học
-            </div>
-            <div className="space-y-2">
-              {getUserPasskeys(currentUser?.id || '').map((pk) => (
-                <div key={pk.id} className="flex items-center justify-between rounded-lg bg-white p-2">
-                  <div className="flex items-center gap-2">
-                    <Fingerprint size={16} className="text-slate-400" />
-                    <span className="text-sm">{pk.deviceName}</span>
-                  </div>
-                  <button
-                    onClick={() => removePasskey(pk.id)}
-                    className="text-xs text-red-500 hover:text-red-700"
-                  >
-                    Xóa
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        <button onClick={handleUpdateProfile} className="btn-primary">
+          Lưu thay đổi
+        </button>
       </div>
 
       {/* Pending Registrations - Admin only */}
-      {isCurrentUserAdmin && pendingUsers.length > 0 && (
+      {isAdminUser && pendingUsers.length > 0 && (
         <div className="mb-6 rounded-2xl border-2 border-amber-200 bg-amber-50 p-5">
           <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-amber-700">
             <Clock size={18} />
@@ -249,10 +238,10 @@ export default function Employees() {
                 className="flex flex-wrap items-center gap-3 rounded-xl bg-white p-4 shadow-sm"
               >
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-sm font-semibold text-amber-700">
-                  {getInitials(user.fullName)}
+                  {getInitials(user.name)}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="font-medium text-slate-800">{user.fullName}</div>
+                  <div className="font-medium text-slate-800">{user.name}</div>
                   <div className="text-xs text-slate-500">{user.email}</div>
                   <div className="mt-1 text-xs text-slate-400">
                     Đăng ký: {formatDate(user.createdAt)}
@@ -281,10 +270,10 @@ export default function Employees() {
       )}
 
       {/* All Users - Admin only */}
-      {isCurrentUserAdmin && (
+      {isAdminUser && (
         <div className="card p-5">
           <div className="mb-4 text-sm font-semibold text-slate-700">
-            Tất cả tài khoản ({users.length})
+            Tất cả tài khoản ({approvedUsers.length})
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -298,21 +287,20 @@ export default function Employees() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {users.map((user) => {
-                  const statusConfig = STATUS_CONFIG[user.status]
+                {approvedUsers.map((user) => {
+                  const statusConfig = STATUS_CONFIG[user.status] ?? STATUS_CONFIG.pending
                   const isMe = user.id === currentUser?.id
-                  const userPasskeys = getUserPasskeys(user.id)
 
                   return (
                     <tr key={user.id} className={isMe ? 'bg-brand-50/50' : ''}>
                       <td className="py-3">
                         <div className="flex items-center gap-3">
                           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700">
-                            {getInitials(user.fullName)}
+                            {getInitials(user.name)}
                           </div>
                           <div>
                             <div className="font-medium text-slate-800">
-                              {user.fullName}
+                              {user.name}
                               {isMe && <span className="ml-1 text-xs text-brand-600">(bạn)</span>}
                             </div>
                             <div className="text-xs text-slate-500">{user.email}</div>
@@ -349,7 +337,6 @@ export default function Employees() {
                       </td>
                       <td className="py-3">
                         <div className="flex items-center gap-2">
-                          {/* Enable/Disable */}
                           <button
                             onClick={() => handleToggleStatus(user)}
                             disabled={isMe}
@@ -363,7 +350,6 @@ export default function Employees() {
                             {user.status === 'disabled' ? <UserCheck size={14} /> : <UserX size={14} />}
                           </button>
 
-                          {/* Delete */}
                           {!isMe && (
                             <button
                               onClick={() => setShowDeleteConfirm(user.id)}
@@ -380,55 +366,6 @@ export default function Employees() {
                 })}
               </tbody>
             </table>
-          </div>
-        </div>
-      )}
-
-      {/* Passkey Setup Modal */}
-      {showPasskeySetup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50">
-          <div className="mx-4 w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
-            <div className="mb-4 text-center">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-brand-100">
-                <Fingerprint className="h-7 w-7 text-brand-600" />
-              </div>
-              <h3 className="text-lg font-semibold text-slate-900">Bật đăng nhập sinh trắc học</h3>
-              <p className="mt-2 text-sm text-slate-600">
-                Sử dụng Face ID, Touch ID hoặc Windows Hello để đăng nhập nhanh hơn.
-              </p>
-            </div>
-
-            {passkeySetupError && (
-              <div className="mb-4 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
-                <p className="text-xs text-red-700">{passkeySetupError}</p>
-              </div>
-            )}
-
-            {passkeySetupSuccess && (
-              <div className="mb-4 flex items-start gap-2 rounded-lg border border-green-200 bg-green-50 p-3">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-500" />
-                <p className="text-xs text-green-700">Đăng ký sinh trắc học thành công!</p>
-              </div>
-            )}
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowPasskeySetup(false)
-                  setPasskeySetupError('')
-                  setPasskeySetupSuccess(false)
-                }}
-                className="btn-secondary flex-1"
-              >
-                Đóng
-              </button>
-              {!passkeySetupSuccess && (
-                <button onClick={handleRegisterPasskey} className="btn-primary flex-1">
-                  Đăng ký ngay
-                </button>
-              )}
-            </div>
           </div>
         </div>
       )}

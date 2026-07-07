@@ -21,7 +21,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useStore } from '../store/useStore'
-import { Badge, EmptyState, Modal } from '../components/ui'
+import { Badge, EmptyState, Modal, ConfirmDialog } from '../components/ui'
 import { formatDateTime } from '../utils/format'
 import { Position } from '../types'
 
@@ -138,6 +138,7 @@ export default function Positions() {
   const [newPosName, setNewPosName] = useState('')
   const [editingPosId, setEditingPosId] = useState<string | null>(null)
   const [editingPosName, setEditingPosName] = useState('')
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
 
   // Vehicle drag handlers (native HTML5 drag)
   function handleVehicleDragStart(e: React.DragEvent, vehicleId: string) {
@@ -197,11 +198,17 @@ export default function Positions() {
   function handleDeletePosition(id: string) {
     const hasVehicles = vehicles.some((v) => v.positionId === id)
     if (hasVehicles) {
-      alert('Không thể xóa vị trí đang có xe. Hãy di chuyển xe trước.')
+      setShowDeleteConfirm('blocked')
       return
     }
-    if (!confirm('Xoá vị trí này?')) return
-    deletePosition(id)
+    setShowDeleteConfirm(id)
+  }
+
+  function confirmDeletePosition() {
+    if (showDeleteConfirm) {
+      deletePosition(showDeleteConfirm)
+      setShowDeleteConfirm(null)
+    }
   }
 
   // Get status color for vehicle card
@@ -480,6 +487,30 @@ export default function Positions() {
           </div>
         </div>
       </Modal>
+
+      {/* Delete position confirmation */}
+      <ConfirmDialog
+        open={!!showDeleteConfirm}
+        title="Xóa vị trí?"
+        message="Bạn có chắc muốn xóa vị trí này? Hành động này không thể hoàn tác."
+        confirmLabel="Xóa"
+        variant="danger"
+        onConfirm={confirmDeletePosition}
+        onCancel={() => setShowDeleteConfirm(null)}
+      />
+
+      {/* Cannot delete position with vehicles */}
+      {showDeleteConfirm === 'blocked' && (
+        <ConfirmDialog
+          open={true}
+          title="Không thể xóa vị trí"
+          message="Vị trí này đang có xe. Hãy di chuyển xe trước khi xóa vị trí."
+          confirmLabel="Đã hiểu"
+          variant="default"
+          onConfirm={() => setShowDeleteConfirm(null)}
+          onCancel={() => setShowDeleteConfirm(null)}
+        />
+      )}
     </div>
   )
 }

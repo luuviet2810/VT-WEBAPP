@@ -5,7 +5,7 @@ import { useStore } from '../store/useStore'
 import { formatCurrency } from '../utils/format'
 import { Badge, EmptyState } from '../components/ui'
 import VehicleFormModal from './VehicleFormModal'
-import { usePricePermissions, useVehiclePermissions } from '../rbac/usePermissions'
+import { useIsAdminMode, useIsStaffMode } from '../hooks/useAuthRole'
 import { Vehicle, VehicleStatus } from '../types'
 
 const STATUS_LABEL: Record<VehicleStatus, string> = {
@@ -32,12 +32,12 @@ export default function PriceList() {
   const vehicles = useStore((s) => s.vehicles)
   const updateVehicle = useStore((s) => s.updateVehicle)
   const deleteVehicle = useStore((s) => s.deleteVehicle)
-
-  const pricePerms = usePricePermissions()
-  const vehiclePerms = useVehiclePermissions()
-  const canEdit = pricePerms.canUpdate
-  const canDelete = vehiclePerms.canDelete
-
+  
+  // Use auth-based role check (respects viewMode for UI)
+  const isAdminMode = useIsAdminMode()
+  const isStaffMode = useIsStaffMode()
+  const canEdit = isAdminMode && !isStaffMode // Only actual admin can edit (not previewing staff)
+  
   const [modalOpen, setModalOpen] = useState(false)
   const [editVehicleId, setEditVehicleId] = useState<string | null>(null)
   const [sortKey, setSortKey] = useState<SortKey | null>(null)
@@ -64,7 +64,6 @@ export default function PriceList() {
   }
 
   function handleDelete(id: string) {
-    if (!canDelete) return
     if (confirm('Xoá xe này khỏi hệ thống?')) deleteVehicle(id)
   }
 
@@ -91,7 +90,7 @@ export default function PriceList() {
           <h1 className="text-2xl font-bold text-slate-900">Bảng giá xe</h1>
           <p className="mt-1 text-sm text-slate-500">
             {vehicles.length} xe
-            {!canEdit && ' — chỉ xem thông tin'}
+            {isStaffMode && !isAdminMode && ' — chỉ xem thông tin'}
           </p>
         </div>
         {canEdit && (
@@ -131,7 +130,6 @@ export default function PriceList() {
                   key={v.id}
                   vehicle={v}
                   canEdit={canEdit}
-                  canDelete={canDelete}
                   onEdit={() => openEditModal(v.id)}
                   onDelete={() => handleDelete(v.id)}
                   onStatusChange={(status) => updateVehicle(v.id, { status })}
@@ -172,14 +170,12 @@ function Th({ label, onClick }: { label: string; onClick: () => void }) {
 function PriceRow({
   vehicle,
   canEdit,
-  canDelete,
   onEdit,
   onDelete,
   onStatusChange,
 }: {
   vehicle: Vehicle
   canEdit: boolean
-  canDelete: boolean
   onEdit: () => void
   onDelete: () => void
   onStatusChange: (status: VehicleStatus) => void
@@ -244,8 +240,8 @@ function PriceRow({
             </button>
             <button
               className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 active:scale-95"
-              onClick={canDelete ? onDelete : undefined}
-              title={canDelete ? 'Xoá' : 'Không có quyền xoá'}
+              onClick={onDelete}
+              title="Xoá"
             >
               <Trash2 size={15} />
             </button>

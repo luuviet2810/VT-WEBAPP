@@ -9,7 +9,7 @@ import { UserRole } from './roles'
  * Returns the current user's role, or 'driver' as the default (most restrictive).
  */
 function useRole(): UserRole {
-  return (useAuthStore((s) => s.currentUser?.role) as UserRole | undefined) ?? 'driver'
+  return (useAuthStore((s) => s.currentUser?.role) as UserRole | undefined) ?? 'staff'
 }
 
 /**
@@ -107,7 +107,7 @@ export function useCanUpdateTask(taskAssigneeId?: string | null): boolean {
   const currentUserId = useAuthStore((s) => s.currentUser?.id)
 
   if (!hasPermission(role, 'task:update')) return false
-  if (role === 'admin' || role === 'manager') return true
+  if (role === 'admin') return true
   // staff/driver — only own tasks
   return taskAssigneeId === currentUserId
 }

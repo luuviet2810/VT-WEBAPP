@@ -1,7 +1,5 @@
 export type VehicleStatus = 'available' | 'deposited' | 'sold'
 
-export type VehicleWorkflowStatus = 'new' | 'input' | 'working' | 'final_check' | 'ready' | 'sold'
-
 export interface Vehicle {
   id: string
   plate: string // 4 số cuối biển số
@@ -40,15 +38,12 @@ export interface MoveLog {
 
 export type TimelineItemType =
   | 'vehicle_created'
-  | 'vehicle_updated'
   | 'check_sheet_created'
   | 'task_generated'
   | 'task_status_changed'
   | 'move_log'
   | 'vehicle_status_changed'
   | 'vehicle_workflow_changed'
-  | 'photo_uploaded'
-  | 'document_uploaded'
   | 'custom'
 
 export interface TimelineItem {
@@ -264,12 +259,11 @@ export interface CheckSheet {
   // Ghi chú đầu vào
   inputNotes?: string
   createdAt: string
-  updatedAt?: string
 }
 
 // ====== AUTH TYPES ======
 
-export type UserRole = 'admin' | 'manager' | 'staff' | 'driver'
+export type UserRole = 'admin' | 'staff'
 export type UserStatus = 'pending' | 'approved' | 'rejected' | 'disabled'
 
 export interface User {
@@ -281,9 +275,49 @@ export interface User {
   status: UserStatus
   passkeyEnabled: boolean
   avatar?: string
+  phone?: string
+  disabled?: boolean
   createdAt: string
   updatedAt: string
 }
+
+// Task template types
+export type TaskTemplateType =
+  | 'general_inspection'
+  | 'oil_change'
+  | 'interior_cleaning'
+  | 'exterior_detailing'
+  | 'paint_repair'
+  | 'full_service'
+  | 'custom'
+
+export interface TaskTemplate {
+  id: string
+  name: string
+  description: string
+  type: TaskTemplateType
+  estimatedDurationMinutes: number
+  defaultAssigneeId: string | null
+  isFavorite: boolean
+  usageCount: number
+  createdAt: string
+  updatedAt: string
+  tasks: TaskTemplateTask[]
+}
+
+export interface TaskTemplateTask {
+  id: string
+  title: string
+  description?: string
+  checklist: { id: string; text: string; done: boolean }[]
+  priority: 'low' | 'medium' | 'high' | 'urgent'
+  assigneeId?: string | null
+  dueDate?: string | null
+  dueTime?: string | null
+}
+
+// Vehicle workflow status
+export type VehicleWorkflowStatus = 'new' | 'input' | 'working' | 'final_check' | 'ready' | 'sold'
 
 export interface Passkey {
   id: string
@@ -299,44 +333,6 @@ export interface AuthState {
   user: User | null
   isAuthenticated: boolean
   isLoading: boolean
-}
-
-// ====== TASK TEMPLATE TYPES ======
-
-export type TaskTemplateType =
-  | 'general_inspection'
-  | 'oil_change'
-  | 'interior_cleaning'
-  | 'exterior_detailing'
-  | 'paint_repair'
-  | 'full_service'
-  | 'custom'
-
-export interface TaskTemplateChecklistItem {
-  id: string
-  text: string
-}
-
-export interface TaskTemplateTask {
-  id: string
-  title: string
-  description: string
-  priority: TaskPriority
-  checklist: TaskTemplateChecklistItem[]
-}
-
-export interface TaskTemplate {
-  id: string
-  name: string
-  description: string
-  type: TaskTemplateType
-  tasks: TaskTemplateTask[]
-  estimatedDurationMinutes: number
-  defaultAssigneeId: string | null
-  isFavorite: boolean
-  usageCount: number
-  createdAt: string
-  updatedAt: string
 }
 
 // Notification types
