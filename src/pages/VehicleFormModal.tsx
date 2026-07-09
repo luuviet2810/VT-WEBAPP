@@ -138,7 +138,7 @@ export default function VehicleFormModal({
     } else {
       reset()
     }
-  }, [open, editVehicleId])
+  }, [open, editVehicleId, vehicles])
 
   async function handleSave() {
     console.log("HANDLE SAVE START");

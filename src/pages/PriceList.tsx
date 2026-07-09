@@ -19,13 +19,6 @@ const STATUS_TONE: Record<VehicleStatus, 'slate' | 'orange' | 'green'> = {
   sold: 'green',
 }
 
-const FUEL_LABEL: Record<string, string> = {
-  gasoline: 'Xăng',
-  diesel: 'Dầu',
-  lpg: 'LPG',
-  hybrid: 'Hybrid',
-}
-
 type SortKey = 'model' | 'plate' | 'sellPrice'
 
 export default function PriceList() {
@@ -222,7 +215,7 @@ function PriceRow({
       <td className="px-4 py-2.5 font-medium text-slate-800">{vehicle.model}</td>
       <td className="px-4 py-2.5 font-medium text-brand-600">{vehicle.plate || '—'}</td>
       <td className="px-4 py-2.5 text-slate-500">{vehicle.year || '—'}</td>
-      <td className="px-4 py-2.5 text-slate-500">{vehicle.fuelType ? FUEL_LABEL[vehicle.fuelType] : '—'}</td>
+      <td className="px-4 py-2.5 text-slate-500">{vehicle.fuelType || '—'}</td>
       <td className="px-4 py-2.5 text-slate-500">{vehicle.displacement || '—'}</td>
       <td className="px-4 py-2.5 text-slate-500">{vehicle.mileage || '—'}</td>
       <td className="px-4 py-2.5 text-slate-500">{vehicle.color || '—'}</td>
