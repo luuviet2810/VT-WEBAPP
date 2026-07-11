@@ -120,6 +120,11 @@ function DrawerContent({ onClose }: { onClose: () => void }) {
         </button>
       </div>
 
+      {/* Notifications */}
+      <div className="border-b border-slate-100 px-4 py-2">
+        <NotificationCenter />
+      </div>
+
       <nav className="flex-1 overflow-y-auto px-3 py-2">
         {sidebarConfig.top.map((item) => {
           const showBadge = item.key === 'employees' && false
@@ -274,6 +279,12 @@ function DesktopSidebarContent() {
           </div>
         </div>
       </div>
+
+      {/* Notifications */}
+      <div className="px-3 pb-3">
+        <NotificationCenter />
+      </div>
+
       {/* Navigation - Top items */}
       <nav className="flex-1 space-y-0.5 px-3">
         {sidebarConfig.top.map((item) => {
