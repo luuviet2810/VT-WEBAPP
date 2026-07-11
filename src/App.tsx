@@ -7,6 +7,7 @@ import { useEffect } from 'react'
 import { initializeFromSupabase } from './store/useStore'
 
 import VehicleList from './pages/VehicleList'
+import VehicleImport from './pages/VehicleImport'
 import PriceList from './pages/PriceList'
 import VehicleDetail from './pages/VehicleDetail'
 import Tasks from './pages/Tasks'
@@ -173,6 +174,16 @@ export default function App() {
               <VehicleList />
             </MainLayout>
           </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/xe/import"
+        element={
+          <RoleGuard allowedRoles={['admin']}>
+            <MainLayout>
+              <VehicleImport />
+            </MainLayout>
+          </RoleGuard>
         }
       />
       <Route

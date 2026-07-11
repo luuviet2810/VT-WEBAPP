@@ -93,6 +93,29 @@ export async function getVehicleById(id: string): Promise<Vehicle | null> {
   )
 }
 
+export async function getVehicleByPlate(plate: string): Promise<Vehicle | null> {
+  const { data, error } = await supabase
+    .from('vehicles')
+    .select('*')
+    .eq('plate', plate)
+    .maybeSingle()
+
+  if (error) throw error
+  if (!data) return null
+
+  const v = data as VehicleRow
+  const [images, documents] = await Promise.all([
+    getVehicleImages(v.id as string),
+    getVehicleDocuments(v.id as string),
+  ])
+
+  return mapVehicleRow(
+    v,
+    images.map((img) => img.url),
+    documents.map((doc) => doc.url)
+  )
+}
+
 // ====== CREATE ======
 
 export async function createVehicle(vehicle: Omit<Vehicle, 'id' | 'createdAt' | 'updatedAt'> & { images?: string[]; documents?: string[] }): Promise<Vehicle> {
