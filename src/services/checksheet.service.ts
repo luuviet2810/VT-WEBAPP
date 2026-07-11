@@ -1,5 +1,49 @@
 import { supabase } from '../lib/supabase'
-import type { CheckSheet } from '../types'
+import type {
+  CheckOutCheck,
+  CheckOutItem,
+  CheckSheet,
+  ConSeongnyeongItem,
+  ConSeongnyeongStatus,
+  DauMayItem,
+  DauMayStatus,
+  DieuHoaItem,
+  DieuHoaStatus,
+  ExteriorCheck,
+  InteriorCheck,
+  NuocLamMatItem,
+  NuocLamMatStatus,
+  SuoiGheItem,
+  SuoiGheStatus,
+} from '../types'
+
+/**
+ * Single source of truth for an empty checksheet.
+ * Every field is null/undefined — no pre-selected values.
+ * Used by both the service layer and the form component.
+ */
+export const EMPTY_CHECK_SHEET = {
+  interior: {
+    driverSeat: { condition: '' as any },
+    passengerSeat: { condition: '' as any },
+    rearSeat: { condition: '' as any },
+  } as InteriorCheck,
+  outCheck: {
+    conSeongnyeong: { status: '' as any },
+    dauMay: { status: '' as any },
+    nuocLamMat: { status: '' as any },
+    camHanhTrinh: { status: '' as any },
+    manHinhBluetooth: { status: '' as any },
+    cameraLui: { status: '' as any },
+    denPhaCot: { status: '' as any },
+    motorGuongNutBam: { status: '' as any },
+    dieuHoa: { status: '' as any },
+    suoiGhe: { status: '' as any },
+    cuaSo: { status: '' as any },
+    gheChinhDien: { status: '' as any },
+    tinhTrangLop: { status: '' as any },
+  } as CheckOutCheck,
+} as const
 
 function mapRow(row: Record<string, unknown>): CheckSheet {
   return {
@@ -14,11 +58,11 @@ function mapRow(row: Record<string, unknown>): CheckSheet {
     hipass: row.hipass as CheckSheet['hipass'],
     rearSensor: row.rear_sensor as CheckSheet['rearSensor'],
     dashcam: row.dashcam as CheckSheet['dashcam'],
-    interior: (row.interior as CheckSheet['interior']) ?? {
-      driverSeat: { condition: 'good' },
-      passengerSeat: { condition: 'good' },
-      rearSeat: { condition: 'good' },
-    },
+    interior: (row.interior as CheckSheet['interior']) ?? ({
+      driverSeat: { condition: '' } as any,
+      passengerSeat: { condition: '' } as any,
+      rearSeat: { condition: '' } as any,
+    }),
     exterior: (row.exterior as CheckSheet['exterior']) ?? {},
     exteriorPhotos: row.exterior_photos as CheckSheet['exteriorPhotos'],
     inputDieuHoa: row.input_dieu_hoa as CheckSheet['inputDieuHoa'],
@@ -201,42 +245,29 @@ export async function getOrCreateCheckSheet(
     return mapRow(data as Record<string, unknown>)
   }
 
-  // No record exists — create one with defaults
+  // No record exists — create a brand-new empty sheet
   const created = await createCheckSheet({
     vehicleId,
     type,
     checkerId: defaults?.checkerId || null,
     checkDate: defaults?.checkDate ?? new Date().toISOString().slice(0, 10),
-    fuelLevel: defaults?.fuelLevel ?? 'quarter',
-    screen: defaults?.screen ?? 'normal',
-    rearCamera: defaults?.rearCamera ?? 'ok',
-    hipass: defaults?.hipass ?? 'mirror',
-    rearSensor: defaults?.rearSensor ?? 'ok',
-    dashcam: defaults?.dashcam ?? 'good',
-    interior: defaults?.interior ?? {
-      driverSeat: { condition: 'good' },
-      passengerSeat: { condition: 'good' },
-      rearSeat: { condition: 'good' },
-    },
-    exterior: defaults?.exterior ?? {
-      frontBumper: { condition: 'good' },
-      rearBumper: { condition: 'good' },
-      leftFender: { condition: 'good' },
-      rightFender: { condition: 'good' },
-      driverDoor: { condition: 'good' },
-      passengerDoor: { condition: 'good' },
-      rearLeftDoor: { condition: 'good' },
-      rearRightDoor: { condition: 'good' },
-    },
+    fuelLevel: null as any,
+    screen: null as any,
+    rearCamera: null as any,
+    hipass: null as any,
+    rearSensor: null as any,
+    dashcam: null as any,
+    interior: EMPTY_CHECK_SHEET.interior,
+    exterior: {} as any,
     exteriorPhotos: undefined,
-    inputDieuHoa: defaults?.inputDieuHoa ?? { status: 'good' },
-    inputSuoiGhe: defaults?.inputSuoiGhe ?? { status: 'good' },
-    inputTireState: defaults?.inputTireState ?? { status: 'ok' },
+    inputDieuHoa: null as any,
+    inputSuoiGhe: null as any,
+    inputTireState: null as any,
     inputNotes: undefined,
-    outCheck: undefined,
+    outCheck: EMPTY_CHECK_SHEET.outCheck,
     outNotes: undefined,
-    inputAcquySOH: defaults?.inputAcquySOH,
-    inputAcquySOC: defaults?.inputAcquySOC,
+    inputAcquySOH: undefined,
+    inputAcquySOC: undefined,
     acquySOH: undefined,
     acquySOC: undefined,
   })

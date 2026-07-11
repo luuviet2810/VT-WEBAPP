@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { CheckCircle2, XCircle, Minus, StickyNote, Wrench, Plus, Minus as MinusIcon } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import * as checksheetService from '../services/checksheet.service'
+import { EMPTY_CHECK_SHEET } from '../services/checksheet.service'
 import {
   CheckOutCheck,
   CheckOutItem,
@@ -111,31 +112,7 @@ const OUT_CHECK_ITEMS: { key: keyof CheckOutCheck; label: string }[] = [
 
 // ====== HELPERS ======
 
-function defaultInterior(): InteriorCheck {
-  return {
-    driverSeat: { condition: 'good' },
-    passengerSeat: { condition: 'good' },
-    rearSeat: { condition: 'good' },
-  }
-}
-
-function defaultOutCheck(): CheckOutCheck {
-  return {
-    conSeongnyeong: { status: 'con' },
-    dauMay: { status: 'good' },
-    nuocLamMat: { status: 'good' },
-    camHanhTrinh: { status: 'ok' },
-    manHinhBluetooth: { status: 'ok' },
-    cameraLui: { status: 'ok' },
-    denPhaCot: { status: 'ok' },
-    motorGuongNutBam: { status: 'ok' },
-    dieuHoa: { status: 'good' },
-    suoiGhe: { status: 'none' },
-    cuaSo: { status: 'ok' },
-    gheChinhDien: { status: 'ok' },
-    tinhTrangLop: { status: 'ok' },
-  }
-}
+// (empty helpers removed — centralized EMPTY_CHECK_SHEET in service layer)
 
 // ====== NUMBER PICKER COMPONENT ======
 
@@ -229,44 +206,41 @@ export default function CheckSheetForm({
     { label: '4 vạch to (Đầy bình)', value: 'full' as FuelLevel },
   ]
   // Dùng index để đảm bảo single-select, không bị trùng value
-  const [fuelLevelIdx, setFuelLevelIdx] = useState(() => {
-    const idx = FUEL_LEVEL_ITEMS.findIndex((i) => i.value === 'half')
-    return idx >= 0 ? idx : 3
-  })
-  const fuelLevel = FUEL_LEVEL_ITEMS[fuelLevelIdx].value
-  const [screen, setScreen] = useState<ScreenState>('normal')
-  const [rearCamera, setRearCamera] = useState<CameraState>('ok')
-  const [hipass, setHipass] = useState<HipassState>('none')
-  const [rearSensor, setRearSensor] = useState<SensorState>('ok')
-  const [dashcam, setDashcam] = useState<DashcamState>('none')
-  const [interior, setInterior] = useState<InteriorCheck>(defaultInterior())
+  const [fuelLevelIdx, setFuelLevelIdx] = useState(-1)
+  const fuelLevel = fuelLevelIdx >= 0 ? FUEL_LEVEL_ITEMS[fuelLevelIdx].value : undefined
+  const [screen, setScreen] = useState<ScreenState | undefined>(undefined)
+  const [rearCamera, setRearCamera] = useState<CameraState | undefined>(undefined)
+  const [hipass, setHipass] = useState<HipassState | undefined>(undefined)
+  const [rearSensor, setRearSensor] = useState<SensorState | undefined>(undefined)
+  const [dashcam, setDashcam] = useState<DashcamState | undefined>(undefined)
+  const [interior, setInterior] = useState<InteriorCheck>(EMPTY_CHECK_SHEET.interior)
   const [exterior, setExterior] = useState<ExteriorCheck>(emptyExteriorCheck())
 
   // ====== STATE ĐẦU RA ======
-  const [outCheck, setOutCheck] = useState<CheckOutCheck>(defaultOutCheck())
+  const [outCheck, setOutCheck] = useState<CheckOutCheck>(EMPTY_CHECK_SHEET.outCheck)
   const [outNotes, setOutNotes] = useState('')
 
   // ====== BATTERY STATE (Đầu vào) ======
-  const [inputAcquySOH, setInputAcquySOH] = useState(100)
-  const [inputAcquySOC, setInputAcquySOC] = useState(100)
+  const [inputAcquySOH, setInputAcquySOH] = useState<number | undefined>(undefined)
+  const [inputAcquySOC, setInputAcquySOC] = useState<number | undefined>(undefined)
   const [inputAcquyPickerOpen, setInputAcquyPickerOpen] = useState<'soh' | 'soc' | null>(null)
 
   // ====== TIRE STATE (Đầu vào) ======
-  const [inputTireState, setInputTireState] = useState<CheckOutItem>({ status: 'ok' })
+  const [inputTireState, setInputTireState] = useState<CheckOutItem>({ status: '' as CheckOutStatus })
 
   // ====== ĐIỀU HÒA & SƯỞI GHẾ STATE (Đầu vào) ======
-  const [inputDieuHoa, setInputDieuHoa] = useState<DieuHoaItem>({ status: 'good' })
-  const [inputSuoiGhe, setInputSuoiGhe] = useState<SuoiGheItem>({ status: 'none' })
+  const [inputDieuHoa, setInputDieuHoa] = useState<DieuHoaItem>({ status: '' as DieuHoaStatus })
+  const [inputSuoiGhe, setInputSuoiGhe] = useState<SuoiGheItem>({ status: '' as SuoiGheStatus })
 
   // ====== MEMO ĐẦU VÀO ======
   const [inputNotes, setInputNotes] = useState('')
 
   // ====== TIRE STATE (Đầu ra) ======
-  const [outTireState, setOutTireState] = useState<CheckOutItem>({ status: 'ok' })
+  const [outTireState, setOutTireState] = useState<CheckOutItem>({ status: '' as CheckOutStatus })
 
   // ====== BATTERY STATE (Đầu ra) ======
-  const [acquySOH, setAcquySOH] = useState(100)
-  const [acquySOC, setAcquySOC] = useState(100)
+  const [acquySOH, setAcquySOH] = useState<number | undefined>(undefined)
+  const [acquySOC, setAcquySOC] = useState<number | undefined>(undefined)
   const [acquyPickerOpen, setAcquyPickerOpen] = useState<'soh' | 'soc' | null>(null)
 
   // ====== SUGGESTED TASKS ======
@@ -281,12 +255,12 @@ export default function CheckSheetForm({
       type,
       checkerId,
       checkDate,
-      fuelLevel,
-      screen,
-      rearCamera,
-      hipass,
-      rearSensor,
-      dashcam,
+      fuelLevel: fuelLevel as FuelLevel,
+      screen: screen as ScreenState,
+      rearCamera: rearCamera as CameraState,
+      hipass: hipass as HipassState,
+      rearSensor: rearSensor as SensorState,
+      dashcam: dashcam as DashcamState,
       interior,
       exterior,
       inputDieuHoa,
@@ -389,7 +363,7 @@ export default function CheckSheetForm({
         setCheckDate(sheet.checkDate)
         setFuelLevelIdx(() => {
           const idx = FUEL_LEVEL_ITEMS.findIndex((i) => i.value === sheet.fuelLevel)
-          return idx >= 0 ? idx : 3
+          return idx >= 0 ? idx : -1
         })
         setScreen(sheet.screen)
         setRearCamera(sheet.rearCamera)
@@ -398,16 +372,16 @@ export default function CheckSheetForm({
         setDashcam(sheet.dashcam)
         setInterior(sheet.interior)
         setExterior(Object.keys(sheet.exterior ?? {}).length > 0 ? sheet.exterior : emptyExteriorCheck())
-        setOutCheck(sheet.outCheck ?? defaultOutCheck())
+        setOutCheck(sheet.outCheck ?? EMPTY_CHECK_SHEET.outCheck)
         setOutNotes(sheet.outNotes ?? '')
-        setInputAcquySOH(sheet.inputAcquySOH ?? 100)
-        setInputAcquySOC(sheet.inputAcquySOC ?? 100)
-        setAcquySOH(sheet.acquySOH ?? 100)
-        setAcquySOC(sheet.acquySOC ?? 100)
-        setInputDieuHoa(sheet.inputDieuHoa ?? { status: 'good' })
-        setInputSuoiGhe(sheet.inputSuoiGhe ?? { status: 'none' })
-        setInputTireState(sheet.inputTireState ?? { status: 'ok' })
-        setOutTireState(sheet.outTireState ?? { status: 'ok' })
+        setInputAcquySOH(sheet.inputAcquySOH ?? undefined)
+        setInputAcquySOC(sheet.inputAcquySOC ?? undefined)
+        setAcquySOH(sheet.acquySOH ?? undefined)
+        setAcquySOC(sheet.acquySOC ?? undefined)
+        setInputDieuHoa(sheet.inputDieuHoa ?? { status: '' as DieuHoaStatus })
+        setInputSuoiGhe(sheet.inputSuoiGhe ?? { status: '' as SuoiGheStatus })
+        setInputTireState(sheet.inputTireState ?? { status: '' as CheckOutStatus })
+        setOutTireState(sheet.outTireState ?? { status: '' as CheckOutStatus })
         setInputNotes(sheet.inputNotes ?? '')
         // Mark init complete so auto-save can start
         initRef.current = true
@@ -513,32 +487,34 @@ export default function CheckSheetForm({
       else if (d === 'install') { error++; none++ }
 
       // Điều hòa (Đầu vào)
-      const dh = classifyStatus(inputDieuHoa.status)
+      const dh = classifyStatus(inputDieuHoa?.status)
       if (dh === 'ok') ok++
       else if (dh === 'bad') error++
       else if (dh === 'install') { error++; none++ }
 
       // Sưởi ghế (Đầu vào)
-      const sg = classifyStatus(inputSuoiGhe.status)
+      const sg = classifyStatus(inputSuoiGhe?.status)
       if (sg === 'ok') ok++
       else if (sg === 'bad') error++
       else if (sg === 'install') { error++; none++ }
 
       // Tình trạng lốp (Đầu vào)
-      const tl = classifyStatus(inputTireState.status)
+      const tl = classifyStatus(inputTireState?.status)
       if (tl === 'ok') ok++
       else if (tl === 'bad') error++
       else if (tl === 'install') { error++; none++ }
 
       // Nhiên liệu
-      const fl = classifyStatus(fuelLevel)
-      if (fl === 'ok') ok++
-      else if (fl === 'bad') error++
-      else if (fl === 'install') { error++; none++ }
+      if (fuelLevel) {
+        const fl = classifyStatus(fuelLevel)
+        if (fl === 'ok') ok++
+        else if (fl === 'bad') error++
+        else if (fl === 'install') { error++; none++ }
+      }
 
       // SOC ắc quy < 50%
-      if (inputAcquySOC >= 0 && inputAcquySOC < 50) error++
-      else if (inputAcquySOC >= 50) ok++
+      if (inputAcquySOC != null && inputAcquySOC >= 0 && inputAcquySOC < 50) error++
+      else if (inputAcquySOC != null && inputAcquySOC >= 50) ok++
 
       // Nội thất
       Object.values(interior).forEach((v) => {
@@ -676,7 +652,7 @@ export default function CheckSheetForm({
     if (inputTireState.status === 'none') items.push({ id: uid('chk'), text: 'Thay lốp', done: false })
 
     // SOC acquy đầu vào < 50%
-    if (inputAcquySOC < 50) items.push({ id: uid('chk'), text: 'Kiểm tra / Sạc ắc quy', done: false })
+    if (inputAcquySOC != null && inputAcquySOC < 50) items.push({ id: uid('chk'), text: 'Kiểm tra / Sạc ắc quy', done: false })
 
     return items
   }, [type, screen, rearCamera, rearSensor, dashcam, hipass, inputDieuHoa, inputSuoiGhe, interior, exterior, fuelLevel, vehicle.fuelType, inputTireState, inputAcquySOC])
@@ -808,7 +784,7 @@ export default function CheckSheetForm({
     if (inputTireState.status === 'none') labels.push({ text: 'Lốp mòn lắm', bold: true })
 
     // SOC ắc quy < 50%
-    if (inputAcquySOC < 50) labels.push({ text: 'Ắc quy yếu', bold: true })
+    if (inputAcquySOC != null && inputAcquySOC < 50) labels.push({ text: 'Ắc quy yếu', bold: true })
 
     return labels
   }, [type, screen, rearCamera, rearSensor, dashcam, inputDieuHoa, inputSuoiGhe, interior, exterior, fuelLevel, inputTireState, inputAcquySOC])
@@ -1389,7 +1365,7 @@ function OptionRow({
   options,
 }: {
   label: string
-  value: string
+  value: string | null | undefined
   onChange: (v: string) => void
   options: { value: string; label: string }[]
 }) {
@@ -1457,7 +1433,7 @@ function OutCheckRow({
       <label className="label">{label}</label>
       <SegButton
         options={OUT_STATUS_OPTIONS}
-        value={entry?.status || 'ok'}
+        value={entry?.status ?? ''}
         onChange={(v) => onChange({ status: v as CheckOutStatus })}
       />
       {hasError && (
@@ -1487,7 +1463,7 @@ function ConSeongnyeongRow({
       <label className="label">{label}</label>
       <SegButton
         options={CON_SEONGNYEONG_OPTIONS}
-        value={entry?.status || 'con'}
+        value={entry?.status ?? ''}
         onChange={(v) => onChange({ status: v as ConSeongnyeongStatus })}
       />
     </div>
@@ -1509,7 +1485,7 @@ function DauMayRow({
       <label className="label">{label}</label>
       <SegButton
         options={DAU_MAY_OPTIONS}
-        value={entry?.status || 'good'}
+        value={entry?.status ?? ''}
         onChange={(v) => onChange({ status: v as DauMayStatus })}
       />
     </div>
@@ -1531,7 +1507,7 @@ function NuocLamMatRow({
       <label className="label">{label}</label>
       <SegButton
         options={NUOC_LAM_MAT_OPTIONS}
-        value={entry?.status || 'good'}
+        value={entry?.status ?? ''}
         onChange={(v) => onChange({ status: v as NuocLamMatStatus })}
       />
     </div>
@@ -1553,7 +1529,7 @@ function DieuHoaRow({
       <label className="label">{label}</label>
       <SegButton
         options={DIEU_HOA_OPTIONS}
-        value={entry?.status || 'good'}
+        value={entry?.status ?? ''}
         onChange={(v) => onChange({ status: v as DieuHoaStatus })}
       />
     </div>
@@ -1575,7 +1551,7 @@ function SuoiGheRow({
       <label className="label">{label}</label>
       <SegButton
         options={SUOI_GHE_OPTIONS}
-        value={entry?.status || 'none'}
+        value={entry?.status ?? ''}
         onChange={(v) => onChange({ status: v as SuoiGheStatus })}
       />
     </div>
@@ -1603,7 +1579,7 @@ function TireCheckRow({
       <label className="label">{label}</label>
       <SegButton
         options={TIRE_STATUS_OPTIONS}
-        value={entry?.status || 'ok'}
+        value={entry?.status ?? ''}
         onChange={(v) => onChange({ status: v as CheckOutStatus })}
       />
     </div>

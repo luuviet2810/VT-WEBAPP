@@ -5,6 +5,7 @@ import {
   EXTERIOR_SPOTS,
   Employee,
   ExteriorCheck,
+  ExteriorCondition,
   MoveLog,
   Notification,
   Position,
@@ -46,7 +47,7 @@ import {
 function emptyExterior(): ExteriorCheck {
   const out = {} as ExteriorCheck
   EXTERIOR_SPOTS.forEach(([key]) => {
-    out[key] = { condition: 'good' }
+    out[key] = { condition: '' as ExteriorCondition }
   })
   return out
 }

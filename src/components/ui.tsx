@@ -68,37 +68,38 @@ export function WheelPicker({
   max = 100,
   unit = '',
 }: {
-  value: number
+  value: number | undefined
   onChange: (v: number) => void
   min?: number
   max?: number
   unit?: string
 }) {
+  const safeValue = value ?? min
   const items = Array.from({ length: max - min + 1 }, (_, i) => min + i)
   const containerRef = useRef<HTMLDivElement>(null)
   const isScrolling = useRef(false)
   const scrollTimeout = useRef<number>()
-  const lastValueRef = useRef(value)
-  
+  const lastValueRef = useRef(safeValue)
+
   const ITEM_HEIGHT = 36
   const VISIBLE_COUNT = 5
   const PICKER_HEIGHT = ITEM_HEIGHT * VISIBLE_COUNT
   const PADDING = ITEM_HEIGHT * 2
   const CENTER_POSITION = PADDING + ITEM_HEIGHT / 2 // = 90 (center of picker)
-  
+
   // Calculate which item is centered
-  const selectedIndex = items.indexOf(value)
-  
+  const selectedIndex = items.indexOf(safeValue)
+
   // Sync scroll position when value changes externally
   // Formula: scrollTop = index * ITEM_HEIGHT
   // This centers item N at visual position PADDING (72px), which is center of highlight
   useEffect(() => {
     if (containerRef.current) {
-      const targetScrollTop = selectedIndex * ITEM_HEIGHT
+      const targetScrollTop = Math.max(0, selectedIndex * ITEM_HEIGHT)
       containerRef.current.scrollTop = targetScrollTop
     }
-    lastValueRef.current = value
-  }, [value, selectedIndex, ITEM_HEIGHT])
+    lastValueRef.current = safeValue
+  }, [safeValue, selectedIndex, ITEM_HEIGHT])
   
   function handleScroll() {
     if (!containerRef.current) return
@@ -289,7 +290,7 @@ export function SegButton({
   onChange,
 }: {
   options: { value: string; label: string }[]
-  value: string
+  value: string | null | undefined
   onChange: (v: string) => void
 }) {
   return (
@@ -366,8 +367,8 @@ export function ConfirmDialog({
 // ====== BATTERY CHECK COMPONENT ======
 
 interface BatteryCheckProps {
-  soh: number
-  soc: number
+  soh: number | undefined
+  soc: number | undefined
   pickerOpen: 'soh' | 'soc' | null
   onSOHChange: (v: number) => void
   onSOCChange: (v: number) => void
@@ -375,12 +376,12 @@ interface BatteryCheckProps {
 }
 
 export function BatteryCheck({ soh, soc, pickerOpen, onSOHChange, onSOCChange, onPickerOpen }: BatteryCheckProps) {
-  const isNormal = soc >= 50
+  const isNormal = soc != null && soc >= 50
 
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
       <div className="mb-3 text-sm font-medium text-slate-700">Đo ắc quy</div>
-      
+
       {/* SOH & SOC buttons */}
       <div className="grid grid-cols-2 gap-4">
         {/* SOH */}
@@ -390,7 +391,7 @@ export function BatteryCheck({ soh, soc, pickerOpen, onSOHChange, onSOCChange, o
             onClick={() => onPickerOpen('soh')}
             className="w-full rounded-lg border border-slate-200 bg-white py-3 text-center text-lg font-semibold text-slate-700 transition-colors hover:border-brand-300 hover:bg-brand-50 active:bg-brand-100"
           >
-            {soh}%
+            {soh != null ? `${soh}%` : '--'}
           </button>
         </div>
         {/* SOC */}
@@ -400,7 +401,7 @@ export function BatteryCheck({ soh, soc, pickerOpen, onSOHChange, onSOCChange, o
             onClick={() => onPickerOpen('soc')}
             className="w-full rounded-lg border border-slate-200 bg-white py-3 text-center text-lg font-semibold text-slate-700 transition-colors hover:border-brand-300 hover:bg-brand-50 active:bg-brand-100"
           >
-            {soc}%
+            {soc != null ? `${soc}%` : '--'}
           </button>
         </div>
       </div>
