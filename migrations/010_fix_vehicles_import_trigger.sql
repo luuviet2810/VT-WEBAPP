@@ -113,26 +113,24 @@ BEGIN
   END IF;
 
   -- ====== PREPARE FIELDS ======
-  _model        := NULLIF(TRIM(COALESCE(NEW.model, '')), '');
+  --
+  -- TEXT columns   → NULLIF(TRIM(NEW.col), '')
+  --   (TRIM(NULL)  = NULL, COALESCE wrapper not needed)
+  -- INTEGER/BIGINT → NEW.col directly, no string ops ever
+  -- vehicle_status → cast with fallback
+
+  _model        := NULLIF(TRIM(NEW.model), '');
   _fuel_type    := normalize_fuel(NEW.fuel_type);
-  _displacement := NULLIF(TRIM(COALESCE(NEW.displacement, '')), '');
-  _mileage      := NULLIF(TRIM(COALESCE(NEW.mileage, '')), '');
+  _displacement := NULLIF(TRIM(NEW.displacement), '');
+  _mileage      := NULLIF(TRIM(NEW.mileage), '');
   _color        := normalize_color(NEW.color);
 
-  -- Numeric fields: cast safely, return NULL on bad input
-  BEGIN
-    _year := NULLIF(TRIM(COALESCE(NEW.year::TEXT, '')), '')::INTEGER;
-  EXCEPTION WHEN OTHERS THEN _year := NULL; END;
+  -- INTEGER / BIGINT — no TRIM, no COALESCE, no ::TEXT
+  _year       := NEW.year;
+  _cost_price := NEW.cost_price;
+  _sell_price := NEW.sell_price;
 
-  BEGIN
-    _cost_price := NULLIF(TRIM(COALESCE(NEW.cost_price::TEXT, '')), '')::BIGINT;
-  EXCEPTION WHEN OTHERS THEN _cost_price := NULL; END;
-
-  BEGIN
-    _sell_price := NULLIF(TRIM(COALESCE(NEW.sell_price::TEXT, '')), '')::BIGINT;
-  EXCEPTION WHEN OTHERS THEN _sell_price := NULL; END;
-
-  -- Status
+  -- Status (TEXT → vehicle_status enum)
   BEGIN
     _status := COALESCE(
       NULLIF(TRIM(NEW.status), ''),
