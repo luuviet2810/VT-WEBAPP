@@ -115,7 +115,7 @@ export default function VehicleFormModal({
 
   useEffect(() => {
     if (!open) return
-      if (editVehicleId) {
+    if (editVehicleId) {
       const v = vehicles.find((item) => item.id === editVehicleId)
       if (v) {
         setVehicleId(v.id)
@@ -133,12 +133,11 @@ export default function VehicleFormModal({
           positionId: v.positionId ?? '',
           note: v.note ?? '',
         })
-        setTab('info')
       }
     } else {
       reset()
     }
-  }, [open, editVehicleId, vehicles])
+  }, [open, editVehicleId])
 
   async function handleSave() {
     console.log("HANDLE SAVE START");
@@ -178,7 +177,7 @@ export default function VehicleFormModal({
         <Tabs tabs={TABS} active={tab} onChange={setTab} />
       </div>
 
-      <div className="mt-2 flex h-full flex-col">
+      <div className="flex h-full flex-col">
         {tab === 'info' && (
           <div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

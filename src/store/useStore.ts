@@ -84,11 +84,11 @@ export async function initializeFromSupabase(): Promise<void> {
       }
     })
 
-    const mappedEmployees: Employee[] = (employees as User[]).map((u) => ({
+    const mappedEmployees: Employee[] = (employees as Employee[]).map((u) => ({
       id: u.id,
-      name: u.fullName,
-      phone: u.phone ?? u.avatar ?? undefined,
-      isAdmin: u.role === 'admin',
+      name: u.name,
+      phone: u.phone ?? undefined,
+      isAdmin: u.isAdmin,
       disabled: u.disabled ?? false,
     }))
 
@@ -253,7 +253,7 @@ export const useStore = create<StoreState>()(
               continue
             }
 
-            const publicMatch = dataUrl.match(/\/storage\/v2\/object\/public\/([^/]+)\/(.+)$/)
+            const publicMatch = dataUrl.match(/\/storage\/v[12]\/object\/public\/([^/]+)\/(.+)$/)
             if (!publicMatch) {
               console.warn('\u23E9 [STORE] Skip image metadata insert: unsupported URL format', dataUrl)
               continue
@@ -307,7 +307,7 @@ export const useStore = create<StoreState>()(
               continue
             }
 
-            const publicMatch = dataUrl.match(/\/storage\/v2\/object\/public\/([^/]+)\/(.+)$/)
+            const publicMatch = dataUrl.match(/\/storage\/v[12]\/object\/public\/([^/]+)\/(.+)$/)
             if (!publicMatch) {
               console.warn('\u23E9 [STORE] Skip document metadata insert: unsupported URL format', dataUrl)
               continue
@@ -606,22 +606,52 @@ export const useStore = create<StoreState>()(
         : null
 
       const existingTasks = get().tasks.filter((t) => t.vehicleId === sheet.vehicleId)
-      const generatedTaskMap = new Map(generated.map((gen) => [gen.title, gen]))
+      const existingByRuleId = new Map(existingTasks.map((t) => [t.ruleId, t]))
+
+      console.log('🔄 [STORE] generateTasksFromSheet start — existing tasks:', existingTasks.map((t) => `[${t.ruleId}] ${t.title}`).join(' | ') || '(none)')
+      console.log('🔄 [STORE] generated tasks:', generated.map((g) => `[${g.ruleId}] ${g.title}`).join(' | ') || '(none)')
+
+      const keepRuleIds = new Set(generated.map((g) => g.ruleId))
 
       for (const existing of existingTasks) {
-        const generatedTask = generatedTaskMap.get(existing.title)
+        if (!existing.ruleId || !keepRuleIds.has(existing.ruleId)) {
+          console.log(`  🗑️ [STORE] DELETE TASK: [${existing.ruleId}] ${existing.title}`)
+          get().deleteTask(existing.id)
+        }
+      }
 
-        if (!generatedTask) {
-          if (existing.status === 'done') {
-            get().addTaskActivity(existing.id, `Nhi\u1ec7m v\u1ee5 kh\u00f4ng c\u00f2n \u00e1p d\u1ee5ng t\u1eeb phi\u1ebfu ki\u1ec3m tra`, get().currentEmployeeId)
-          } else {
-            get().deleteTask(existing.id)
+      for (const gen of generated) {
+        const match = existingByRuleId.get(gen.ruleId)
+
+        if (!match) {
+          console.log(`  ➕ [STORE] CREATE TASK: [${gen.ruleId}] ${gen.title}`)
+          try {
+            const created = await taskService.createTask({
+              title: gen.title,
+              description: gen.description,
+              checklist: gen.checklist,
+              priority: gen.priority,
+              status: gen.status,
+              vehicleId: gen.vehicleId,
+              assigneeId: null,
+              dueDate: null,
+              dueTime: null,
+              ruleId: gen.ruleId,
+            })
+            set((s) => ({ tasks: [created, ...s.tasks] }))
+          } catch (err) {
+            console.error(`  \uD83D\uDD34 [STORE] CREATE TASK FAILED: "${gen.title}"`, err)
           }
           continue
         }
 
-        const activeTexts = generatedTask.checklist.map((item) => item.text)
-        const updatedChecklist = existing.checklist
+        if (match.title !== gen.title || match.status !== gen.status) {
+          console.log(`  ✏️ [STORE] UPDATE TASK: [${gen.ruleId}] ${match.title} -> ${gen.title}`)
+          get().updateTask(match.id, { title: gen.title, status: gen.status })
+        }
+
+        const activeTexts = gen.checklist.map((item) => item.text)
+        const updatedChecklist = match.checklist
           .map((item) => {
             if (item.done) return item
             if (activeTexts.includes(item.text)) return item
@@ -630,33 +660,10 @@ export const useStore = create<StoreState>()(
           .filter(Boolean) as Task['checklist']
 
         const existingTexts = new Set(updatedChecklist.map((item) => item.text))
-        const newChecklistItems = generatedTask.checklist.filter((item) => !existingTexts.has(item.text))
+        const newChecklistItems = gen.checklist.filter((item) => !existingTexts.has(item.text))
 
-        if (newChecklistItems.length > 0 || updatedChecklist.length !== existing.checklist.length) {
-          get().updateTask(existing.id, { checklist: [...updatedChecklist, ...newChecklistItems] })
-        }
-      }
-
-      for (const gen of generated) {
-        const match = existingTasks.find((t) => t.ruleId === gen.ruleId && t.vehicleId === gen.vehicleId)
-        if (match) continue
-
-        try {
-          const created = await taskService.createTask({
-            title: gen.title,
-            description: gen.description,
-            checklist: gen.checklist,
-            priority: gen.priority,
-            status: gen.status,
-            vehicleId: gen.vehicleId,
-            assigneeId: null,
-            dueDate: null,
-            dueTime: null,
-            ruleId: gen.ruleId,
-          })
-          set((s) => ({ tasks: [created, ...s.tasks] }))
-        } catch (err) {
-          console.error(`  \uD83D\uDD34 [STORE] CREATE TASK FAILED: "${gen.title}"`, err)
+        if (newChecklistItems.length > 0 || updatedChecklist.length !== match.checklist.length) {
+          get().updateTask(match.id, { checklist: [...updatedChecklist, ...newChecklistItems.map((item) => ({ id: uid('chk'), text: item.text, done: false }))] })
         }
       }
 
@@ -810,6 +817,7 @@ export const useStore = create<StoreState>()(
     },
 
     updateCheckSheet: async (id, patch) => {
+      const prev = get().checkSheets.find((c) => c.id === id)
       set((s) => ({
         checkSheets: s.checkSheets.map((c) => (c.id === id ? { ...c, ...patch } : c)),
       }))
@@ -819,7 +827,10 @@ export const useStore = create<StoreState>()(
           checkSheets: s.checkSheets.map((c) => (c.id === id ? updated : c)),
         }))
       } catch (err) {
+        // Revert optimistic update
+        if (prev) set((s) => ({ checkSheets: s.checkSheets.map((c) => (c.id === id ? prev : c)) }))
         console.error('\uD83D\uDD34 [STORE] Failed to update checkSheet in Supabase:', err)
+        throw err
       }
     },
 
@@ -1006,7 +1017,7 @@ export const useStore = create<StoreState>()(
         vehicleId: row.vehicle_id as string,
         fromPositionId: (row.from_position_id as string) ?? null,
         toPositionId: row.to_position_id as string,
-        employeeId: (row.employee_id as string) ?? null,
+        employeeId: (row.user_id as string) ?? null,
         createdAt: row.created_at as string,
       }
       set((s) => {
@@ -1028,7 +1039,7 @@ export const useStore = create<StoreState>()(
         id: row.id as string,
         taskId: row.task_id as string,
         action: row.action as string,
-        employeeId: (row.employee_id as string) ?? null,
+        employeeId: (row.user_id as string) ?? null,
         createdAt: row.created_at as string,
       }
       set((s) => {

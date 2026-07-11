@@ -1,46 +1,25 @@
 import { supabase } from '../lib/supabase'
 import type { Task, TaskActivityLogEntry, TaskChecklistItem } from '../types'
 
-// Map DB row to Task type
-function mapRow(row: Record<string, unknown>): Task {
-  return {
-    id: row.id as string,
-    title: row.title as string,
-    description: row.description as string | undefined,
-    checklist: (row.checklist as TaskChecklistItem[]) ?? [],
-    priority: row.priority as Task['priority'],
-    status: row.status as Task['status'],
-    assigneeId: row.assignee_id as string | null,
-    vehicleId: row.vehicle_id as string | null,
-    dueDate: row.due_date as string | null,
-    dueTime: row.due_time as string | null,
-    ruleId: (row.rule_id as string | undefined) ?? null,
-    createdAt: row.created_at as string,
-  }
-}
+export async function getTasks(filters?: {
+  status?: Task['status']
+  priority?: Task['priority']
+  assigneeId?: string
+  vehicleId?: string
+}): Promise<Task[]> {
+  const { status, priority, assigneeId, vehicleId } = filters || {}
+  let query = supabase.from('tasks').select('*')
 
-export async function getTasks(): Promise<Task[]> {
-  const { data, error, status, statusText } = await supabase
-    .from('tasks')
-    .select('*')
-    .order('created_at', { ascending: false })
+  if (status) query = query.eq('status', status)
+  if (priority) query = query.eq('priority', priority)
+  if (assigneeId) query = query.eq('assignee_id', assigneeId)
+  if (vehicleId) query = query.eq('vehicle_id', vehicleId)
+
+  const { data, error } = await query.order('created_at', { ascending: false })
 
   if (error) throw error
+
   return (data as Record<string, unknown>[]).map(mapRow)
-}
-
-export async function getTaskById(id: string): Promise<Task | null> {
-  const { data, error } = await supabase
-    .from('tasks')
-    .select('*')
-    .eq('id', id)
-    .single()
-
-  if (error) {
-    if (error.code === 'PGRST116') return null
-    throw error
-  }
-  return mapRow(data as Record<string, unknown>)
 }
 
 export async function createTask(task: Omit<Task, 'id' | 'createdAt'>): Promise<Task> {
@@ -48,28 +27,23 @@ export async function createTask(task: Omit<Task, 'id' | 'createdAt'>): Promise<
     .from('tasks')
     .insert({
       title: task.title,
-      description: task.description ?? null,
-      checklist: task.checklist,
-      priority: task.priority,
-      status: task.status,
-      assignee_id: task.assigneeId,
-      vehicle_id: task.vehicleId,
-      due_date: task.dueDate,
-      due_time: task.dueTime,
-      rule_id: task.ruleId ?? null,
+      description: task.description || null,
+      checklist: task.checklist || [],
+      priority: task.priority || 'medium',
+      status: task.status || 'todo',
+      assignee_id: task.assigneeId || null,
+      vehicle_id: task.vehicleId || null,
+      due_date: task.dueDate || null,
+      due_time: task.dueTime || null,
+      rule_id: task.ruleId || null,
     })
     .select()
     .single()
 
-  if (error) {
-    throw error
-  }
+  if (error) throw error
 
-  try {
-    await addTaskActivity((data as Record<string, unknown>).id as string, 'Tạo nhiệm vụ', task.assigneeId ?? null)
-  } catch (activityError) {
-    console.error('🔴 [task.service] Failed to create task activity:', activityError)
-  }
+  const taskId = (data as Record<string, unknown>).id as string
+  await addTaskActivity(taskId, 'Tạo nhiệm vụ', task.assigneeId ?? null)
 
   return mapRow(data as Record<string, unknown>)
 }
@@ -78,15 +52,14 @@ export async function updateTask(id: string, patch: Partial<Task>): Promise<Task
   const updateData: Record<string, unknown> = {}
 
   if (patch.title !== undefined) updateData.title = patch.title
-  if (patch.description !== undefined) updateData.description = patch.description ?? null
+  if (patch.description !== undefined) updateData.description = patch.description || null
   if (patch.checklist !== undefined) updateData.checklist = patch.checklist
   if (patch.priority !== undefined) updateData.priority = patch.priority
   if (patch.status !== undefined) updateData.status = patch.status
-  if (patch.assigneeId !== undefined) updateData.assignee_id = patch.assigneeId
-  if (patch.vehicleId !== undefined) updateData.vehicle_id = patch.vehicleId
-  if (patch.dueDate !== undefined) updateData.due_date = patch.dueDate
-  if (patch.dueTime !== undefined) updateData.due_time = patch.dueTime
-  if (patch.ruleId !== undefined) updateData.rule_id = patch.ruleId
+  if (patch.assigneeId !== undefined) updateData.assignee_id = patch.assigneeId || null
+  if (patch.vehicleId !== undefined) updateData.vehicle_id = patch.vehicleId || null
+  if (patch.dueDate !== undefined) updateData.due_date = patch.dueDate || null
+  if (patch.dueTime !== undefined) updateData.due_time = patch.dueTime || null
 
   const { data, error } = await supabase
     .from('tasks')
@@ -95,10 +68,21 @@ export async function updateTask(id: string, patch: Partial<Task>): Promise<Task
     .select()
     .single()
 
-  if (error) {
-    throw error
+  if (error) throw error
+
+  const row = data as Record<string, unknown>
+  if (patch.status) {
+    const label: Record<string, string> = {
+      todo: 'Chưa bắt đầu',
+      doing: 'Đang thực hiện',
+      done: 'Hoàn thành',
+    }
+    const statusLabel = label[patch.status] || patch.status
+
+    await addTaskActivity(id, `Cập nhật trạng thái: ${statusLabel}`, null)
   }
-  return mapRow(data as Record<string, unknown>)
+
+  return mapRow(row)
 }
 
 export async function deleteTask(id: string): Promise<void> {
@@ -123,13 +107,13 @@ export async function getTaskActivity(taskId: string): Promise<TaskActivityLogEn
     id: string
     task_id: string
     action: string
-    employee_id: string | null
+    user_id: string | null
     created_at: string
   }>).map((row) => ({
     id: row.id,
     taskId: row.task_id,
     action: row.action,
-    employeeId: row.employee_id,
+    employeeId: row.user_id,
     createdAt: row.created_at,
   }))
 }
@@ -145,13 +129,13 @@ export async function getAllTaskActivity(): Promise<TaskActivityLogEntry[]> {
     id: string
     task_id: string
     action: string
-    employee_id: string | null
+    user_id: string | null
     created_at: string
   }>).map((row) => ({
     id: row.id,
     taskId: row.task_id,
     action: row.action,
-    employeeId: row.employee_id,
+    employeeId: row.user_id,
     createdAt: row.created_at,
   }))
 }
@@ -166,7 +150,7 @@ export async function addTaskActivity(
     .insert({
       task_id: taskId,
       action,
-      employee_id: employeeId ?? null,
+      user_id: employeeId || null,
     })
     .select()
     .single()
@@ -177,14 +161,30 @@ export async function addTaskActivity(
     id: string
     task_id: string
     action: string
-    employee_id: string | null
+    user_id: string | null
     created_at: string
   }
   return {
     id: row.id,
     taskId: row.task_id,
     action: row.action,
-    employeeId: row.employee_id,
+    employeeId: row.user_id,
     createdAt: row.created_at,
+  }
+}
+
+function mapRow(row: Record<string, unknown>): Task {
+  return {
+    id: row.id as string,
+    title: row.title as string,
+    description: (row.description as string) || undefined,
+    checklist: (row.checklist as TaskChecklistItem[]) || [],
+    priority: (row.priority as Task['priority']) || 'medium',
+    status: (row.status as Task['status']) || 'todo',
+    assigneeId: (row.assignee_id as string) || undefined,
+    vehicleId: (row.vehicle_id as string) || undefined,
+    dueDate: (row.due_date as string) || undefined,
+    dueTime: (row.due_time as string) || undefined,
+    createdAt: row.created_at as string,
   }
 }

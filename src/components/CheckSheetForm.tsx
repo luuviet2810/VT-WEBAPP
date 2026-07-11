@@ -2,7 +2,7 @@
 
 import clsx from 'clsx'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Camera, CheckCircle2, XCircle, Minus, StickyNote, Wrench, Plus, Minus as MinusIcon } from 'lucide-react'
+import { CheckCircle2, XCircle, Minus, StickyNote, Wrench, Plus, Minus as MinusIcon } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import * as checksheetService from '../services/checksheet.service'
 import {
@@ -34,22 +34,15 @@ import {
   Vehicle,
   CameraState,
 } from '../types'
-import { CollapsibleCard, Modal, SegButton, WheelPicker, BatteryCheck, Badge } from './ui'
+import { CollapsibleCard, SegButton, WheelPicker, BatteryCheck, Badge } from './ui'
 import { emptyExteriorCheck } from '../store/useStore'
 import { uid } from '../utils/format'
 import { generateTasks, GeneratedTask } from '../utils/taskRules'
-import PhotoUploader from './PhotoUploader'
 
 const DEBOUNCE_MS = 500
 
 // ====== CONSTANTS ======
 
-const FUEL_OPTIONS: { value: FuelLevel; label: string }[] = [
-  { value: 'empty', label: 'Báo vàng' },
-  { value: 'quarter', label: '1 vạch' },
-  { value: 'half', label: 'Nửa bình' },
-  { value: 'full', label: 'Đầy bình' },
-]
 
 const INTERIOR_OPTIONS: { value: InteriorCondition; label: string }[] = [
   { value: 'good', label: 'Sạch' },
@@ -59,10 +52,10 @@ const INTERIOR_OPTIONS: { value: InteriorCondition; label: string }[] = [
 
 const EXTERIOR_OPTIONS: { value: ExteriorCondition; label: string }[] = [
   { value: 'good', label: 'Tốt' },
-  { value: 'scratch', label: 'Cần đánh bóng' },
+  { value: 'polish', label: 'Chỉ cần đánh bóng' },
   { value: 'dent', label: 'Móp' },
-  { value: 'discolor', label: 'Đổi màu sơn' },
-  { value: 'needpaint', label: 'Cần sơn dặm' },
+  { value: 'discolor', label: 'Đổi màu' },
+  { value: 'touchup', label: 'Lấy sơn tự vá' },
 ]
 
 const OUT_STATUS_OPTIONS: { value: CheckOutStatus; label: string }[] = [
@@ -220,9 +213,23 @@ export default function CheckSheetForm({
   // ====== STATE — initialized from existing sheet or defaults ======
   const [sheetId, setSheetId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
   const [checkerId, setCheckerId] = useState(currentEmployeeId)
   const [checkDate, setCheckDate] = useState(new Date().toISOString().slice(0, 10))
-  const [fuelLevel, setFuelLevel] = useState<FuelLevel>('half')
+  const FUEL_LEVEL_ITEMS = [
+    { label: 'Báo vàng', value: 'empty' as FuelLevel },
+    { label: 'Trên vạch đỏ', value: 'quarter' as FuelLevel },
+    { label: '1 vạch to', value: 'quarter' as FuelLevel },
+    { label: '2 vạch to (Nửa bình)', value: 'half' as FuelLevel },
+    { label: '3 vạch to', value: 'full' as FuelLevel },
+    { label: '4 vạch to (Đầy bình)', value: 'full' as FuelLevel },
+  ]
+  // Dùng index để đảm bảo single-select, không bị trùng value
+  const [fuelLevelIdx, setFuelLevelIdx] = useState(() => {
+    const idx = FUEL_LEVEL_ITEMS.findIndex((i) => i.value === 'half')
+    return idx >= 0 ? idx : 3
+  })
+  const fuelLevel = FUEL_LEVEL_ITEMS[fuelLevelIdx].value
   const [screen, setScreen] = useState<ScreenState>('normal')
   const [rearCamera, setRearCamera] = useState<CameraState>('ok')
   const [hipass, setHipass] = useState<HipassState>('none')
@@ -230,8 +237,6 @@ export default function CheckSheetForm({
   const [dashcam, setDashcam] = useState<DashcamState>('none')
   const [interior, setInterior] = useState<InteriorCheck>(defaultInterior())
   const [exterior, setExterior] = useState<ExteriorCheck>(emptyExteriorCheck())
-  const [exteriorPhotoModal, setExteriorPhotoModal] = useState<ExteriorSpotKey | null>(null)
-  const [exteriorPhotos, setExteriorPhotos] = useState<Partial<Record<ExteriorSpotKey, string[]>>>({})
 
   // ====== STATE ĐẦU RA ======
   const [outCheck, setOutCheck] = useState<CheckOutCheck>(defaultOutCheck())
@@ -280,7 +285,6 @@ export default function CheckSheetForm({
       dashcam,
       interior,
       exterior,
-      exteriorPhotos,
       inputDieuHoa,
       inputSuoiGhe,
       inputTireState,
@@ -318,32 +322,21 @@ export default function CheckSheetForm({
     if (selected.length === 0) return
 
     if (type === 'in') {
-      const inspectionTitle = `Kiểm tra xe ${vehicle.plate}`
-      const selectedRuleIds = new Set(selected.map((task) => task.ruleId).filter(Boolean))
-      const existingInspectionTask = tasks.find((task) => task.vehicleId === vehicle.id && task.title === inspectionTitle)
-      const matchedInspectionTask = existingInspectionTask ?? tasks.find((task) => task.vehicleId === vehicle.id && task.title.includes(vehicle.plate))
-
-      const newChecklists = selected.map((task) => ({
-        id: task.id,
-        text: task.title,
-        done: false,
-      }))
-
-      if (matchedInspectionTask) {
-        const mergedChecklists = [
-          ...matchedInspectionTask.checklist,
-          ...newChecklists.filter((item) => !matchedInspectionTask.checklist.some((existing) => existing.text === item.text)),
-        ]
-        updateTask(matchedInspectionTask.id, { checklist: mergedChecklists })
-      } else {
+      // Mỗi suggested task được tạo thành một task riêng, không gộp vào checklist
+      for (const task of selected) {
+        const existing = tasks.find(
+          (t) => t.vehicleId === vehicle.id && t.title === task.title
+        )
+        if (existing) continue
         addTask({
           id: uid('task'),
-          title: inspectionTitle,
-          checklist: newChecklists,
-          priority: 'medium',
-          status: 'todo',
+          title: task.title,
+          checklist: task.checklist || [],
+          priority: task.priority,
+          status: task.status,
           vehicleId: vehicle.id,
-          createdAt: new Date().toISOString(),
+          createdAt: task.createdAt,
+          ruleId: task.ruleId,
         })
       }
     }
@@ -390,7 +383,10 @@ export default function CheckSheetForm({
         setSheetId(sheet.id)
         setCheckerId(sheet.checkerId ?? currentEmployeeId)
         setCheckDate(sheet.checkDate)
-        setFuelLevel(sheet.fuelLevel ?? 'half')
+        setFuelLevelIdx(() => {
+          const idx = FUEL_LEVEL_ITEMS.findIndex((i) => i.value === (sheet.fuelLevel ?? 'half'))
+          return idx >= 0 ? idx : 3
+        })
         setScreen(sheet.screen ?? 'normal')
         setRearCamera(sheet.rearCamera ?? 'ok')
         setHipass(sheet.hipass ?? 'none')
@@ -398,7 +394,6 @@ export default function CheckSheetForm({
         setDashcam(sheet.dashcam ?? 'none')
         setInterior(sheet.interior ?? defaultInterior())
         setExterior(Object.keys(sheet.exterior ?? {}).length > 0 ? sheet.exterior : emptyExteriorCheck())
-        setExteriorPhotos(sheet.exteriorPhotos ?? {})
         setOutCheck(sheet.outCheck ?? defaultOutCheck())
         setOutNotes(sheet.outNotes ?? '')
         setInputAcquySOH(sheet.inputAcquySOH ?? 100)
@@ -420,6 +415,7 @@ export default function CheckSheetForm({
 
   // ====== AUTO-SAVE DEBOUNCE ======
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const suggestionTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   function buildPatch(): Partial<CheckSheet> {
     const base: Partial<CheckSheet> = {
@@ -433,7 +429,6 @@ export default function CheckSheetForm({
       dashcam,
       interior,
       exterior,
-      exteriorPhotos,
       inputDieuHoa,
       inputSuoiGhe,
       inputTireState,
@@ -449,17 +444,18 @@ export default function CheckSheetForm({
     if (!sheetId) return
     if (saveTimer.current) clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(() => {
-      updateCheckSheet(sheetId!, buildPatch())
-        .then(async () => {
-          useStore.getState().generateTasksFromSheet(
-            { ...buildPatch(), id: sheetId!, vehicleId: vehicle.id, createdAt: '' } as CheckSheet,
-            vehicle.plate
-          )
-        })
-        .catch((err) => {
-          console.error('[CheckSheetForm] SAVE FAILED:', err)
-          addNotification({ type: 'error', title: 'Lỗi lưu', body: 'Không thể lưu phiếu kiểm tra. Dữ liệu vẫn còn trên màn hình.' })
-        })
+      updateCheckSheet(sheetId!, buildPatch()).catch((err) => {
+        console.error('[CheckSheetForm] SAVE FAILED:', err)
+        addNotification({ type: 'error', title: 'Lỗi lưu', body: 'Không thể lưu phiếu kiểm tra. Dữ liệu vẫn còn trên màn hình.' })
+      })
+    }, DEBOUNCE_MS)
+  }
+
+  function scheduleRefreshSuggestions() {
+    if (!sheetId) return
+    if (suggestionTimer.current) clearTimeout(suggestionTimer.current)
+    suggestionTimer.current = setTimeout(() => {
+      refreshSuggestions('rules')
     }, DEBOUNCE_MS)
   }
 
@@ -469,11 +465,11 @@ export default function CheckSheetForm({
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current)
     }
-  }, [sheetId, checkerId, checkDate, fuelLevel, screen, rearCamera, hipass, rearSensor, dashcam, interior, exterior, exteriorPhotos, inputDieuHoa, inputSuoiGhe, inputTireState, inputNotes, outCheck, outNotes, inputAcquySOH, inputAcquySOC, acquySOH, acquySOC])
+  }, [sheetId, checkerId, checkDate, fuelLevel, screen, rearCamera, hipass, rearSensor, dashcam, interior, exterior, inputDieuHoa, inputSuoiGhe, inputTireState, inputNotes, outCheck, outNotes, inputAcquySOH, inputAcquySOC, acquySOH, acquySOC])
 
   useEffect(() => {
     if (!sheetId) return
-    refreshSuggestions('rules')
+    scheduleRefreshSuggestions()
   }, [sheetId, type, checkerId, checkDate, fuelLevel, screen, rearCamera, hipass, rearSensor, dashcam, interior, exterior, inputDieuHoa, inputSuoiGhe, inputTireState, inputNotes, outCheck, outNotes, inputAcquySOH, inputAcquySOC, acquySOH, acquySOC])
 
   // ====== SUMMARY COUNTS ======
@@ -484,31 +480,59 @@ export default function CheckSheetForm({
       let none = 0
       let noteCount = 0
 
+      // Màn hình
       if (screen === 'normal' || screen === 'android') ok++
       else if (screen === 'broken') error++
 
+      // Camera lùi
       if (rearCamera === 'ok') ok++
       else if (rearCamera === 'blurry') error++
+      else if (rearCamera === 'broken') error++
 
       // Hi-Pass: KHÔNG tính vào thống kê
 
+      // Cảm biến lùi
       if (rearSensor === 'ok') ok++
       else if (rearSensor === 'broken') error++
       else if (rearSensor === 'none') none++
 
-      if (dashcam === 'good' || dashcam === 'maybe') ok++
+      // Camera hành trình
+      if (dashcam === 'good') ok++
+      else if (dashcam === 'maybe') none++
       else if (dashcam === 'none') none++
 
+      // Điều hòa (Đầu vào)
+      if (inputDieuHoa.status === 'need_gas') error++
+      else ok++
+
+      // Sưởi ghế (Đầu vào)
+      if (inputSuoiGhe.status === 'broken') error++
+      else ok++
+
+      // Tình trạng lốp (Đầu vào)
+      if (inputTireState.status === 'ok') ok++
+      else if (inputTireState.status === 'error') error++
+      else if (inputTireState.status === 'none') error++
+
+      // Nhiên liệu
+      if (fuelLevel === 'empty') error++
+      else ok++
+
+      // SOC ắc quy < 50%
+      if (inputAcquySOC >= 0 && inputAcquySOC < 50) error++
+      else if (inputAcquySOC >= 50) ok++
+
+      // Nội thất
       Object.values(interior).forEach((v) => {
         if (v.condition === 'good') ok++
         else error++
         if (v.note) noteCount++
       })
 
+      // Ngoại thất
       Object.values(exterior).forEach((v) => {
-        if (v.condition === 'good') ok++
+        if (v.condition === 'good' || v.condition === 'polish' || v.condition === 'touchup') ok++
         else error++
-        if (v.note) noteCount++
       })
 
       return { ok, error, none, noteCount }
@@ -547,11 +571,11 @@ export default function CheckSheetForm({
 
       return { ok, error, none, noteCount: outNotes ? 1 : 0 }
     }
-  }, [type, screen, rearCamera, rearSensor, dashcam, interior, exterior, outCheck, outNotes])
+  }, [type, screen, rearCamera, rearSensor, dashcam, interior, exterior, outCheck, outNotes, inputDieuHoa, inputSuoiGhe, inputTireState, fuelLevel, inputAcquySOC])
 
   // Paint count
   const paintCount = useMemo(() => {
-    return EXTERIOR_SPOTS.filter(([key]) => exterior[key]?.condition === 'needpaint').length
+    return EXTERIOR_SPOTS.filter(([key]) => exterior[key]?.condition === 'dent' || exterior[key]?.condition === 'discolor').length
   }, [exterior])
 
   // Reference for exterior scroll
@@ -600,8 +624,9 @@ export default function CheckSheetForm({
     // Màn hình - chỉ Hỏng mới tạo
     if (screen === 'broken') items.push({ id: uid('chk'), text: 'Sửa màn hình', done: false })
 
-    // Camera lùi - chỉ Hỏng mới tạo
-    if (rearCamera === 'broken') items.push({ id: uid('chk'), text: 'Kiểm tra camera', done: false })
+    // Camera lùi - Mờ hoặc Hỏng đều sinh Task
+    if (rearCamera === 'blurry') items.push({ id: uid('chk'), text: 'Kiểm tra / Thay camera lùi', done: false })
+    if (rearCamera === 'broken') items.push({ id: uid('chk'), text: 'Sửa camera lùi', done: false })
 
     // Cảm biến lùi - Hỏng hoặc Không có đều tạo (task khác nhau)
     if (rearSensor === 'broken') items.push({ id: uid('chk'), text: 'Sửa cảm biến lùi', done: false })
@@ -609,13 +634,12 @@ export default function CheckSheetForm({
 
     // Camera hành trình
     if (dashcam === 'maybe') items.push({ id: uid('chk'), text: 'Lắp thẻ nhớ camera hành trình', done: false })
-    if (dashcam === 'none') items.push({ id: uid('chk'), text: 'Lắp camera hành trình', done: false })
+    if (dashcam === 'none') items.push({ id: uid('chk'), text: 'Không có camera hành trình', done: false })
 
     // Điều hòa - Đầu vào
     if (inputDieuHoa.status === 'need_gas') items.push({ id: uid('chk'), text: 'Đổ ga điều hòa', done: false })
 
-    // Hipass - Không có
-    if (hipass === 'none') items.push({ id: uid('chk'), text: 'Kiểm tra Hipass', done: false })
+    // Hipass - Không sinh Task
 
     // Sưởi ghế - Đầu vào - chỉ "Hỏng nút" mới tạo
     if (inputSuoiGhe.status === 'broken') items.push({ id: uid('chk'), text: 'Sửa nút sưởi ghế', done: false })
@@ -631,14 +655,12 @@ export default function CheckSheetForm({
       if (interior[key].condition === 'torn') items.push({ id: uid('chk'), text: `Bọc lại ghế`, done: false })
     })
 
-    // Ngoại thất - Móp hoặc Đổi màu sơn (cộng dồn)
-    const exteriorIssues = EXTERIOR_SPOTS.filter(([key]) => {
+    // Ngoại thất - Móp hoặc Đổi màu: mỗi vị trí một task riêng
+    EXTERIOR_SPOTS.forEach(([key, spotLabel]) => {
       const cond = exterior[key]?.condition
-      return cond === 'dent' || cond === 'discolor'
+      if (cond === 'dent') items.push({ id: uid('chk'), text: `Sửa móp ${spotLabel.toLowerCase()}`, done: false })
+      if (cond === 'discolor') items.push({ id: uid('chk'), text: `Sơn lại ${spotLabel.toLowerCase()}`, done: false })
     })
-    if (exteriorIssues.length > 0) {
-      items.push({ id: uid('chk'), text: `Cần sơn ${exteriorIssues.length} tấm`, done: false })
-    }
 
     // Mức nhiên liệu - Báo vàng (empty) mới tạo
     if (fuelLevel === 'empty') {
@@ -646,11 +668,12 @@ export default function CheckSheetForm({
       items.push({ id: uid('chk'), text: fuelText, done: false })
     }
 
-    // Tình trạng lốp - chỉ "Mòn lắm" (none) mới tạo
-    if (inputTireState.status === 'none') items.push({ id: uid('chk'), text: 'Kiểm tra lốp', done: false })
+    // Tình trạng lốp
+    if (inputTireState.status === 'error') items.push({ id: uid('chk'), text: 'Kiểm tra lốp', done: false })
+    if (inputTireState.status === 'none') items.push({ id: uid('chk'), text: 'Thay lốp', done: false })
 
-    // SOC acquy đầu vào < 20%
-    if (inputAcquySOC < 20) items.push({ id: uid('chk'), text: 'Sạc pin', done: false })
+    // SOC acquy đầu vào < 50%
+    if (inputAcquySOC < 50) items.push({ id: uid('chk'), text: 'Kiểm tra / Sạc ắc quy', done: false })
 
     return items
   }, [type, screen, rearCamera, rearSensor, dashcam, hipass, inputDieuHoa, inputSuoiGhe, interior, exterior, fuelLevel, vehicle.fuelType, inputTireState, inputAcquySOC])
@@ -735,8 +758,9 @@ export default function CheckSheetForm({
     // Màn hình - chỉ Hỏng
     if (screen === 'broken') labels.push({ text: 'Màn hình', bold: true })
 
-    // Camera lùi - chỉ Hỏng
-    if (rearCamera === 'broken') labels.push({ text: 'Cam lùi', bold: true })
+    // Camera lùi - Mờ hoặc Hỏng
+    if (rearCamera === 'blurry') labels.push({ text: 'Cam lùi mờ', bold: true })
+    if (rearCamera === 'broken') labels.push({ text: 'Cam lùi hỏng', bold: true })
 
     // Cảm biến lùi - Hỏng hoặc Không có
     if (rearSensor === 'broken') labels.push({ text: 'Cảm biến lùi', bold: true })
@@ -763,25 +787,28 @@ export default function CheckSheetForm({
       if (interior[key].condition === 'torn') labels.push({ text: `${label} rách`, bold: true })
     })
 
-    // Ngoại thất - Móp hoặc Đổi màu sơn (cộng dồn)
-    const exteriorIssues = EXTERIOR_SPOTS.filter(([key]) => {
+    // Ngoại thất - Móp hoặc Đổi màu
+    EXTERIOR_SPOTS.forEach(([key, spotLabel]) => {
       const cond = exterior[key]?.condition
-      return cond === 'dent' || cond === 'discolor'
+      if (cond === 'dent' || cond === 'discolor') {
+        labels.push({ text: `${spotLabel}${cond === 'dent' ? ' móp' : ' đổi màu'}`, bold: true })
+      }
     })
-    if (exteriorIssues.length > 0) {
-      labels.push({ text: `${exteriorIssues.length} tấm cần sơn`, bold: true })
-    }
 
     // Mức nhiên liệu - Báo vàng
     if (fuelLevel === 'empty') {
       labels.push({ text: 'Nhiên liệu gần hết', bold: true })
     }
 
-    // Tình trạng lốp - chỉ "Mòn lắm" (none)
+    // Tình trạng lốp
+    if (inputTireState.status === 'error') labels.push({ text: 'Lốp hơi mòn', bold: true })
     if (inputTireState.status === 'none') labels.push({ text: 'Lốp mòn lắm', bold: true })
 
+    // SOC ắc quy < 50%
+    if (inputAcquySOC < 50) labels.push({ text: 'Ắc quy yếu', bold: true })
+
     return labels
-  }, [type, screen, rearCamera, rearSensor, dashcam, inputDieuHoa, inputSuoiGhe, interior, exterior, fuelLevel, inputTireState])
+  }, [type, screen, rearCamera, rearSensor, dashcam, inputDieuHoa, inputSuoiGhe, interior, exterior, fuelLevel, inputTireState, inputAcquySOC])
 
   // Issue labels cho Đầu ra
   const outIssueLabels = useMemo(() => {
@@ -834,43 +861,29 @@ export default function CheckSheetForm({
     exteriorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
-  // ====== SAVE (manual, used by Save button) ======
-  function handleSave() {
-    if (!vehicle?.id || !sheetId) {
-      console.error('[CheckSheetForm] Cannot save: vehicle ID or sheet ID missing')
-      return null
-    }
-    const patch = buildPatch()
-    updateCheckSheet(sheetId, patch)
-    return sheetId
-  }
-
   // ====== TASK GENERATION ======
-  function handleCreateOrUpdateTasks() {
-    if (type === 'in' && allChecklistItems.length > 0) {
-      // Đầu vào: tạo/update task checklist
-      const taskTitle = `Kiểm tra xe ${vehicle.plate}`
-      const existingTask = tasks.find((t) => t.vehicleId === vehicle.id && t.title.includes(vehicle.plate))
+  async function handleCreateOrUpdateTasks() {
+    const promises: Promise<void>[] = []
 
-      if (existingTask) {
-        // Merge checklist
-        const mergedChecklist = [
-          ...existingTask.checklist,
-          ...allChecklistItems.filter(
-            (newItem) => !existingTask.checklist.some((existing) => existing.text === newItem.text)
-          ),
-        ]
-        updateTask(existingTask.id, { checklist: mergedChecklist })
-      } else {
-        addTask({
+    if (type === 'in' && allChecklistItems.length > 0) {
+      // Đầu vào: mỗi item trong allChecklistItems là một task riêng
+      for (const item of allChecklistItems) {
+        const existingTask = tasks.find(
+          (t) => t.vehicleId === vehicle.id && t.title === item.text
+        )
+        if (existingTask) {
+          // Task đã tồn tại, không tạo trùng
+          continue
+        }
+        promises.push(addTask({
           id: uid('task'),
-          title: taskTitle,
-          checklist: allChecklistItems,
+          title: item.text,
+          checklist: [],
           priority: 'medium',
           status: 'todo',
           vehicleId: vehicle.id,
           createdAt: new Date().toISOString(),
-        })
+        }))
       }
     }
 
@@ -944,7 +957,7 @@ export default function CheckSheetForm({
           // Kiểm tra xem task này có trong danh sách cần thiết không
           const isNeeded = requiredPrefixes.some((rp) => t.title.includes(rp.prefix))
           if (!isNeeded) {
-            useStore.getState().deleteTask(t.id)
+            promises.push(useStore.getState().deleteTask(t.id))
           }
         })
 
@@ -954,7 +967,7 @@ export default function CheckSheetForm({
         )
 
         if (!existingTask) {
-          addTask({
+          promises.push(addTask({
             id: uid('task'),
             title,
             checklist: [],
@@ -962,22 +975,34 @@ export default function CheckSheetForm({
             status: 'todo',
             vehicleId: vehicle.id,
             createdAt: new Date().toISOString(),
-          })
+          }))
         }
       })
     }
+
+    await Promise.all(promises)
   }
 
-  function handleSaveAndClose() {
+  // ====== SAVE (manual, used by Save button) ======
+  async function handleSave() {
+    if (!vehicle?.id || !sheetId) {
+      throw new Error('Missing vehicle ID or sheet ID')
+    }
+    const patch = buildPatch()
+    await updateCheckSheet(sheetId, patch)
+    return sheetId
+  }
+
+  async function handleSaveAndClose() {
     if (isSaving) return
     setIsSaving(true)
 
     try {
       // 1. Tạo/Cập nhật Tasks
-      handleCreateOrUpdateTasks()
+      await handleCreateOrUpdateTasks()
 
       // 2. Lưu CheckSheet
-      handleSave()
+      await handleSave()
 
       // 3. Notification
       addNotification({
@@ -988,6 +1013,9 @@ export default function CheckSheetForm({
 
       // 4. Gọi callback để đóng popup
       onSaved()
+    } catch (err) {
+      console.error('[CheckSheetForm] SAVE FAILED:', err)
+      addNotification({ type: 'error', title: 'Lỗi lưu', body: 'Không thể lưu phiếu kiểm tra. Dữ liệu vẫn còn trên màn hình.' })
     } finally {
       setIsSaving(false)
     }
@@ -997,6 +1025,16 @@ export default function CheckSheetForm({
   return (
     <>
       <div className="flex flex-col" style={{ maxHeight: 'calc(100dvh - 160px)' }}>
+        {/* Summary */}
+        <div className="bg-white border-b border-slate-100">
+          <div className="grid grid-cols-2 gap-3 py-3 sm:grid-cols-4">
+            <SummaryStat icon={<CheckCircle2 size={18} />} label="OK" count={summaryCounts.ok} tone="green" />
+            <SummaryStat icon={<XCircle size={18} />} label="Hỏng" count={summaryCounts.error} tone="red" />
+            <SummaryStat icon={<Minus size={18} />} label="Cần lắp" count={summaryCounts.none} tone="slate" />
+            <SummaryStat icon={<StickyNote size={18} />} label="Ghi chú" count={summaryCounts.noteCount} tone="brand" />
+          </div>
+        </div>
+
         {/* Form kiểm tra - Người check, Ngày check, Mức nhiên liệu */}
         <div className="px-1">
           <CollapsibleCard title="Thông tin kiểm tra">
@@ -1004,6 +1042,7 @@ export default function CheckSheetForm({
               <div>
                 <label className="label">Người check</label>
                 <select className="input" value={checkerId} onChange={(e) => setCheckerId(e.target.value)}>
+                  <option value="">-- Chọn người check --</option>
                   {employees.map((e) => (
                     <option key={e.id} value={e.id}>
                       {e.name}
@@ -1016,42 +1055,26 @@ export default function CheckSheetForm({
                 <input type="date" className="input" value={checkDate} onChange={(e) => setCheckDate(e.target.value)} />
               </div>
             </div>
-
             <div className="mt-4">
               <label className="label">Mức nhiên liệu</label>
-              <SegButton options={FUEL_OPTIONS} value={fuelLevel} onChange={(v) => setFuelLevel(v as FuelLevel)} />
+              <div className="grid grid-cols-3 gap-2">
+                {FUEL_LEVEL_ITEMS.map((item, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setFuelLevelIdx(idx)}
+                    className={`rounded-lg border px-2 py-2 text-center text-xs font-medium transition-colors ${
+                      fuelLevelIdx === idx
+                        ? 'border-brand-400 bg-brand-500 text-white'
+                        : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </CollapsibleCard>
-        </div>
-
-        {/* Summary Card - Sticky */}
-        <div className="sticky top-0 z-10 -mx-1 bg-white px-1 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
-          <div className="grid grid-cols-2 gap-3 py-3 sm:grid-cols-4">
-            <SummaryStat
-              icon={<CheckCircle2 size={18} />}
-              label="OK"
-              count={summaryCounts.ok}
-              tone="green"
-            />
-            <SummaryStat
-              icon={<XCircle size={18} />}
-              label="Hỏng"
-              count={summaryCounts.error}
-              tone="red"
-            />
-            <SummaryStat
-              icon={<Minus size={18} />}
-              label="Cần lắp"
-              count={summaryCounts.none}
-              tone="slate"
-            />
-            <SummaryStat
-              icon={<StickyNote size={18} />}
-              label="Ghi chú"
-              count={summaryCounts.noteCount}
-              tone="brand"
-            />
-          </div>
         </div>
 
         {/* Suggested tasks assistant */}
@@ -1217,9 +1240,7 @@ export default function CheckSheetForm({
                         key={key}
                         label={spotLabel}
                         entry={exterior[key]}
-                        photos={exteriorPhotos[key] || []}
                         onChange={(p) => updateExterior(key, p)}
-                        onAddPhoto={() => setExteriorPhotoModal(key)}
                       />
                     ))}
                   </div>
@@ -1355,21 +1376,6 @@ export default function CheckSheetForm({
         </div>
       </div>
 
-      {/* Modal chụp ảnh ngoại thất */}
-      <Modal
-        open={exteriorPhotoModal !== null}
-        onClose={() => setExteriorPhotoModal(null)}
-        title={exteriorPhotoModal ? `Chụp ảnh ${EXTERIOR_SPOTS.find(([k]) => k === exteriorPhotoModal)?.[1]}` : ''}
-      >
-        <PhotoUploader
-          images={exteriorPhotoModal ? (exteriorPhotos[exteriorPhotoModal] || []) : []}
-          onChange={(photos) => {
-            if (exteriorPhotoModal) {
-              setExteriorPhotos((prev) => ({ ...prev, [exteriorPhotoModal]: photos }))
-            }
-          }}
-        />
-      </Modal>
     </>
   )
 }
@@ -1421,41 +1427,16 @@ function InteriorRow({
 function ExteriorRow({
   label,
   entry,
-  photos,
   onChange,
-  onAddPhoto,
 }: {
   label: string
-  entry: { condition: ExteriorCondition; note?: string }
-  photos: string[]
-  onChange: (p: Partial<{ condition: ExteriorCondition; note: string }>) => void
-  onAddPhoto: () => void
+  entry: { condition: ExteriorCondition }
+  onChange: (p: { condition: ExteriorCondition }) => void
 }) {
-  const hasIssue = entry.condition !== 'good'
-
   return (
-    <div className="mb-4">
-      <div className="flex items-center justify-between">
-        <label className="label">{label}</label>
-        {hasIssue && (
-          <button
-            onClick={onAddPhoto}
-            className="flex items-center gap-1 rounded-lg border border-dashed border-slate-300 px-2 py-1 text-xs text-slate-500 transition-colors hover:border-brand-400 hover:text-brand-600 active:scale-95"
-          >
-            <Camera size={12} />
-            Chụp ảnh
-          </button>
-        )}
-      </div>
+    <div className="mb-3">
+      <label className="label">{label}</label>
       <SegButton options={EXTERIOR_OPTIONS} value={entry.condition} onChange={(v) => onChange({ condition: v as ExteriorCondition })} />
-      {hasIssue && (
-        <input
-          className="input mt-2"
-          placeholder="Ghi chú riêng cho vị trí này"
-          value={entry.note || ''}
-          onChange={(e) => onChange({ note: e.target.value })}
-        />
-      )}
     </div>
   )
 }

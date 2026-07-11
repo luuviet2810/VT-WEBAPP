@@ -375,9 +375,7 @@ export function generateTasks(sheet: CheckSheet, vehiclePlate: string): Generate
     return result
   })
 
-  console.log(`  🟢 [taskRules] Total rules triggered: ${triggered.length}`)
-
-  return triggered.map((rule) => ({
+  const result = triggered.map((rule) => ({
     id: uid('task'),
     title: rule.title,
     description: rule.description,
@@ -388,4 +386,7 @@ export function generateTasks(sheet: CheckSheet, vehiclePlate: string): Generate
     ruleId: rule.id,
     createdAt: new Date().toISOString(),
   }))
+
+  console.log('  🟢 [taskRules] GENERATED:', result.map((r) => `[${r.ruleId}] ${r.title}`).join(' | ') || '(none)')
+  return result
 }

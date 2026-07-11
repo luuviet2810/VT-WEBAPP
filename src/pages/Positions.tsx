@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Clock, Edit3, Plus, Trash2, X, GripVertical, CarFront, ArrowRight } from 'lucide-react'
+import { Clock, Edit3, Plus, Trash2, X, GripVertical, ArrowRight } from 'lucide-react'
 import {
   DndContext,
   closestCenter,
@@ -21,7 +21,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useStore } from '../store/useStore'
-import { Badge, EmptyState, Modal, ConfirmDialog } from '../components/ui'
+import { EmptyState, Modal, ConfirmDialog } from '../components/ui'
 import { formatDateTime } from '../utils/format'
 import { Position } from '../types'
 
@@ -211,25 +211,6 @@ export default function Positions() {
     }
   }
 
-  // Get status color for vehicle card
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'available': return 'slate'
-      case 'deposited': return 'amber'
-      case 'sold': return 'green'
-      default: return 'slate'
-    }
-  }
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'available': return 'Chưa bán'
-      case 'deposited': return 'Đã cọc'
-      case 'sold': return 'Đã bán'
-      default: return status
-    }
-  }
-
   return (
     <div>
       {/* Header */}
@@ -293,48 +274,32 @@ export default function Positions() {
                 
                 {posVehicles.map((v) => {
                   const isDragging = dragId === v.id
-                  
+
                   return (
-                    <div
+                    <Link
                       key={v.id}
+                      to={`/xe/${v.id}`}
                       draggable
                       onDragStart={(e) => handleVehicleDragStart(e, v.id)}
                       onDragEnd={handleVehicleDragEnd}
                       className={`
-                        group flex cursor-grab items-center gap-3 rounded-xl border bg-white p-3 shadow-sm transition-all duration-200
-                        ${isDragging 
-                          ? 'opacity-50 scale-95 shadow-lg ring-2 ring-brand-400' 
+                        flex cursor-grab items-center gap-3 rounded-xl border bg-white px-3 py-2.5 shadow-sm transition-all duration-200
+                        ${isDragging
+                          ? 'opacity-50 scale-95 shadow-lg ring-2 ring-brand-400'
                           : 'hover:shadow-md hover:border-brand-200 active:cursor-grabbing'
                         }
                       `}
                     >
                       {/* Drag Handle */}
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-400 opacity-0 transition-opacity group-hover:opacity-100">
-                        <GripVertical size={16} />
+                      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-400 opacity-0 transition-opacity group-hover:opacity-100">
+                        <GripVertical size={14} />
                       </div>
 
-                      {/* Vehicle Image */}
-                      <Link to={`/xe/${v.id}`} className="h-10 w-14 shrink-0 overflow-hidden rounded-lg bg-slate-100">
-                        {v.images[0] ? (
-                          <img src={v.images[0]} className="h-full w-full object-cover" />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center">
-                            <CarFront size={18} className="text-slate-300" />
-                          </div>
-                        )}
-                      </Link>
-
-                      {/* Vehicle Info */}
-                      <Link to={`/xe/${v.id}`} className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-semibold text-slate-800">{v.plate}</div>
-                        <div className="truncate text-xs text-slate-400">{v.model}</div>
-                      </Link>
-
-                      {/* Status Badge */}
-                      <Badge tone="orange">
-                        {getStatusLabel(v.status)}
-                      </Badge>
-                    </div>
+                      {/* Plate - Model */}
+                      <span className="truncate text-sm font-semibold text-slate-800">
+                        {v.plate} <span className="font-normal text-slate-400">- {v.model}</span>
+                      </span>
+                    </Link>
                   )
                 })}
               </div>

@@ -7,7 +7,7 @@ function mapRow(row: Record<string, unknown>): MoveLog {
     vehicleId: row.vehicle_id as string,
     fromPositionId: row.from_position_id as string | null,
     toPositionId: row.to_position_id as string,
-    employeeId: row.employee_id as string | null,
+    employeeId: row.user_id as string | null,
     createdAt: row.created_at as string,
   }
 }
@@ -48,7 +48,7 @@ export async function createMoveLog(
       vehicle_id: log.vehicleId,
       from_position_id: log.fromPositionId,
       to_position_id: log.toPositionId,
-      employee_id: log.employeeId,
+      user_id: log.employeeId || null,
     })
     .select()
     .single()

@@ -1,0 +1,734 @@
+[1mdiff --git a/src/components/CheckSheetForm.tsx b/src/components/CheckSheetForm.tsx[m
+[1mindex f91b0bd..2fda463 100644[m
+[1m--- a/src/components/CheckSheetForm.tsx[m
+[1m+++ b/src/components/CheckSheetForm.tsx[m
+[36m@@ -1,8 +1,8 @@[m
+ // ====== CHECKSHEET FORM COMPONENT ======[m
+ [m
+ import clsx from 'clsx'[m
+[31m-import { useEffect, useMemo, useRef, useState } from 'react'[m
+[31m-import { Camera, CheckCircle2, XCircle, Minus, StickyNote, Wrench, Plus, Minus as MinusIcon } from 'lucide-react'[m
+[32m+[m[32mimport { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'[m
+[32m+[m[32mimport { Camera, CheckCircle2, StickyNote, Wrench, Plus, Minus as MinusIcon } from 'lucide-react'[m
+ import { useStore } from '../store/useStore'[m
+ import * as checksheetService from '../services/checksheet.service'[m
+ import {[m
+[36m@@ -36,8 +36,7 @@[m [mimport {[m
+ } from '../types'[m
+ import { CollapsibleCard, Modal, SegButton, WheelPicker, BatteryCheck, Badge } from './ui'[m
+ import { emptyExteriorCheck } from '../store/useStore'[m
+[31m-import { uid } from '../utils/format'[m
+[31m-import { generateTasks, GeneratedTask } from '../utils/taskRules'[m
+[32m+[m[32mimport { generateTasks, getWorkOrderLabels, type GeneratedTask } from '../utils/taskRules'[m
+ import PhotoUploader from './PhotoUploader'[m
+ [m
+ const DEBOUNCE_MS = 500[m
+[36m@@ -196,19 +195,18 @@[m [mfunction NumberPicker({[m
+ [m
+ // ====== MAIN COMPONENT ======[m
+ [m
+[31m-export default function CheckSheetForm({[m
+[31m-  vehicle,[m
+[31m-  type,[m
+[31m-  onCancel,[m
+[31m-  onSaved,[m
+[31m-}: {[m
+[32m+[m[32mexport interface CheckSheetFormHandle {[m
+[32m+[m[32m  saveAndClose: () => Promise<void>[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mtype CheckSheetFormProps = {[m
+   vehicle: Vehicle[m
+   type: 'in' | 'out'[m
+   onCancel: () => void[m
+   onSaved: () => void[m
+[31m-}) {[m
+[31m-  const addTask = useStore((s) => s.addTask)[m
+[31m-  const updateTask = useStore((s) => s.updateTask)[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mconst CheckSheetForm = forwardRef<CheckSheetFormHandle, CheckSheetFormProps>(function CheckSheetForm({ vehicle, type, onCancel, onSaved }, ref) {[m
+   const tasks = useStore((s) => s.tasks)[m
+   const employees = useStore((s) => s.employees)[m
+   const currentEmployeeId = useStore((s) => s.currentEmployeeId)[m
+[36m@@ -267,7 +265,6 @@[m [mexport default function CheckSheetForm({[m
+ [m
+   function buildSheetForRules(): CheckSheet {[m
+     return {[m
+[31m-      id: sheetId ?? uid('chk'),[m
+       vehicleId: vehicle.id,[m
+       type,[m
+       checkerId,[m
+[36m@@ -314,70 +311,10 @@[m [mexport default function CheckSheetForm({[m
+   }[m
+ [m
+   function handleCreateSelectedTasks() {[m
+[31m-    const selected = suggestedTasks.filter((task) => selectedTaskIds.has(task.id))[m
+[31m-    if (selected.length === 0) return[m
+[31m-[m
+[31m-    if (type === 'in') {[m
+[31m-      const inspectionTitle = `Kiểm tra xe ${vehicle.plate}`[m
+[31m-      const selectedRuleIds = new Set(selected.map((task) => task.ruleId).filter(Boolean))[m
+[31m-      const existingInspectionTask = tasks.find((task) => task.vehicleId === vehicle.id && task.title === inspectionTitle)[m
+[31m-      const matchedInspectionTask = existingInspectionTask ?? tasks.find((task) => task.vehicleId === vehicle.id && task.title.includes(vehicle.plate))[m
+[31m-[m
+[31m-      const newChecklists = selected.map((task) => ({[m
+[31m-        id: task.id,[m
+[31m-        text: task.title,[m
+[31m-        done: false,[m
+[31m-      }))[m
+[31m-[m
+[31m-      if (matchedInspectionTask) {[m
+[31m-        const mergedChecklists = [[m
+[31m-          ...matchedInspectionTask.checklist,[m
+[31m-          ...newChecklists.filter((item) => !matchedInspectionTask.checklist.some((existing) => existing.text === item.text)),[m
+[31m-        ][m
+[31m-        updateTask(matchedInspectionTask.id, { checklist: mergedChecklists })[m
+[31m-      } else {[m
+[31m-        addTask({[m
+[31m-          id: uid('task'),[m
+[31m-          title: inspectionTitle,[m
+[31m-          checklist: newChecklists,[m
+[31m-          priority: 'medium',[m
+[31m-          status: 'todo',[m
+[31m-          vehicleId: vehicle.id,[m
+[31m-          createdAt: new Date().toISOString(),[m
+[31m-        })[m
+[31m-      }[m
+[31m-    }[m
+[31m-[m
+[31m-    if (type === 'out') {[m
+[31m-      const requiredRuleIds = new Set(selected.map((task) => task.ruleId).filter(Boolean))[m
+[31m-      const vehicleOutTasks = tasks.filter((task) => task.vehicleId === vehicle.id)[m
+[31m-      const taskRuleIds = new Set(vehicleOutTasks.map((task) => task.ruleId).filter(Boolean))[m
+[31m-[m
+[31m-      vehicleOutTasks.forEach((existingTask) => {[m
+[31m-        if (!existingTask.ruleId || !taskRuleIds.has(existingTask.ruleId)) return[m
+[31m-        if (existingTask.status === 'done') return[m
+[31m-        if (!requiredRuleIds.has(existingTask.ruleId)) {[m
+[31m-          useStore.getState().deleteTask(existingTask.id)[m
+[31m-        }[m
+[31m-      })[m
+[31m-[m
+[31m-      selected.forEach((task) => {[m
+[31m-        const existingTask = vehicleOutTasks.find((item) => item.ruleId === task.ruleId)[m
+[31m-        if (!existingTask) {[m
+[31m-          addTask({[m
+[31m-            id: task.id,[m
+[31m-            title: task.title,[m
+[31m-            description: task.description,[m
+[31m-            checklist: task.checklist,[m
+[31m-            priority: task.priority,[m
+[31m-            status: task.status,[m
+[31m-            vehicleId: vehicle.id,[m
+[31m-            createdAt: task.createdAt,[m
+[31m-            ruleId: task.ruleId,[m
+[31m-          })[m
+[31m-        }[m
+[31m-      })[m
+[31m-    }[m
+[32m+[m[32m    // Replaced: now calls generateTasksFromSheet instead of creating orphan tasks without ruleId.[m
+[32m+[m[32m    // This ensures tasks get proper ruleId for future deduplication.[m
+[32m+[m[32m    if (!sheetId) return[m
+[32m+[m[32m    useStore.getState().generateTasksFromSheet(buildSheetForRules(), vehicle.plate)[m
+   }[m
+ [m
+   // ====== INIT: load existing sheet or create new one ======[m
+[36m@@ -453,13 +390,8 @@[m [mexport default function CheckSheetForm({[m
+     if (!sheetId) return[m
+     if (saveTimer.current) clearTimeout(saveTimer.current)[m
+     saveTimer.current = setTimeout(() => {[m
+[32m+[m[32m      // Pass FULL sheet state (buildSheetForRules) so rules engine evaluates correctly[m
+       updateCheckSheet(sheetId!, buildPatch())[m
+[31m-        .then(async () => {[m
+[31m-          useStore.getState().generateTasksFromSheet([m
+[31m-            { ...buildPatch(), id: sheetId!, vehicleId: vehicle.id, createdAt: '' } as CheckSheet,[m
+[31m-            vehicle.plate[m
+[31m-          )[m
+[31m-        })[m
+         .catch((err) => {[m
+           console.error('[CheckSheetForm] SAVE FAILED:', err)[m
+           addNotification({ type: 'error', title: 'Lỗi lưu', body: 'Không thể lưu phiếu kiểm tra. Dữ liệu vẫn còn trên màn hình.' })[m
+[36m@@ -484,72 +416,38 @@[m [mexport default function CheckSheetForm({[m
+   const summaryCounts = useMemo(() => {[m
+     if (type === 'in') {[m
+       let ok = 0[m
+[31m-      let error = 0[m
+[31m-      let none = 0[m
+       let noteCount = 0[m
+ [m
+       if (screen === 'normal' || screen === 'android') ok++[m
+[31m-      else if (screen === 'broken') error++[m
+[31m-[m
+[31m-      if (rearCamera === 'ok') ok++[m
+[31m-      else if (rearCamera === 'blurry') error++[m
+[32m+[m[32m      else if (screen === 'broken') ok++[m
+ [m
+[31m-      // Hi-Pass: KHÔNG tính vào thống kê[m
+[32m+[m[32m      if (rearCamera === 'ok' || rearCamera === 'blurry') ok++[m
+ [m
+[31m-      if (rearSensor === 'ok') ok++[m
+[31m-      else if (rearSensor === 'broken') error++[m
+[31m-      else if (rearSensor === 'none') none++[m
+[32m+[m[32m      if (rearSensor === 'ok' || rearSensor === 'broken' || rearSensor === 'none') ok++[m
+ [m
+[31m-      if (dashcam === 'good' || dashcam === 'maybe') ok++[m
+[31m-      else if (dashcam === 'none') none++[m
+[32m+[m[32m      if (dashcam === 'good' || dashcam === 'maybe' || dashcam === 'none') ok++[m
+ [m
+       Object.values(interior).forEach((v) => {[m
+[31m-        if (v.condition === 'good') ok++[m
+[31m-        else error++[m
+[32m+[m[32m        ok++[m
+         if (v.note) noteCount++[m
+       })[m
+ [m
+       Object.values(exterior).forEach((v) => {[m
+[31m-        if (v.condition === 'good') ok++[m
+[31m-        else error++[m
+[32m+[m[32m        ok++[m
+         if (v.note) noteCount++[m
+       })[m
+ [m
+[31m-      return { ok, error, none, noteCount }[m
+[32m+[m[32m      return { ok, noteCount }[m
+     } else {[m
+       // Đầu ra[m
+       let ok = 0[m
+[31m-      let error = 0[m
+[31m-      let none = 0[m
+ [m
+[31m-      // Còn Song nưng - "Cần song nưng lại" = Hỏng, "Còn" = OK[m
+[31m-      if (outCheck.conSeongnyeong.status === 'can_repair') error++[m
+[31m-      else ok++[m
+[31m-[m
+[31m-      // Dầu máy - "Hết dầu rồi" = Hỏng, "Đang đi thay" hoặc "Còn tốt" = OK[m
+[31m-      if (outCheck.dauMay.status === 'empty') error++[m
+[31m-      else ok++[m
+[31m-[m
+[31m-      // Nước làm mát - "Hết" = Hỏng, "Đang đi thay" hoặc "Còn tốt" = OK[m
+[31m-      if (outCheck.nuocLamMat.status === 'empty') error++[m
+[31m-      else ok++[m
+[31m-[m
+[31m-      // Các item generic[m
+[32m+[m[32m      // Tất cả item đầu ra mặc định OK[m
+       Object.values(outCheck).forEach((v) => {[m
+[31m-        if (v.status === 'ok') ok++[m
+[31m-        else if (v.status === 'error') error++[m
+[31m-        else if (v.status === 'none') none++[m
+[32m+[m[32m        ok++[m
+       })[m
+ [m
+[31m-      // Điều hòa - "Cần đổ ga" = Hỏng[m
+[31m-      if (outCheck.dieuHoa.status === 'need_gas') error++[m
+[31m-      else ok++[m
+[31m-[m
+[31m-      // Sưởi ghế - "Hỏng nút" = Hỏng, "Không có" = OK (không tính vào Cần lắp)[m
+[31m-      if (outCheck.suoiGhe.status === 'broken') error++[m
+[31m-      else ok++[m
+[31m-[m
+[31m-      return { ok, error, none, noteCount: outNotes ? 1 : 0 }[m
+[32m+[m[32m      return { ok, noteCount: outNotes ? 1 : 0 }[m
+     }[m
+   }, [type, screen, rearCamera, rearSensor, dashcam, interior, exterior, outCheck, outNotes])[m
+ [m
+[36m@@ -596,243 +494,10 @@[m [mexport default function CheckSheetForm({[m
+     setOutCheck((prev) => ({ ...prev, suoiGhe: { ...prev.suoiGhe, ...patch } }))[m
+   }[m
+ [m
+[31m-  // Generate tasks from Đầu vào[m
+[31m-  const allChecklistItems = useMemo(() => {[m
+[31m-    if (type !== 'in') return [][m
+[31m-    const items: { id: string; text: string; done: boolean }[] = [][m
+[31m-[m
+[31m-    // Màn hình - chỉ Hỏng mới tạo[m
+[31m-    if (screen === 'broken') items.push({ id: uid('chk'), text: 'Sửa màn hình', done: false })[m
+[31m-[m
+[31m-    // Camera lùi - chỉ Hỏng mới tạo[m
+[31m-    if (rearCamera === 'broken') items.push({ id: uid('chk'), text: 'Kiểm tra camera', done: false })[m
+[31m-[m
+[31m-    // Cảm biến lùi - Hỏng hoặc Không có đều tạo (task khác nhau)[m
+[31m-    if (rearSensor === 'broken') items.push({ id: uid('chk'), text: 'Sửa cảm biến lùi', done: false })[m
+[31m-    if (rearSensor === 'none') items.push({ id: uid('chk'), text: 'Lắp cảm biến lùi', done: false })[m
+[31m-[m
+[31m-    // Camera hành trình[m
+[31m-    if (dashcam === 'maybe') items.push({ id: uid('chk'), text: 'Lắp thẻ nhớ camera hành trình', done: false })[m
+[31m-    if (dashcam === 'none') items.push({ id: uid('chk'), text: 'Lắp camera hành trình', done: false })[m
+[31m-[m
+[31m-    // Điều hòa - Đầu vào[m
+[31m-    if (inputDieuHoa.status === 'need_gas') items.push({ id: uid('chk'), text: 'Đổ ga điều hòa', done: false })[m
+[31m-[m
+[31m-    // Hipass - Không có[m
+[31m-    if (hipass === 'none') items.push({ id: uid('chk'), text: 'Kiểm tra Hipass', done: false })[m
+[31m-[m
+[31m-    // Sưởi ghế - Đầu vào - chỉ "Hỏng nút" mới tạo[m
+[31m-    if (inputSuoiGhe.status === 'broken') items.push({ id: uid('chk'), text: 'Sửa nút sưởi ghế', done: false })[m
+[31m-[m
+[31m-    // Ghế - Bẩn hoặc Rách[m
+[31m-    const seats: { key: keyof InteriorCheck; label: string }[] = [[m
+[31m-      { key: 'driverSeat', label: 'Ghế lái' },[m
+[31m-      { key: 'passengerSeat', label: 'Ghế phụ' },[m
+[31m-      { key: 'rearSeat', label: 'Hàng ghế sau' },[m
+[31m-    ][m
+[31m-    seats.forEach(({ key, label }) => {[m
+[31m-      if (interior[key].condition === 'dirty') items.push({ id: uid('chk'), text: 'Vệ sinh nội thất', done: false })[m
+[31m-      if (interior[key].condition === 'torn') items.push({ id: uid('chk'), text: `Bọc lại ghế`, done: false })[m
+[31m-    })[m
+[31m-[m
+[31m-    // Ngoại thất - Móp hoặc Đổi màu sơn (cộng dồn)[m
+[31m-    const exteriorIssues = EXTERIOR_SPOTS.filter(([key]) => {[m
+[31m-      const cond = exterior[key]?.condition[m
+[31m-      return cond === 'dent' || cond === 'discolor'[m
+[31m-    })[m
+[31m-    if (exteriorIssues.length > 0) {[m
+[31m-      items.push({ id: uid('chk'), text: `Cần sơn ${exteriorIssues.length} tấm`, done: false })[m
+[31m-    }[m
+[31m-[m
+[31m-    // Mức nhiên liệu - Báo vàng (empty) mới tạo[m
+[31m-    if (fuelLevel === 'empty') {[m
+[31m-      const fuelText = vehicle.fuelType === 'diesel' ? 'Đổ dầu' : 'Đổ xăng'[m
+[31m-      items.push({ id: uid('chk'), text: fuelText, done: false })[m
+[31m-    }[m
+[31m-[m
+[31m-    // Tình trạng lốp - chỉ "Mòn lắm" (none) mới tạo[m
+[31m-    if (inputTireState.status === 'none') items.push({ id: uid('chk'), text: 'Kiểm tra lốp', done: false })[m
+[31m-[m
+[31m-    // SOC acquy đầu vào < 20%[m
+[31m-    if (inputAcquySOC < 20) items.push({ id: uid('chk'), text: 'Sạc pin', done: false })[m
+[31m-[m
+[31m-    return items[m
+[31m-  }, [type, screen, rearCamera, rearSensor, dashcam, hipass, inputDieuHoa, inputSuoiGhe, interior, exterior, fuelLevel, vehicle.fuelType, inputTireState, inputAcquySOC])[m
+[31m-[m
+[31m-  // Generate tasks from Đầu ra errors[m
+[31m-  const outErrorTasks = useMemo(() => {[m
+[31m-    if (type !== 'out') return [][m
+[31m-    const tasks: { id: string; title: string; prefix: string }[] = [][m
+[31m-[m
+[31m-    // Còn Song nưng - chỉ "Cần song nưng lại" mới tạo[m
+[31m-    if (outCheck.conSeongnyeong.status === 'can_repair') {[m
+[31m-      tasks.push({[m
+[31m-        id: uid('task'),[m
+[31m-        title: `Sửa xe ${vehicle.plate}: Song nưng xe`,[m
+[31m-        prefix: `${vehicle.plate} - Song nưng xe`,[m
+[31m-      })[m
+[31m-    }[m
+[31m-[m
+[31m-    // Dầu máy - chỉ "Hết dầu rồi" mới tạo[m
+[31m-    if (outCheck.dauMay.status === 'empty') {[m
+[31m-      tasks.push({[m
+[31m-        id: uid('task'),[m
+[31m-        title: `Sửa xe ${vehicle.plate}: Thay dầu máy`,[m
+[31m-        prefix: `${vehicle.plate} - Thay dầu máy`,[m
+[31m-      })[m
+[31m-    }[m
+[31m-[m
+[31m-    // Nước làm mát - chỉ "Hết" mới tạo[m
+[31m-    if (outCheck.nuocLamMat.status === 'empty') {[m
+[31m-      tasks.push({[m
+[31m-        id: uid('task'),[m
+[31m-        title: `Sửa xe ${vehicle.plate}: Thay nước làm mát`,[m
+[31m-        prefix: `${vehicle.plate} - Thay nước làm mát`,[m
+[31m-      })[m
+[31m-    }[m
+[31m-[m
+[31m-    // Các item lỗi thông thường[m
+[31m-    OUT_CHECK_ITEMS[m
+[31m-      .filter(({ key }) => outCheck[key]?.status === 'error')[m
+[31m-      .forEach(({ key, label }) => {[m
+[31m-        tasks.push({[m
+[31m-          id: uid('task'),[m
+[31m-          title: `Sửa xe ${vehicle.plate}: ${label}`,[m
+[31m-          prefix: `${vehicle.plate} - ${label}`,[m
+[31m-        })[m
+[31m-      })[m
+[31m-[m
+[31m-    // Điều hòa - chỉ "Cần đổ ga" mới tạo[m
+[31m-    if (outCheck.dieuHoa.status === 'need_gas') {[m
+[31m-      tasks.push({[m
+[31m-        id: uid('task'),[m
+[31m-        title: `Sửa xe ${vehicle.plate}: Đổ ga điều hòa`,[m
+[31m-        prefix: `${vehicle.plate} - Đổ ga điều hòa`,[m
+[31m-      })[m
+[31m-    }[m
+[31m-[m
+[31m-    // Sưởi ghế - chỉ "Hỏng nút" mới tạo[m
+[31m-    if (outCheck.suoiGhe.status === 'broken') {[m
+[31m-      tasks.push({[m
+[31m-        id: uid('task'),[m
+[31m-        title: `Sửa xe ${vehicle.plate}: Sửa nút sưởi ghế`,[m
+[31m-        prefix: `${vehicle.plate} - Sửa nút sưởi ghế`,[m
+[31m-      })[m
+[31m-    }[m
+[31m-[m
+[31m-    // Tình trạng lốp Đầu ra - chỉ "Mòn lắm" (none) mới tạo task[m
+[31m-    if (outTireState.status === 'none') {[m
+[31m-      tasks.push({[m
+[31m-        id: uid('task'),[m
+[31m-        title: `Sửa xe ${vehicle.plate}: Thay lốp`,[m
+[31m-        prefix: `${vehicle.plate} - Thay lốp`,[m
+[31m-      })[m
+[31m-    }[m
+[31m-    return tasks[m
+[31m-  }, [type, outCheck, outTireState, vehicle.plate])[m
+[31m-[m
+[31m-  // Issue labels cho Đầu vào[m
+[31m-  const issueLabels = useMemo(() => {[m
+[31m-    if (type !== 'in') return [][m
+[31m-    const labels: { text: string; bold: boolean }[] = [][m
+[31m-[m
+[31m-    // Màn hình - chỉ Hỏng[m
+[31m-    if (screen === 'broken') labels.push({ text: 'Màn hình', bold: true })[m
+[31m-[m
+[31m-    // Camera lùi - chỉ Hỏng[m
+[31m-    if (rearCamera === 'broken') labels.push({ text: 'Cam lùi', bold: true })[m
+[31m-[m
+[31m-    // Cảm biến lùi - Hỏng hoặc Không có[m
+[31m-    if (rearSensor === 'broken') labels.push({ text: 'Cảm biến lùi', bold: true })[m
+[31m-    if (rearSensor === 'none') labels.push({ text: 'Chưa có cảm biến lùi', bold: true })[m
+[31m-[m
+[31m-    // Camera hành trình[m
+[31m-    if (dashcam === 'maybe') labels.push({ text: 'Thiếu thẻ nhớ', bold: true })[m
+[31m-    if (dashcam === 'none') labels.push({ text: 'Chưa có cam hành trình', bold: true })[m
+[31m-[m
+[31m-    // Điều hòa - Đầu vào[m
+[31m-    if (inputDieuHoa.status === 'need_gas') labels.push({ text: 'Điều hòa cần đổ ga', bold: true })[m
+[31m-[m
+[31m-    // Sưởi ghế - Đầu vào[m
+[31m-    if (inputSuoiGhe.status === 'broken') labels.push({ text: 'Sưởi ghế hỏng nút', bold: true })[m
+[31m-[m
+[31m-    // Ghế - Bẩn hoặc Rách[m
+[31m-    const seats: { key: keyof InteriorCheck; label: string }[] = [[m
+[31m-      { key: 'driverSeat', label: 'Ghế lái' },[m
+[31m-      { key: 'passengerSeat', label: 'Ghế phụ' },[m
+[31m-      { key: 'rearSeat', label: 'Hàng ghế sau' },[m
+[31m-    ][m
+[31m-    seats.forEach(({ key, label }) => {[m
+[31m-      if (interior[key].condition === 'dirty') labels.push({ text: `${label} bẩn`, bold: true })[m
+[31m-      if (interior[key].condition === 'torn') labels.push({ text: `${label} rách`, bold: true })[m
+[31m-    })[m
+[31m-[m
+[31m-    // Ngoại thất - Móp hoặc Đổi màu sơn (cộng dồn)[m
+[31m-    const exteriorIssues = EXTERIOR_SPOTS.filter(([key]) => {[m
+[31m-      const cond = exterior[key]?.condition[m
+[31m-      return cond === 'dent' || cond === 'discolor'[m
+[31m-    })[m
+[31m-    if (exteriorIssues.length > 0) {[m
+[31m-      labels.push({ text: `${exteriorIssues.length} tấm cần sơn`, bold: true })[m
+[31m-    }[m
+[31m-[m
+[31m-    // Mức nhiên liệu - Báo vàng[m
+[31m-    if (fuelLevel === 'empty') {[m
+[31m-      labels.push({ text: 'Nhiên liệu gần hết', bold: true })[m
+[31m-    }[m
+[31m-[m
+[31m-    // Tình trạng lốp - chỉ "Mòn lắm" (none)[m
+[31m-    if (inputTireState.status === 'none') labels.push({ text: 'Lốp mòn lắm', bold: true })[m
+[31m-[m
+[31m-    return labels[m
+[31m-  }, [type, screen, rearCamera, rearSensor, dashcam, inputDieuHoa, inputSuoiGhe, interior, exterior, fuelLevel, inputTireState])[m
+[31m-[m
+[31m-  // Issue labels cho Đầu ra[m
+[31m-  const outIssueLabels = useMemo(() => {[m
+[31m-    if (type !== 'out') return [][m
+[31m-    const labels: { text: string; bold: boolean }[] = [][m
+[31m-[m
+[31m-    // Còn Song nưng - chỉ "Cần song nưng lại" mới hiển thị[m
+[31m-    if (outCheck.conSeongnyeong.status === 'can_repair') {[m
+[31m-      labels.push({ text: 'Cần song nưng lại', bold: true })[m
+[31m-    }[m
+[31m-[m
+[31m-    // Dầu máy - chỉ "Hết dầu rồi" mới hiển thị[m
+[31m-    if (outCheck.dauMay.status === 'empty') {[m
+[31m-      labels.push({ text: 'Hết dầu máy', bold: true })[m
+[31m-    }[m
+[31m-[m
+[31m-    // Nước làm mát - chỉ "Hết" mới hiển thị[m
+[31m-    if (outCheck.nuocLamMat.status === 'empty') {[m
+[31m-      labels.push({ text: 'Hết nước làm mát', bold: true })[m
+[31m-    }[m
+[31m-[m
+[31m-    // Các item lỗi thông thường[m
+[31m-    OUT_CHECK_ITEMS[m
+[31m-      .filter(({ key }) => outCheck[key]?.status === 'error')[m
+[31m-      .forEach(({ label, key }) => {[m
+[31m-        labels.push({[m
+[31m-          text: `${label}: ${(outCheck[key] as CheckOutItem)?.detail || 'Lỗi'}`,[m
+[31m-          bold: true,[m
+[31m-        })[m
+[31m-      })[m
+[31m-[m
+[31m-    // Điều hòa - chỉ "Cần đổ ga" mới hiển thị[m
+[31m-    if (outCheck.dieuHoa.status === 'need_gas') {[m
+[31m-      labels.push({ text: 'Điều hòa cần đổ ga', bold: true })[m
+[31m-    }[m
+[31m-[m
+[31m-    // Sưởi ghế - chỉ "Hỏng nút" mới hiển thị[m
+[31m-    if (outCheck.suoiGhe.status === 'broken') {[m
+[31m-      labels.push({ text: 'Sưởi ghế hỏng nút', bold: true })[m
+[31m-    }[m
+[31m-[m
+[31m-    // Tình trạng lốp Đầu ra - chỉ "Mòn lắm" (none) mới hiển thị[m
+[31m-    if (outTireState.status === 'none') {[m
+[31m-      labels.push({ text: 'Lốp mòn lắm', bold: true })[m
+[31m-    }[m
+[31m-    return labels[m
+[31m-  }, [type, outCheck, outTireState])[m
+[32m+[m[32m  // Work order labels for the "Nhiệm vụ phát hiện" summary box[m
+[32m+[m[32m  const workOrderLabels = useMemo(() => {[m
+[32m+[m[32m    return getWorkOrderLabels(buildSheetForRules())[m
+[32m+[m[32m  }, [type, interior, exterior, screen, rearCamera, rearSensor, dashcam, inputDieuHoa, inputSuoiGhe, inputTireState, inputAcquySOC, fuelLevel, outCheck, outTireState])[m
+ [m
+   function scrollToExterior() {[m
+     exteriorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })[m
+[36m@@ -850,153 +515,35 @@[m [mexport default function CheckSheetForm({[m
+   }[m
+ [m
+   // ====== TASK GENERATION ======[m
+[31m-  function handleCreateOrUpdateTasks() {[m
+[31m-    if (type === 'in' && allChecklistItems.length > 0) {[m
+[31m-      // Đầu vào: tạo/update task checklist[m
+[31m-      const taskTitle = `Kiểm tra xe ${vehicle.plate}`[m
+[31m-      const existingTask = tasks.find((t) => t.vehicleId === vehicle.id && t.title.includes(vehicle.plate))[m
+[31m-[m
+[31m-      if (existingTask) {[m
+[31m-        // Merge checklist[m
+[31m-        const mergedChecklist = [[m
+[31m-          ...existingTask.checklist,[m
+[31m-          ...allChecklistItems.filter([m
+[31m-            (newItem) => !existingTask.checklist.some((existing) => existing.text === newItem.text)[m
+[31m-          ),[m
+[31m-        ][m
+[31m-        updateTask(existingTask.id, { checklist: mergedChecklist })[m
+[31m-      } else {[m
+[31m-        addTask({[m
+[31m-          id: uid('task'),[m
+[31m-          title: taskTitle,[m
+[31m-          checklist: allChecklistItems,[m
+[31m-          priority: 'medium',[m
+[31m-          status: 'todo',[m
+[31m-          vehicleId: vehicle.id,[m
+[31m-          createdAt: new Date().toISOString(),[m
+[31m-        })[m
+[31m-      }[m
+[31m-    }[m
+[31m-[m
+[31m-    // Đầu ra: Đồng bộ tasks với trạng thái lỗi hiện tại[m
+[31m-    if (type === 'out') {[m
+[31m-      // Tất cả các prefix task cần thiết (dựa trên trạng thái hiện tại)[m
+[31m-      const requiredPrefixes: { prefix: string; title: string }[] = [][m
+[31m-[m
+[31m-      // Còn Song nưng - "Cần song nưng lại" => cần task[m
+[31m-      if (outCheck.conSeongnyeong.status === 'can_repair') {[m
+[31m-        requiredPrefixes.push({[m
+[31m-          prefix: `${vehicle.plate} - Song nưng xe`,[m
+[31m-          title: `Sửa xe ${vehicle.plate}: Song nưng xe`,[m
+[31m-        })[m
+[31m-      }[m
+[31m-[m
+[31m-      // Dầu máy - "Hết dầu rồi" => cần task[m
+[31m-      if (outCheck.dauMay.status === 'empty') {[m
+[31m-        requiredPrefixes.push({[m
+[31m-          prefix: `${vehicle.plate} - Thay dầu máy`,[m
+[31m-          title: `Sửa xe ${vehicle.plate}: Thay dầu máy`,[m
+[31m-        })[m
+[31m-      }[m
+[31m-[m
+[31m-      // Nước làm mát - "Hết" => cần task[m
+[31m-      if (outCheck.nuocLamMat.status === 'empty') {[m
+[31m-        requiredPrefixes.push({[m
+[31m-          prefix: `${vehicle.plate} - Bổ sung nước làm mát`,[m
+[31m-          title: `Sửa xe ${vehicle.plate}: Bổ sung nước làm mát`,[m
+[31m-        })[m
+[31m-      }[m
+[31m-[m
+[31m-      // Các item lỗi thông thường[m
+[31m-      OUT_CHECK_ITEMS[m
+[31m-        .filter(({ key }) => outCheck[key]?.status === 'error')[m
+[31m-        .forEach(({ key, label }) => {[m
+[31m-          requiredPrefixes.push({[m
+[31m-            prefix: `${vehicle.plate} - ${label}`,[m
+[31m-            title: `Sửa xe ${vehicle.plate}: ${label}`,[m
+[31m-          })[m
+[31m-        })[m
+[31m-[m
+[31m-      // Điều hòa - "Cần đổ ga" => cần task[m
+[31m-      if (outCheck.dieuHoa.status === 'need_gas') {[m
+[31m-        requiredPrefixes.push({[m
+[31m-          prefix: `${vehicle.plate} - Đổ ga điều hòa`,[m
+[31m-          title: `Sửa xe ${vehicle.plate}: Đổ ga điều hòa`,[m
+[31m-        })[m
+[31m-      }[m
+[31m-[m
+[31m-      // Sưởi ghế - "Hỏng nút" => cần task[m
+[31m-      if (outCheck.suoiGhe.status === 'broken') {[m
+[31m-        requiredPrefixes.push({[m
+[31m-          prefix: `${vehicle.plate} - Sửa nút sưởi ghế`,[m
+[31m-          title: `Sửa xe ${vehicle.plate}: Sửa nút sưởi ghế`,[m
+[31m-        })[m
+[31m-      }[m
+[31m-[m
+[31m-      // Tình trạng lốp - "Mòn lắm" => cần task[m
+[31m-      if (outTireState.status === 'none') {[m
+[31m-        requiredPrefixes.push({[m
+[31m-          prefix: `${vehicle.plate} - Thay lốp`,[m
+[31m-          title: `Sửa xe ${vehicle.plate}: Thay lốp`,[m
+[31m-        })[m
+[31m-      }[m
+[31m-[m
+[31m-      // Xóa tasks không còn cần thiết[m
+[31m-      tasks[m
+[31m-        .filter((t) => t.vehicleId === vehicle.id && t.title.includes(vehicle.plate))[m
+[31m-        .forEach((t) => {[m
+[31m-          // Kiểm tra xem task này có trong danh sách cần thiết không[m
+[31m-          const isNeeded = requiredPrefixes.some((rp) => t.title.includes(rp.prefix))[m
+[31m-          if (!isNeeded) {[m
+[31m-            useStore.getState().deleteTask(t.id)[m
+[31m-          }[m
+[31m-        })[m
+[31m-[m
+[31m-      requiredPrefixes.forEach(({ title, prefix }) => {[m
+[31m-        const existingTask = tasks.find((t) =>[m
+[31m-          t.title.includes(prefix) && t.vehicleId === vehicle.id[m
+[31m-        )[m
+[31m-[m
+[31m-        if (!existingTask) {[m
+[31m-          addTask({[m
+[31m-            id: uid('task'),[m
+[31m-            title,[m
+[31m-            checklist: [],[m
+[31m-            priority: 'high',[m
+[31m-            status: 'todo',[m
+[31m-            vehicleId: vehicle.id,[m
+[31m-            createdAt: new Date().toISOString(),[m
+[31m-          })[m
+[31m-        }[m
+[31m-      })[m
+[32m+[m[32m  function handleSaveAndClose(): Promise<void> {[m
+[32m+[m[32m    if (!sheetId || isSaving) return Promise.resolve()[m
+[32m+[m[32m    if (saveTimer.current) {[m
+[32m+[m[32m      clearTimeout(saveTimer.current)[m
+[32m+[m[32m      saveTimer.current = null[m
+[32m+[m[32m      // Flush the pending debounced save immediately[m
+[32m+[m[32m      const patch = buildPatch()[m
+[32m+[m[32m      updateCheckSheet(sheetId, patch)[m
+     }[m
+[31m-  }[m
+ [m
+[31m-  function handleSaveAndClose() {[m
+[31m-    if (isSaving) return[m
+     setIsSaving(true)[m
+ [m
+[31m-    try {[m
+[31m-      // 1. Tạo/Cập nhật Tasks[m
+[31m-      handleCreateOrUpdateTasks()[m
+[31m-[m
+[31m-      // 2. Lưu CheckSheet[m
+[31m-      handleSave()[m
+[32m+[m[32m    // Sync tasks using generateTasksFromSheet[m
+[32m+[m[32m    useStore.getState().generateTasksFromSheet(buildSheetForRules(), vehicle.plate)[m
+ [m
+[31m-      // 3. Notification[m
+[31m-      addNotification({[m
+[31m-        type: 'task_done',[m
+[31m-        title: 'Lưu thành công',[m
+[31m-        body: `Đã lưu phiếu ${type === 'in' ? 'đầu vào' : 'đầu ra'} cho xe ${vehicle.plate}`,[m
+[31m-      })[m
+[32m+[m[32m    addNotification({[m
+[32m+[m[32m      type: 'task_done',[m
+[32m+[m[32m      title: 'Lưu thành công',[m
+[32m+[m[32m      body: `Đã lưu phiếu ${type === 'in' ? 'đầu vào' : 'đầu ra'} cho xe ${vehicle.plate}`,[m
+[32m+[m[32m    })[m
+ [m
+[31m-      // 4. Gọi callback để đóng popup[m
+[31m-      onSaved()[m
+[31m-    } finally {[m
+[31m-      setIsSaving(false)[m
+[31m-    }[m
+[32m+[m[32m    setIsSaving(false)[m
+[32m+[m[32m    return Promise.resolve()[m
+   }[m
+ [m
+[32m+[m[32m  useImperativeHandle(ref, () => ({[m
+[32m+[m[32m    saveAndClose: handleSaveAndClose,[m
+[32m+[m[32m  }))[m
+[32m+[m
+   // ====== RENDER ======[m
+   return ([m
+     <>[m
+[36m@@ -1030,25 +577,13 @@[m [mexport default function CheckSheetForm({[m
+ [m
+         {/* Summary Card - Sticky */}[m
+         <div className="sticky top-0 z-10 -mx-1 bg-white px-1 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">[m
+[31m-          <div className="grid grid-cols-2 gap-3 py-3 sm:grid-cols-4">[m
+[32m+[m[32m          <div className="grid grid-cols-2 gap-3 py-3">[m
+             <SummaryStat[m
+               icon={<CheckCircle2 size={18} />}[m
+               label="OK"[m
+               count={summaryCounts.ok}[m
+               tone="green"[m
+             />[m
+[31m-            <SummaryStat[m
+[31m-              icon={<XCircle size={18} />}[m
+[31m-              label="Hỏng"[m
+[31m-              count={summaryCounts.error}[m
+[31m-              tone="red"[m
+[31m-            />[m
+[31m-            <SummaryStat[m
+[31m-              icon={<Minus size={18} />}[m
+[31m-              label="Cần lắp"[m
+[31m-              count={summaryCounts.none}[m
+[31m-              tone="slate"[m
+[31m-            />[m
+             <SummaryStat[m
+               icon={<StickyNote size={18} />}[m
+               label="Ghi chú"[m
+[36m@@ -1230,17 +765,17 @@[m [mexport default function CheckSheetForm({[m
+                 </div>[m
+               </CollapsibleCard>[m
+ [m
+[31m-              {issueLabels.length > 0 && ([m
+[32m+[m[32m              {workOrderLabels.length > 0 && ([m
+                 <div className="rounded-xl border-2 border-blue-200 bg-blue-50 p-4">[m
+                   <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-blue-700">[m
+                     <Wrench size={16} />[m
+[31m-                    Nhiệm vụ phát hiện ({issueLabels.length})[m
+[32m+[m[32m                    Nhiệm vụ phát hiện ({workOrderLabels.length})[m
+                   </div>[m
+                   <ul className="space-y-1">[m
+[31m-                    {issueLabels.map((label, i) => ([m
+[32m+[m[32m                    {workOrderLabels.map((label, i) => ([m
+                       <li key={i} className="flex items-center gap-2 text-sm text-blue-600">[m
+                         <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-blue-400" />[m
+[31m-                        {label.bold ? <strong>{label.text}</strong> : label.text}[m
+[32m+[m[32m                        <strong>{label}</strong>[m
+                       </li>[m
+                     ))}[m
+                   </ul>[m
+[36m@@ -1329,17 +864,17 @@[m [mexport default function CheckSheetForm({[m
+               </CollapsibleCard>[m
+ [m
+               {/* Tổng kết Đầu ra */}[m
+[31m-              {outIssueLabels.length > 0 && ([m
+[32m+[m[32m              {workOrderLabels.length > 0 && ([m
+                 <div className="rounded-xl border-2 border-red-200 bg-red-50 p-4">[m
+                   <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-red-700">[m
+                     <Wrench size={16} />[m
+[31m-                    Lỗi phát hiện ({outIssueLabels.length}) - Tự động tạo Task[m
+[32m+[m[32m                    Nhiệm vụ phát hiện ({workOrderLabels.length}) — Tự động tạo Task[m
+                   </div>[m
+                   <ul className="space-y-1">[m
+[31m-                    {outIssueLabels.map((label, i) => ([m
+[32m+[m[32m                    {workOrderLabels.map((label, i) => ([m
+                       <li key={i} className="flex items-start gap-2 text-sm text-red-600">[m
+                         <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-red-400" />[m
+[31m-                        {label.bold ? <strong>{label.text}</strong> : label.text}[m
+[32m+[m[32m                        <strong>{label}</strong>[m
+                       </li>[m
+                     ))}[m
+                   </ul>[m
+[36m@@ -1662,3 +1197,5 @@[m [mfunction SummaryStat({[m
+     </div>[m
+   )[m
+ }[m
+[32m+[m
+[32m+[m[32mexport default CheckSheetForm[m

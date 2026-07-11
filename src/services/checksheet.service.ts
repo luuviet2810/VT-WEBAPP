@@ -27,7 +27,6 @@ function mapRow(row: Record<string, unknown>): CheckSheet {
     inputNotes: row.input_notes as string | undefined,
     outCheck: row.out_check as CheckSheet['outCheck'],
     outNotes: row.out_notes as string | undefined,
-    outTireState: row.out_tire_state as CheckSheet['outTireState'],
     inputAcquySOH: row.input_acquy_soh as number | undefined,
     inputAcquySOC: row.input_acquy_soc as number | undefined,
     acquySOH: row.acquy_soh as number | undefined,
@@ -74,34 +73,35 @@ export async function getCheckSheetById(id: string): Promise<CheckSheet | null> 
 export async function createCheckSheet(
   sheet: Omit<CheckSheet, 'id' | 'createdAt'>
 ): Promise<CheckSheet> {
+  const payload = {
+    vehicle_id: sheet.vehicleId,
+    type: sheet.type,
+    checker_id: sheet.checkerId || null,
+    check_date: sheet.checkDate,
+    fuel_level: sheet.fuelLevel,
+    screen: sheet.screen,
+    rear_camera: sheet.rearCamera,
+    hipass: sheet.hipass,
+    rear_sensor: sheet.rearSensor,
+    dashcam: sheet.dashcam,
+    interior: sheet.interior,
+    exterior: sheet.exterior,
+    exterior_photos: sheet.exteriorPhotos,
+    input_dieu_hoa: sheet.inputDieuHoa,
+    input_suoi_ghe: sheet.inputSuoiGhe,
+    input_tire_state: sheet.inputTireState,
+    input_notes: sheet.inputNotes,
+    out_check: sheet.outCheck,
+    out_notes: sheet.outNotes,
+    input_acquy_soh: sheet.inputAcquySOH,
+    input_acquy_soc: sheet.inputAcquySOC,
+    acquy_soh: sheet.acquySOH,
+    acquy_soc: sheet.acquySOC,
+  }
+
   const { data, error } = await supabase
     .from('check_sheets')
-    .insert({
-      vehicle_id: sheet.vehicleId,
-      type: sheet.type,
-      checker_id: sheet.checkerId,
-      check_date: sheet.checkDate,
-      fuel_level: sheet.fuelLevel,
-      screen: sheet.screen,
-      rear_camera: sheet.rearCamera,
-      hipass: sheet.hipass,
-      rear_sensor: sheet.rearSensor,
-      dashcam: sheet.dashcam,
-      interior: sheet.interior,
-      exterior: sheet.exterior,
-      exterior_photos: sheet.exteriorPhotos,
-      input_dieu_hoa: sheet.inputDieuHoa,
-      input_suoi_ghe: sheet.inputSuoiGhe,
-      input_tire_state: sheet.inputTireState,
-      input_notes: sheet.inputNotes,
-      out_check: sheet.outCheck,
-      out_notes: sheet.outNotes,
-      out_tire_state: sheet.outTireState,
-      input_acquy_soh: sheet.inputAcquySOH,
-      input_acquy_soc: sheet.inputAcquySOC,
-      acquy_soh: sheet.acquySOH,
-      acquy_soc: sheet.acquySOC,
-    })
+    .insert(payload)
     .select()
     .single()
 
@@ -119,7 +119,7 @@ export async function updateCheckSheet(
 
   if (patch.vehicleId !== undefined) updateData.vehicle_id = patch.vehicleId
   if (patch.type !== undefined) updateData.type = patch.type
-  if (patch.checkerId !== undefined) updateData.checker_id = patch.checkerId
+  if (patch.checkerId !== undefined) updateData.checker_id = patch.checkerId || null
   if (patch.checkDate !== undefined) updateData.check_date = patch.checkDate
   if (patch.fuelLevel !== undefined) updateData.fuel_level = patch.fuelLevel
   if (patch.screen !== undefined) updateData.screen = patch.screen
@@ -136,11 +136,15 @@ export async function updateCheckSheet(
   if (patch.inputNotes !== undefined) updateData.input_notes = patch.inputNotes
   if (patch.outCheck !== undefined) updateData.out_check = patch.outCheck
   if (patch.outNotes !== undefined) updateData.out_notes = patch.outNotes
-  if (patch.outTireState !== undefined) updateData.out_tire_state = patch.outTireState
   if (patch.inputAcquySOH !== undefined) updateData.input_acquy_soh = patch.inputAcquySOH
   if (patch.inputAcquySOC !== undefined) updateData.input_acquy_soc = patch.inputAcquySOC
   if (patch.acquySOH !== undefined) updateData.acquy_soh = patch.acquySOH
   if (patch.acquySOC !== undefined) updateData.acquy_soc = patch.acquySOC
+
+  // Drop empty-string UUIDs to avoid Postgres 22P02
+  Object.keys(updateData).forEach((key) => {
+    if (updateData[key] === '') updateData[key] = null
+  })
 
   const { data, error } = await supabase
     .from('check_sheets')
@@ -185,6 +189,8 @@ export async function getOrCreateCheckSheet(
     .select('*')
     .eq('vehicle_id', vehicleId)
     .eq('type', type)
+    .order('created_at', { ascending: false })
+    .limit(1)
     .maybeSingle()
 
   if (error && error.code !== 'PGRST116') {
@@ -199,7 +205,7 @@ export async function getOrCreateCheckSheet(
   const created = await createCheckSheet({
     vehicleId,
     type,
-    checkerId: defaults?.checkerId ?? null,
+    checkerId: defaults?.checkerId || null,
     checkDate: defaults?.checkDate ?? new Date().toISOString().slice(0, 10),
     fuelLevel: defaults?.fuelLevel ?? 'half',
     screen: defaults?.screen ?? 'normal',

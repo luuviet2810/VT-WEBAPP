@@ -1,22 +1,10 @@
-// ====== TASKS PAGE - Vehicle Work Board ======
-
-import { useMemo, useState, useRef, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { Car, Plus, User } from 'lucide-react'
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
+import { Plus, X, Trash2, GripVertical, Calendar, User, AlertCircle } from 'lucide-react'
 import { useStore } from '../store/useStore'
-import { Badge, Modal } from '../components/ui'
-import { Employee, Position, Task, TaskChecklistItem, TaskPriority, TaskStatus, Vehicle } from '../types'
-import { formatDate, uid } from '../utils/format'
-import clsx from 'clsx'
-import { getVehicleWorkflowStatus, WORKFLOW_STATUS_TONE, WORKFLOW_STATUS_LABEL } from '../utils/vehicleWorkflow'
 import { useTaskPermissions } from '../rbac/usePermissions'
-
-const PRIORITY_LABEL: Record<TaskPriority, string> = {
-  low: 'Thấp',
-  medium: 'Trung bình',
-  high: 'Cao',
-  urgent: 'Khẩn cấp',
-}
+import { Badge } from '../components/ui'
+import type { Task, TaskChecklistItem, TaskPriority, TaskStatus } from '../types'
+import { uid, formatDate } from '../utils/format'
 
 type WorkSection = 'todo' | 'doing' | 'done'
 
@@ -26,60 +14,465 @@ const SECTION_CONFIG: { key: WorkSection; label: string; icon: string; tone: 'sl
   { key: 'done', label: 'Đã hoàn thành', icon: '✅', tone: 'green' },
 ]
 
-type VehicleGroup = {
-  vehicleId: string
-  vehicle: Vehicle | null
-  tasks: Task[]
-  total: number
-  done: number
-  section: WorkSection
+const PRIORITY_LABEL: Record<TaskPriority, string> = {
+  low: 'Thấp',
+  medium: 'Trung bình',
+  high: 'Cao',
+  urgent: 'Khẩn cấp',
 }
 
+const PRIORITY_TONE: Record<TaskPriority, 'slate' | 'blue' | 'orange' | 'red'> = {
+  low: 'slate',
+  medium: 'blue',
+  high: 'orange',
+  urgent: 'red',
+}
+
+// ====== Kanban Task Card ======
+function TaskCard({
+  task,
+  vehiclePlate,
+  onEdit,
+  onDragStart,
+}: {
+  task: Task
+  vehiclePlate: string
+  onEdit: () => void
+  onDragStart: (e: React.DragEvent) => void
+}) {
+  const checklistDone = task.checklist?.filter((i) => i.done).length ?? 0
+  const checklistTotal = task.checklist?.length ?? 0
+  const isOverdue = task.dueDate && task.dueDate < new Date().toISOString().slice(0, 10) && task.status !== 'done'
+
+  return (
+    <div
+      draggable
+      onDragStart={onDragStart}
+      onClick={onEdit}
+      className="group cursor-pointer rounded-xl border border-slate-100 bg-white p-3 shadow-sm transition-all duration-200 hover:shadow-md hover:border-brand-200 active:scale-[0.98]"
+    >
+      <div className="flex items-start gap-2">
+        <div className="flex h-5 w-5 shrink-0 cursor-grab items-center justify-center rounded text-slate-300 opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing">
+          <GripVertical size={14} />
+        </div>
+        <div className="min-w-0 flex-1">
+          {/* Title + Priority */}
+          <div className="flex items-start justify-between gap-2">
+            <span className="text-sm font-medium text-slate-800 line-clamp-2">{task.title}</span>
+            <Badge tone={PRIORITY_TONE[task.priority]}>{PRIORITY_LABEL[task.priority]}</Badge>
+          </div>
+
+          {/* Vehicle plate */}
+          <div className="mt-1 text-xs text-slate-400">
+            {vehiclePlate ? `${vehiclePlate}` : 'Không có xe'}
+          </div>
+
+          {/* Meta row */}
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+            {isOverdue && (
+              <span className="flex items-center gap-1 font-medium text-red-500">
+                <AlertCircle size={12} />
+                Quá hạn
+              </span>
+            )}
+            {task.dueDate && !isOverdue && (
+              <span className="flex items-center gap-1">
+                <Calendar size={12} />
+                {task.dueDate}
+              </span>
+            )}
+            {task.dueTime && (
+              <span>{task.dueTime}</span>
+            )}
+          </div>
+
+          {/* Checklist progress */}
+          {checklistTotal > 0 && (
+            <div className="mt-2 flex items-center gap-2">
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+                <div
+                  className="h-full rounded-full bg-brand-500 transition-all"
+                  style={{ width: `${Math.round((checklistDone / checklistTotal) * 100)}%` }}
+                />
+              </div>
+              <span className="text-[11px] text-slate-400">{checklistDone}/{checklistTotal}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ====== Droppable Column ======
+function KanbanColumn({
+  section,
+  tasks,
+  vehiclesMap,
+  onEditTask,
+  onDrop,
+  onDragStart,
+}: {
+  section: (typeof SECTION_CONFIG)[0]
+  tasks: Task[]
+  vehiclesMap: Map<string, string>
+  onEditTask: (taskId: string) => void
+  onDrop: (e: React.DragEvent) => void
+  onDragStart: (e: React.DragEvent, taskId: string) => void
+}) {
+  const [dragOver, setDragOver] = useState(false)
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDragOver(true)
+  }, [])
+
+  const handleDragLeave = useCallback(() => {
+    setDragOver(false)
+  }, [])
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault()
+      setDragOver(false)
+      onDrop(e)
+    },
+    [onDrop]
+  )
+
+  return (
+    <div
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className={`flex w-80 shrink-0 flex-col rounded-2xl border-2 p-4 transition-all duration-200 ${
+        dragOver ? 'border-brand-400 bg-brand-50 shadow-lg' : 'border-slate-200 bg-slate-50'
+      }`}
+    >
+      {/* Header */}
+      <div className="mb-3 flex items-center gap-2">
+        <span className="text-sm font-semibold text-slate-700">
+          {section.icon} {section.label}
+        </span>
+        <Badge tone={section.tone}>{tasks.length}</Badge>
+      </div>
+
+      {/* Cards */}
+      <div className="flex-1 space-y-2 min-h-[120px]">
+        {tasks.length === 0 && (
+          <div
+            className={`flex items-center justify-center rounded-xl border-2 border-dashed py-8 text-xs transition-colors ${
+              dragOver ? 'border-brand-300 bg-brand-100/50 text-brand-500' : 'border-slate-200 text-slate-400'
+            }`}
+          >
+            {dragOver ? 'Thả task vào đây' : 'Kéo task vào đây'}
+          </div>
+        )}
+        {tasks.map((task) => (
+          <div
+            key={task.id}
+            data-task-id={task.id}
+            onDragStart={(e) => onDragStart(e, task.id)}
+          >
+            <TaskCard
+              task={task}
+              vehiclePlate={vehiclesMap.get(task.vehicleId ?? '') ?? ''}
+              onEdit={() => onEditTask(task.id)}
+              onDragStart={(e) => onDragStart(e, task.id)}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ====== Task Edit Drawer ======
+function TaskEditDrawer({
+  task,
+  vehicles,
+  employees,
+  onClose,
+  onUpdate,
+  onDelete,
+}: {
+  task: Task
+  vehicles: { id: string; plate: string; model: string }[]
+  employees: { id: string; name: string }[]
+  onClose: () => void
+  onUpdate: (id: string, patch: Partial<Task>) => void
+  onDelete: (id: string) => void
+}) {
+  const [title, setTitle] = useState(task.title)
+  const [priority, setPriority] = useState<TaskPriority>(task.priority)
+  const [status, setStatus] = useState<TaskStatus>(task.status)
+  const [assigneeId, setAssigneeId] = useState(task.assigneeId ?? '')
+  const [vehicleId, setVehicleId] = useState(task.vehicleId ?? '')
+  const [dueDate, setDueDate] = useState(task.dueDate ?? '')
+  const [dueTime, setDueTime] = useState(task.dueTime ?? '')
+  const [checklist, setChecklist] = useState<TaskChecklistItem[]>(task.checklist ?? [])
+  const [saving, setSaving] = useState(false)
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [onClose])
+
+  function handleSave() {
+    if (!title.trim()) return
+    setSaving(true)
+    onUpdate(task.id, {
+      title: title.trim(),
+      priority,
+      status,
+      assigneeId: assigneeId || null,
+      vehicleId: vehicleId || null,
+      dueDate: dueDate || null,
+      dueTime: dueTime || null,
+      checklist: checklist.filter((i) => i.text.trim()),
+    })
+    setSaving(false)
+    onClose()
+  }
+
+  function handleDelete() {
+    if (window.confirm('Xóa nhiệm vụ này?')) {
+      onDelete(task.id)
+      onClose()
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 animate-fade-in">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div ref={panelRef} className="absolute right-0 top-0 flex h-full w-full max-w-lg flex-col bg-white shadow-2xl animate-slide-in-right">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+          <h2 className="text-base font-semibold text-slate-900">Chi tiết nhiệm vụ</h2>
+          <button type="button" className="btn-icon" onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Form */}
+        <div className="flex-1 overflow-y-auto px-5 py-4">
+          <div className="space-y-4">
+            {/* Title */}
+            <div>
+              <label className="label">Tên công việc *</label>
+              <input className="input w-full" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
+            </div>
+
+            {/* Priority + Status */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Mức ưu tiên</label>
+                <select className="input w-full" value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority)}>
+                  <option value="low">Thấp</option>
+                  <option value="medium">Trung bình</option>
+                  <option value="high">Cao</option>
+                  <option value="urgent">Khẩn cấp</option>
+                </select>
+              </div>
+              <div>
+                <label className="label">Trạng thái</label>
+                <select className="input w-full" value={status} onChange={(e) => setStatus(e.target.value as TaskStatus)}>
+                  <option value="todo">Chưa làm</option>
+                  <option value="doing">Đang làm</option>
+                  <option value="done">Đã hoàn thành</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Assignee + Vehicle */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Người phụ trách</label>
+                <select className="input w-full" value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}>
+                  <option value="">Không phân công</option>
+                  {employees.map((e) => (
+                    <option key={e.id} value={e.id}>{e.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="label">Xe liên quan</label>
+                <select className="input w-full" value={vehicleId} onChange={(e) => setVehicleId(e.target.value)}>
+                  <option value="">Không có xe</option>
+                  {vehicles.map((v) => (
+                    <option key={v.id} value={v.id}>{v.plate} - {v.model}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Checklist */}
+            <div>
+              <label className="label">Các bước kiểm tra</label>
+              <div className="space-y-2">
+                {checklist.map((item, idx) => (
+                  <div key={item.id} className="flex gap-2">
+                    <input
+                      type="checkbox"
+                      checked={item.done}
+                      onChange={() => setChecklist((rows) => rows.map((r, i) => (i === idx ? { ...r, done: !r.done } : r)))}
+                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-brand-600"
+                    />
+                    <input className="input flex-1" placeholder="Bước kiểm tra" value={item.text}
+                      onChange={(e) => setChecklist((rows) => rows.map((r, i) => (i === idx ? { ...r, text: e.target.value } : r)))}
+                    />
+                    <button type="button" className="btn-icon shrink-0"
+                      onClick={() => setChecklist((rows) => rows.filter((_, i) => i !== idx))}
+                    ><Trash2 size={15} /></button>
+                  </div>
+                ))}
+              </div>
+              <button type="button" className="mt-2 flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                onClick={() => setChecklist((rows) => [...rows, { id: uid('chk'), text: '', done: false }])}
+              ><Plus size={14} /> Thêm bước</button>
+            </div>
+
+            {/* Due Date / Time */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Ngày hạn</label>
+                <input type="date" className="input w-full" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+              </div>
+              <div>
+                <label className="label">Giờ hạn</label>
+                <input type="time" className="input w-full" value={dueTime} onChange={(e) => setDueTime(e.target.value)} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="border-t border-slate-100 px-5 py-4">
+          <div className="flex gap-3">
+            <button type="button" className="btn-danger !px-3" onClick={handleDelete}>
+              <Trash2 size={15} />
+              Xoá
+            </button>
+            <div className="flex-1" />
+            <button type="button" className="btn-secondary" onClick={onClose}>Huỷ</button>
+            <button type="button" className="btn-primary" onClick={handleSave} disabled={saving || !title.trim()}>
+              {saving ? 'Đang lưu...' : 'Lưu'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ====== MAIN TASKS PAGE ======
 export default function Tasks() {
   const tasks = useStore((s) => s.tasks)
   const employees = useStore((s) => s.employees)
   const vehicles = useStore((s) => s.vehicles)
-  const positions = useStore((s) => s.positions)
-  const checkSheets = useStore((s) => s.checkSheets)
-  const toggleTaskChecklistItem = useStore((s) => s.toggleTaskChecklistItem)
+  const updateTask = useStore((s) => s.updateTask)
+  const deleteTask = useStore((s) => s.deleteTask)
+  const addTask = useStore((s) => s.addTask)
   const taskPerms = useTaskPermissions()
   const [assigneeFilter, setAssigneeFilter] = useState('all')
-  const [modalOpen, setModalOpen] = useState(false)
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
 
-  const filtered = useMemo(
+  // Add-task drawer
+  const [showAddDrawer, setShowAddDrawer] = useState(false)
+  const [newTitle, setNewTitle] = useState('')
+  const [newPriority, setNewPriority] = useState<TaskPriority>('medium')
+  const [newStatus, setNewStatus] = useState<TaskStatus>('todo')
+  const [newVehicleId, setNewVehicleId] = useState('')
+  const [newChecklist, setNewChecklist] = useState<TaskChecklistItem[]>([{ id: uid('chk'), text: '', done: false }])
+  const [newDueDate, setNewDueDate] = useState('')
+  const [newDueTime, setNewDueTime] = useState('')
+
+  // ESC to close drawers
+  useEffect(() => {
+    if (!showAddDrawer && !editingTaskId) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setShowAddDrawer(false); setEditingTaskId(null) }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [showAddDrawer, editingTaskId])
+
+  // Vehicle plate lookup
+  const vehiclesMap = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const v of vehicles) m.set(v.id, v.plate)
+    return m
+  }, [vehicles])
+
+  // Filtered tasks for Kanban
+  const filteredTasks = useMemo(
     () => tasks.filter((t) => assigneeFilter === 'all' || t.assigneeId === assigneeFilter),
     [tasks, assigneeFilter]
   )
 
-  const groups = useMemo(() => {
-    const map = new Map<string, Task[]>()
-    for (const t of filtered) {
-      const key = t.vehicleId || '__unassigned__'
-      const list = map.get(key)
-      if (list) list.push(t)
-      else map.set(key, [t])
+  const todoTasks = useMemo(() => filteredTasks.filter((t) => t.status === 'todo'), [filteredTasks])
+  const doingTasks = useMemo(() => filteredTasks.filter((t) => t.status === 'doing'), [filteredTasks])
+  const doneTasks = useMemo(() => filteredTasks.filter((t) => t.status === 'done'), [filteredTasks])
+
+  const sectionTasks: Record<WorkSection, Task[]> = {
+    todo: todoTasks,
+    doing: doingTasks,
+    done: doneTasks,
+  }
+
+  // Drag state
+  const dragTaskIdRef = useRef<string | null>(null)
+
+  function handleDragStart(_e: React.DragEvent, taskId: string) {
+    dragTaskIdRef.current = taskId
+  }
+
+  function handleDrop(section: WorkSection) {
+    return (e: React.DragEvent) => {
+      const taskId = dragTaskIdRef.current
+      if (!taskId) return
+      dragTaskIdRef.current = null
+      const task = tasks.find((t) => t.id === taskId)
+      if (!task || task.status === section) return
+      updateTask(taskId, { status: section })
     }
+  }
 
-    const result: VehicleGroup[] = []
-    for (const [vehicleId, groupedTasks] of map) {
-      const total = groupedTasks.length
-      const done = groupedTasks.filter((t) => t.status === 'done').length
-      const todo = groupedTasks.filter((t) => t.status === 'todo').length
-      const doing = groupedTasks.filter((t) => t.status === 'doing').length
-      let section: WorkSection
-      if (total > 0 && done === total) section = 'done'
-      else if (doing > 0 || (todo > 0 && done > 0)) section = 'doing'
-      else section = 'todo'
+  function resetAddForm() {
+    setNewTitle('')
+    setNewChecklist([{ id: uid('chk'), text: '', done: false }])
+    setNewPriority('medium')
+    setNewStatus('todo')
+    setNewVehicleId('')
+    setNewDueDate('')
+    setNewDueTime('')
+  }
 
-      const vehicle =
-        vehicleId === '__unassigned__'
-          ? null
-          : vehicles.find((v) => v.id === vehicleId) ?? null
+  function handleAddTask() {
+    if (!newTitle.trim()) return
+    const checklist = newChecklist.map((i) => ({ ...i, text: i.text.trim() })).filter((i) => i.text)
+    addTask({
+      id: uid('task'),
+      title: newTitle.trim(),
+      checklist,
+      priority: newPriority,
+      status: newStatus,
+      vehicleId: newVehicleId || null,
+      assigneeId: null,
+      dueDate: newDueDate || null,
+      dueTime: newDueTime || null,
+      createdAt: new Date().toISOString(),
+    })
+    setShowAddDrawer(false)
+    resetAddForm()
+  }
 
-      result.push({ vehicleId, vehicle, tasks: groupedTasks, total, done, section })
-    }
-    return result
-  }, [filtered, vehicles, checkSheets])
+  const editingTask = editingTaskId ? tasks.find((t) => t.id === editingTaskId) ?? null : null
 
   return (
     <div className="pb-16 md:pb-0">
@@ -87,7 +480,7 @@ export default function Tasks() {
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Nhiệm vụ</h1>
-          <p className="mt-1 text-sm text-slate-500">Theo dõi tiến độ theo từng xe</p>
+          <p className="mt-1 text-sm text-slate-500">Kéo thả để cập nhật trạng thái</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <select
@@ -103,473 +496,128 @@ export default function Tasks() {
             ))}
           </select>
           {taskPerms.canCreate && (
-            <button className="btn-primary hidden md:flex" onClick={() => setModalOpen(true)}>
+            <button className="btn-primary" onClick={() => { resetAddForm(); setShowAddDrawer(true) }}>
               <Plus size={16} />
-              Giao việc
+              Thêm nhiệm vụ
             </button>
           )}
         </div>
       </div>
 
-      {/* Vehicle Work Board */}
-      <div className="flex flex-col gap-6">
+      {/* Kanban Board */}
+      <div className="flex gap-4 overflow-x-auto pb-4">
         {SECTION_CONFIG.map((section) => {
-          const sectionGroups = groups.filter((g) => g.section === section.key)
-
+          const tasksInSection = sectionTasks[section.key]
           return (
-            <WorkBoardSection key={section.key} section={section} groups={sectionGroups}>
-              {sectionGroups.map((group) => (
-                <WorkBoardVehicleCard
-                  key={group.vehicleId}
-                  group={group}
-                  positions={positions}
-                  employees={employees}
-                  checkSheets={checkSheets}
-                  allTasks={tasks}
-                  onToggleChecklist={(taskId, itemId) => toggleTaskChecklistItem(taskId, itemId)}
-                />
-              ))}
-            </WorkBoardSection>
+            <KanbanColumn
+              key={section.key}
+              section={section}
+              tasks={tasksInSection}
+              vehiclesMap={vehiclesMap}
+              onEditTask={(taskId) => setEditingTaskId(taskId)}
+              onDrop={handleDrop(section.key)}
+              onDragStart={handleDragStart}
+            />
           )
         })}
       </div>
 
-      {/* Create Task Modal */}
-      <AssignTaskModal open={modalOpen} onClose={() => setModalOpen(false)} />
-
-      {/* Mobile FAB */}
-      <button
-        className="fixed bottom-5 right-5 flex h-14 w-14 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-brand-700 hover:shadow-xl active:scale-95 md:hidden animate-fade-in"
-        onClick={() => setModalOpen(true)}
-        title="Giao việc"
-      >
-        <Plus size={24} strokeWidth={2.5} />
-      </button>
-    </div>
-  )
-}
-
-function WorkBoardSection({
-  section,
-  groups,
-  children,
-}: {
-  section: { key: WorkSection; label: string; icon: string; tone: 'slate' | 'orange' | 'green' }
-  groups: VehicleGroup[]
-  children: React.ReactNode
-}) {
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const isDragging = useRef(false)
-  const dragStart = useRef({ x: 0, scrollLeft: 0 })
-  const nodeRef = useRef<HTMLDivElement | null>(null)
-
-  useEffect(() => {
-    const node = scrollRef.current
-    if (!node) return
-    nodeRef.current = node
-
-    function onWheel(event: WheelEvent) {
-      const current = nodeRef.current
-      if (!current || !(event.shiftKey && Math.abs(event.deltaY) > Math.abs(event.deltaX))) return
-      event.preventDefault()
-      current.scrollTo({ left: current.scrollLeft + event.deltaY, behavior: 'smooth' })
-    }
-
-    function onMouseDown(event: MouseEvent) {
-      const current = nodeRef.current
-      if (!current || (event.target as HTMLElement).closest('a, button, input, label')) return
-      isDragging.current = true
-      dragStart.current = { x: event.clientX, scrollLeft: current.scrollLeft }
-      current.style.userSelect = 'none'
-    }
-
-    function onMouseMove(event: MouseEvent) {
-      const current = nodeRef.current
-      if (!current || !isDragging.current) return
-      const dx = event.clientX - dragStart.current.x
-      current.scrollLeft = dragStart.current.scrollLeft - dx
-    }
-
-    function onMouseUp() {
-      isDragging.current = false
-      if (nodeRef.current) nodeRef.current.style.userSelect = ''
-    }
-
-    node.addEventListener('wheel', onWheel, { passive: false })
-    node.addEventListener('mousedown', onMouseDown)
-    window.addEventListener('mousemove', onMouseMove)
-    window.addEventListener('mouseup', onMouseUp)
-
-    return () => {
-      node.removeEventListener('wheel', onWheel)
-      node.removeEventListener('mousedown', onMouseDown)
-      window.removeEventListener('mousemove', onMouseMove)
-      window.removeEventListener('mouseup', onMouseUp)
-      nodeRef.current = null
-    }
-  }, [])
-
-  return (
-    <div className="animate-fade-in-up">
-      <div className="mb-3 flex items-center gap-2">
-        <span className="text-sm font-semibold text-slate-700">{section.icon} {section.label}</span>
-        <Badge tone={section.tone}>{groups.length}</Badge>
-      </div>
-
-      <div
-        ref={scrollRef}
-        className="snap-x snap-mandatory overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        style={{ scrollBehavior: 'smooth', WebkitOverflowScrolling: 'touch' }}
-      >
-        <div className="flex gap-4 p-[1px]">
-          {children}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function WorkBoardVehicleCard({
-  group,
-  positions,
-  employees,
-  checkSheets,
-  allTasks,
-  onToggleChecklist,
-}: {
-  group: VehicleGroup
-  positions: Position[]
-  employees: Employee[]
-  checkSheets: { id: string; vehicleId: string; type: 'in' | 'out'; checkDate: string }[]
-  allTasks: Task[]
-  onToggleChecklist: (taskId: string, itemId: string) => void
-}) {
-  const { vehicle, tasks, total, done } = group
-  const progress = total > 0 ? Math.round((done / total) * 100) : 0
-  const image = vehicle?.images?.[0]
-  const position = vehicle ? positions.find((p) => p.id === vehicle.positionId) : undefined
-  const assignee = vehicle?.assigneeId ? employees.find((e) => e.id === vehicle.assigneeId) : undefined
-  const vehicleSheets = vehicle ? checkSheets.filter((c) => c.vehicleId === vehicle.id) : []
-  const vehicleTasks = vehicle ? allTasks.filter((t) => t.vehicleId === vehicle.id) : []
-  const workflowStatus = vehicle ? getVehicleWorkflowStatus(vehicle, vehicleTasks, vehicleSheets) : null
-
-  const prevSectionRef = useRef(group.section)
-  const [sectionClass, setSectionClass] = useState('')
-
-  useEffect(() => {
-    if (prevSectionRef.current !== group.section) {
-      setSectionClass('animate-slide-in-right')
-      const timer = window.setTimeout(() => setSectionClass(''), 500)
-      prevSectionRef.current = group.section
-      return () => window.clearTimeout(timer)
-    }
-    return undefined
-  }, [group.section])
-
-  return (
-    <div className={`w-[88vw] sm:w-[500px] md:w-[540px] shrink-0 snap-start ${sectionClass}`}>
-      <div className="card flex h-[280px] md:h-[210px] flex-col md:flex-row overflow-hidden">
-        {/* LEFT: Vehicle image */}
-        <div className="hidden md:flex w-[28%] shrink-0 items-center justify-center bg-slate-50">
-          {vehicle ? (
-            <Link to={`/xe/${vehicle.id}`} className="block h-full w-full">
-              <div className="flex h-full w-full items-center justify-center bg-slate-100">
-                {image ? (
-                  <img src={image} alt={vehicle.model} className="h-full w-full object-cover" />
-                ) : (
-                  <Car size={32} className="text-slate-300" />
-                )}
-              </div>
-            </Link>
-          ) : (
-            <div className="px-3 text-sm font-semibold text-slate-500">Chưa có xe liên quan</div>
-          )}
-        </div>
-
-        {/* CENTER: Vehicle info */}
-        <div className="flex w-full md:w-[30%] shrink-0 flex-col justify-between md:border-l md:border-slate-100 p-3">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <div className="text-base font-bold text-slate-900">{vehicle?.plate || '—'}</div>
-              {vehicle && workflowStatus && (
-                <Badge tone={WORKFLOW_STATUS_TONE[workflowStatus]}>{WORKFLOW_STATUS_LABEL[workflowStatus]}</Badge>
-              )}
-            </div>
-            <div className="text-xs text-slate-500">{vehicle?.model}</div>
-            <div className="text-xs text-slate-500">{position ? position.name : 'Chưa phân bổ'}</div>
-            <div className="flex items-center gap-1 text-xs text-slate-500">
-              <User size={12} />
-              <span className="truncate">{assignee?.name || 'Chưa phân công'}</span>
-            </div>
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between text-xs text-slate-500">
-              <span>{done}/{total} hoàn thành</span>
-              <span>{progress}%</span>
-            </div>
-            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
-              <div className="h-full rounded-full bg-brand-500 transition-all" style={{ width: `${progress}%` }} />
-            </div>
-          </div>
-        </div>
-
-        {/* RIGHT: Tasks */}
-        <div className="flex w-full md:w-[42%] shrink-0 flex-col md:border-l md:border-slate-100">
-          <div className="border-b border-slate-100 px-3 py-2 text-xs font-semibold text-slate-500">
-            Nhiệm vụ
-          </div>
-          <div className="flex-1 overflow-y-auto px-3 py-2 [-ms-overflow-style:none] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar]:h-1">
-            <div className="space-y-3">
-              {tasks.map((task, idx) => (
-                <div key={task.id} className="space-y-1">
-                  <Link to={`/nhiem-vu/${task.id}`} className="text-xs font-medium text-brand-600 hover:underline">
-                    📋 {task.title}
-                  </Link>
-                  <div className="pl-5">
-                    <div className="space-y-0.5">
-                      {task.checklist.map((item) => (
-                        <label key={item.id} className="flex cursor-pointer items-start gap-2">
-                          <input
-                            type="checkbox"
-                            checked={item.done}
-                            onChange={() => onToggleChecklist(task.id, item.id)}
-                            className="mt-0.5 shrink-0 rounded border-slate-300 text-brand-600"
-                          />
-                          <span className={clsx('text-[11px] text-slate-600', item.done && 'text-slate-400 line-through')}>{item.text}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                  {idx < tasks.length - 1 && <div className="border-b border-dashed border-slate-100" />}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="border-t border-slate-100 px-3 py-2">
-            <div className="flex items-center justify-between text-xs text-slate-500">
-              <span>{done}/{total}</span>
-              <span>{progress}%</span>
-            </div>
-            <div className="mt-1 h-1 overflow-hidden rounded-full bg-slate-100">
-              <div className="h-full rounded-full bg-brand-500 transition-all" style={{ width: `${progress}%` }} />
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ====== ASSIGN TASK MODAL ======
-
-function AssignTaskModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const addTask = useStore((s) => s.addTask)
-  const employees = useStore((s) => s.employees)
-  const vehicles = useStore((s) => s.vehicles)
-
-  const [title, setTitle] = useState('')
-  const [checklistTexts, setChecklistTexts] = useState<string[]>([''])
-  const [description, setDescription] = useState('')
-  const [priority, setPriority] = useState<TaskPriority>('medium')
-  const [assigneeId, setAssigneeId] = useState('')
-  const [vehicleId, setVehicleId] = useState('')
-  const [dueDate, setDueDate] = useState('')
-  const [dueTime, setDueTime] = useState('')
-
-  function reset() {
-    setTitle('')
-    setChecklistTexts([''])
-    setDescription('')
-    setPriority('medium')
-    setAssigneeId('')
-    setVehicleId('')
-    setDueDate('')
-    setDueTime('')
-  }
-
-  function handleChecklistText(idx: number, value: string) {
-    setChecklistTexts((rows) => rows.map((row, i) => (i === idx ? value : row)))
-  }
-
-  function handleAddChecklistRow() {
-    setChecklistTexts((rows) => [...rows, ''])
-  }
-
-  function handleRemoveChecklistRow(idx: number) {
-    setChecklistTexts((rows) => (rows.length === 1 ? [''] : rows.filter((_, i) => i !== idx)))
-  }
-
-  function handleSubmit() {
-    if (!title.trim()) return
-    const checklist: TaskChecklistItem[] = checklistTexts
-      .map((text) => text.trim())
-      .filter(Boolean)
-      .map((text) => ({ id: uid('chk'), text, done: false }))
-    addTask({
-      title: title.trim(),
-      description,
-      checklist,
-      priority,
-      status: 'todo',
-      assigneeId: assigneeId || null,
-      vehicleId: vehicleId || null,
-      dueDate: dueDate || null,
-      dueTime: dueTime || null,
-    })
-    reset()
-    onClose()
-  }
-
-  function handleClose() {
-    reset()
-    onClose()
-  }
-
-  return (
-    <Modal open={open} onClose={handleClose} title="Giao việc mới">
-      <div className="space-y-4">
-        {/* Title */}
-        <div>
-          <label className="label">Tên công việc *</label>
-          <input
-            className="input w-full"
-            placeholder="VD: Kiểm tra xe Sonata 2023..."
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-        </div>
-
-        {/* Checklist */}
-        <div>
-          <label className="label">Checklist</label>
-          <div className="space-y-2">
-            {checklistTexts.map((text, idx) => (
-              <div key={idx} className="flex gap-2">
-                <input
-                  className="input flex-1"
-                  placeholder="VD: Kiểm tra màn hình..."
-                  value={text}
-                  onChange={(e) => handleChecklistText(idx, e.target.value)}
-                />
-                {checklistTexts.length > 1 && (
-                  <button
-                    type="button"
-                    className="btn-icon"
-                    onClick={() => handleRemoveChecklistRow(idx)}
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-            ))}
-            <button
-              type="button"
-              className="text-sm text-brand-600 hover:text-brand-700"
-              onClick={handleAddChecklistRow}
-            >
-              + Thêm checklist
-            </button>
-          </div>
-        </div>
-
-        {/* Priority */}
-        <div>
-          <label className="label">Độ ưu tiên</label>
-          <div className="flex gap-2">
-            {(Object.entries(PRIORITY_LABEL) as [TaskPriority, string][]).map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setPriority(key)}
-                className={clsx(
-                  'flex-1 rounded-lg border py-2 text-sm font-medium transition-colors',
-                  priority === key
-                    ? key === 'urgent'
-                      ? 'border-red-300 bg-red-50 text-red-700'
-                      : key === 'high'
-                        ? 'border-orange-300 bg-orange-50 text-orange-700'
-                        : key === 'medium'
-                          ? 'border-blue-300 bg-blue-50 text-blue-700'
-                          : 'border-slate-300 bg-slate-50 text-slate-700'
-                    : 'border-slate-200 text-slate-500 hover:bg-slate-50'
-                )}
-              >
-                {label}
+      {/* Add-task Drawer */}
+      {showAddDrawer && (
+        <div className="fixed inset-0 z-50 animate-fade-in">
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => { setShowAddDrawer(false); resetAddForm() }} />
+          <div className="absolute right-0 top-0 flex h-full w-full max-w-lg flex-col bg-white shadow-2xl animate-slide-in-right">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+              <h2 className="text-base font-semibold text-slate-900">Tạo nhiệm vụ mới</h2>
+              <button type="button" className="btn-icon" onClick={() => { setShowAddDrawer(false); resetAddForm() }}>
+                <X size={18} />
               </button>
-            ))}
+            </div>
+            <div className="flex-1 overflow-y-auto px-5 py-4">
+              <div className="space-y-4">
+                <div>
+                  <label className="label">Tên công việc *</label>
+                  <input className="input w-full" placeholder="VD: Kiểm tra xe..." value={newTitle} onChange={(e) => setNewTitle(e.target.value)} autoFocus />
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="label">Mức ưu tiên</label>
+                    <select className="input w-full" value={newPriority} onChange={(e) => setNewPriority(e.target.value as TaskPriority)}>
+                      <option value="low">Thấp</option>
+                      <option value="medium">Trung bình</option>
+                      <option value="high">Cao</option>
+                      <option value="urgent">Khẩn cấp</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label">Trạng thái</label>
+                    <select className="input w-full" value={newStatus} onChange={(e) => setNewStatus(e.target.value as TaskStatus)}>
+                      <option value="todo">Chưa làm</option>
+                      <option value="doing">Đang làm</option>
+                      <option value="done">Đã hoàn thành</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="label">Xe liên quan</label>
+                  <select className="input w-full" value={newVehicleId} onChange={(e) => setNewVehicleId(e.target.value)}>
+                    <option value="">Không có xe</option>
+                    {[...vehicles].sort((a, b) => a.plate.localeCompare(b.plate)).map((v) => (
+                      <option key={v.id} value={v.id}>{v.plate} - {v.model}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Các bước kiểm tra</label>
+                  <div className="space-y-2">
+                    {newChecklist.map((item, idx) => (
+                      <div key={item.id} className="flex gap-2">
+                        <input className="input flex-1" placeholder="Bước kiểm tra" value={item.text}
+                          onChange={(e) => setNewChecklist((rows) => rows.map((r, i) => (i === idx ? { ...r, text: e.target.value } : r)))}
+                        />
+                        <button type="button" className="btn-icon shrink-0"
+                          onClick={() => setNewChecklist((rows) => (rows.length === 1 ? rows : rows.filter((_, i) => i !== idx)))}
+                        ><Trash2 size={15} /></button>
+                      </div>
+                    ))}
+                  </div>
+                  <button type="button" className="mt-2 flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                    onClick={() => setNewChecklist((rows) => [...rows, { id: uid('chk'), text: '', done: false }])}
+                  ><Plus size={14} /> Thêm bước</button>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">Ngày hạn</label>
+                    <input type="date" className="input w-full" value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="label">Giờ hạn</label>
+                    <input type="time" className="input w-full" value={newDueTime} onChange={(e) => setNewDueTime(e.target.value)} />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="border-t border-slate-100 px-5 py-4">
+              <div className="flex gap-3">
+                <button type="button" className="btn-secondary flex-1" onClick={() => { setShowAddDrawer(false); resetAddForm() }}>Huỷ</button>
+                <button type="button" className="btn-primary flex-1" disabled={!newTitle.trim()} onClick={handleAddTask}>Tạo nhiệm vụ</button>
+              </div>
+            </div>
           </div>
         </div>
+      )}
 
-        {/* Assignee & Vehicle */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="label">Người phụ trách</label>
-            <select
-              className="input w-full"
-              value={assigneeId}
-              onChange={(e) => setAssigneeId(e.target.value)}
-            >
-              <option value="">Không phân công</option>
-              {employees.map((e) => (
-                <option key={e.id} value={e.id}>{e.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="label">Xe liên quan</label>
-            <select
-              className="input w-full"
-              value={vehicleId}
-              onChange={(e) => setVehicleId(e.target.value)}
-            >
-              <option value="">Không có xe</option>
-              {vehicles.map((v) => (
-                <option key={v.id} value={v.id}>{v.plate} - {v.model}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Due Date & Time */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="label">Ngày hạn</label>
-            <input
-              type="date"
-              className="input w-full"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="label">Giờ hạn</label>
-            <input
-              type="time"
-              className="input w-full"
-              value={dueTime}
-              onChange={(e) => setDueTime(e.target.value)}
-            />
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex gap-3 pt-2">
-          <button type="button" className="btn-secondary flex-1" onClick={handleClose}>
-            Huỷ
-          </button>
-          <button
-            type="button"
-            className="btn-primary flex-1"
-            onClick={handleSubmit}
-            disabled={!title.trim()}
-          >
-            <Plus size={16} />
-            Tạo việc
-          </button>
-        </div>
-      </div>
-    </Modal>
+      {/* Task Edit Drawer */}
+      {editingTask && (
+        <TaskEditDrawer
+          task={editingTask}
+          vehicles={vehicles}
+          employees={employees}
+          onClose={() => setEditingTaskId(null)}
+          onUpdate={updateTask}
+          onDelete={deleteTask}
+        />
+      )}
+    </div>
   )
 }

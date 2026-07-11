@@ -59,6 +59,28 @@ export default function VehicleDetail() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const vehicle = vehicles.find((v) => v.id === id)
+
+  // All hooks must be before any early return — unconditional
+  const relatedTasks = useMemo(
+    () =>
+      vehicle
+        ? tasks
+            .filter((task) => task.vehicleId === vehicle.id)
+            .sort((a, b) => (a.createdAt > b.createdAt ? -1 : a.createdAt < b.createdAt ? 1 : 0))
+        : [],
+    [tasks, vehicle?.id]
+  )
+
+  useEffect(() => {
+    if (!vehicle?.id) return
+    setTimelineLoading(true)
+    loadVehicleTimeline(vehicle.id)
+      .catch((err) => {
+        console.error('[VehicleDetail] Failed to load timeline:', err)
+      })
+      .finally(() => setTimelineLoading(false))
+  }, [vehicle?.id, loadVehicleTimeline])
+
   if (!vehicle) {
     return (
       <div className="card">
@@ -73,23 +95,6 @@ export default function VehicleDetail() {
   const vehicleTasks = tasks.filter((t) => t.vehicleId === currentVehicle.id)
   const workflowStatus = getVehicleWorkflowStatus(currentVehicle, vehicleTasks, sheets)
   const timeline = vehicleTimelines[currentVehicle.id] || []
-  const relatedTasks = useMemo(
-    () =>
-      tasks
-        .filter((task) => task.vehicleId === currentVehicle.id)
-        .sort((a, b) => (a.createdAt > b.createdAt ? -1 : a.createdAt < b.createdAt ? 1 : 0)),
-    [tasks, currentVehicle.id]
-  )
-
-  useEffect(() => {
-    if (!currentVehicle.id) return
-    setTimelineLoading(true)
-    loadVehicleTimeline(currentVehicle.id)
-      .catch((err) => {
-        console.error('[VehicleDetail] Failed to load timeline:', err)
-      })
-      .finally(() => setTimelineLoading(false))
-  }, [currentVehicle.id, loadVehicleTimeline])
 
   function handleDelete() {
     setShowDeleteConfirm(true)

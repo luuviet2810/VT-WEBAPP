@@ -140,7 +140,7 @@ export type DashcamState = 'good' | 'maybe' | 'none'
 export type FuelType = 'gasoline' | 'diesel' | 'lpg' | 'hybrid'
 
 export type InteriorCondition = 'good' | 'dirty' | 'torn'
-export type ExteriorCondition = 'good' | 'scratch' | 'dent' | 'discolor' | 'needpaint'
+export type ExteriorCondition = 'good' | 'polish' | 'dent' | 'discolor' | 'touchup'
 
 export interface ConditionEntry<T extends string> {
   condition: T

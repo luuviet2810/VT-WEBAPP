@@ -45,16 +45,18 @@ export default function VehicleList() {
 
   const filtered = useMemo(() => {
     const q = filters.query.trim().toLowerCase()
-    return vehicles.filter((v) => {
-      const matchesQuery = !q || v.plate.toLowerCase().includes(q) || v.model.toLowerCase().includes(q)
-      const matchesPosition = filters.positionId === 'all' || v.positionId === filters.positionId
-      const matchesStatus = filters.status === 'all' || v.status === filters.status
-      const matchesAssignee =
-        filters.assigneeId === 'all' ||
-        (filters.assigneeId === 'unassigned' && !v.assigneeId) ||
-        v.assigneeId === filters.assigneeId
-      return matchesQuery && matchesPosition && matchesStatus && matchesAssignee
-    })
+    return vehicles
+      .filter((v) => {
+        const matchesQuery = !q || v.plate.toLowerCase().includes(q) || v.model.toLowerCase().includes(q)
+        const matchesPosition = filters.positionId === 'all' || v.positionId === filters.positionId
+        const matchesStatus = filters.status === 'all' || v.status === filters.status
+        const matchesAssignee =
+          filters.assigneeId === 'all' ||
+          (filters.assigneeId === 'unassigned' && !v.assigneeId) ||
+          v.assigneeId === filters.assigneeId
+        return matchesQuery && matchesPosition && matchesStatus && matchesAssignee
+      })
+      .sort((a, b) => a.plate.localeCompare(b.plate))
   }, [vehicles, tasks, filters])
 
   // Get latest check sheets for a vehicle
@@ -92,7 +94,7 @@ export default function VehicleList() {
           <EmptyState icon={<Car size={36} />} title="Không tìm thấy xe nào" subtitle="Thử thay đổi bộ lọc hoặc từ khoá tìm kiếm" />
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 2xl:grid-cols-5">
           {filtered.map((v) => {
             const position = positions.find((p) => p.id === v.positionId)
             const assignee = employees.find((e) => e.id === v.assigneeId)
@@ -106,10 +108,10 @@ export default function VehicleList() {
               <Link
                 key={v.id}
                 to={`/xe/${v.id}`}
-                className="card group overflow-hidden transition hover:shadow-md hover:-translate-y-0.5"
+                className="card group overflow-hidden transition hover:shadow-md hover:-translate-y-0.5 text-sm"
               >
                 {/* Vehicle Image */}
-                <div className="aspect-[16/10] w-full overflow-hidden bg-slate-100">
+                <div className="aspect-[16/9] max-h-44 w-full overflow-hidden bg-slate-100">
                   {v.images[0] ? (
                     <img src={v.images[0]} alt={v.model} className="h-full w-full object-cover" />
                   ) : (
@@ -120,9 +122,9 @@ export default function VehicleList() {
                 </div>
                 
                 {/* Vehicle Info */}
-                <div className="p-4">
+                <div className="p-3">
                   <div className="flex items-start justify-between gap-2">
-                    <span className="text-lg font-bold text-slate-900">{v.plate || '—'}</span>
+                    <span className="text-base font-bold text-slate-900">{v.plate || '—'}</span>
                     <div className="flex flex-col items-end gap-1">
                       <Badge tone={WORKFLOW_STATUS_TONE[workflowStatus]}>{WORKFLOW_STATUS_LABEL[workflowStatus]}</Badge>
                       <Badge tone={STATUS_TONE[v.status]}>{STATUS_LABEL[v.status]}</Badge>
@@ -158,7 +160,7 @@ export default function VehicleList() {
                   
                   {/* Price */}
                   {v.sellPrice !== undefined && (
-                    <div className="mt-2 text-sm font-semibold text-slate-700">{formatCurrency(v.sellPrice)} đ</div>
+                    <div className="mt-1 text-sm font-bold text-slate-700">{formatCurrency(v.sellPrice)} đ</div>
                   )}
                   
                   {/* Quick CheckSheet Preview */}
