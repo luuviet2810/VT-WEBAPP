@@ -60,7 +60,6 @@ export default function VehicleList() {
         const matchesStatus = filters.status === 'all' || v.status === filters.status
         const matchesAssignee =
           filters.assigneeId === 'all' ||
-          (filters.assigneeId === 'unassigned' && !v.assigneeId) ||
           v.assigneeId === filters.assigneeId
         return matchesQuery && matchesPosition && matchesStatus && matchesAssignee
       })

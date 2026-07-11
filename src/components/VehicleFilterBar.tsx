@@ -44,7 +44,6 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
   const assigneeOptions = useMemo(() => {
     return [
       { value: 'all', label: 'Mọi người' },
-      { value: 'unassigned', label: 'Chưa phân công' },
       ...employees.map((e) => ({ value: e.id, label: e.name })),
     ]
   }, [employees])
@@ -83,7 +82,7 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
         </div>
 
         {/* Filters — fixed width on desktop */}
-        <select className="input h-10 w-full sm:w-auto lg:w-[200px]" value={filters.status} onChange={(e) => updateFilter('status', e.target.value)}>
+        <select className="input h-10 w-full sm:w-auto lg:w-[220px]" value={filters.status} onChange={(e) => updateFilter('status', e.target.value)}>
           {STATUS_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
@@ -91,7 +90,7 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
           ))}
         </select>
 
-        <select className="input h-10 w-full sm:w-auto lg:w-[200px]" value={filters.positionId} onChange={(e) => updateFilter('positionId', e.target.value)}>
+        <select className="input h-10 w-full sm:w-auto lg:w-[220px]" value={filters.positionId} onChange={(e) => updateFilter('positionId', e.target.value)}>
           {positionOptions.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
@@ -99,7 +98,7 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
           ))}
         </select>
 
-        <select className="input h-10 w-full sm:w-auto lg:w-[200px]" value={filters.assigneeId} onChange={(e) => updateFilter('assigneeId', e.target.value)}>
+        <select className="input h-10 w-full sm:w-auto lg:w-[220px]" value={filters.assigneeId} onChange={(e) => updateFilter('assigneeId', e.target.value)}>
           {assigneeOptions.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
@@ -108,7 +107,7 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
         </select>
 
         {/* Reset */}
-        <button type="button" onClick={resetFilters} className="btn-secondary flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap px-3">
+        <button type="button" onClick={resetFilters} className="btn-secondary flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap px-4">
           <RotateCcw size={15} />
           Đặt lại
         </button>
