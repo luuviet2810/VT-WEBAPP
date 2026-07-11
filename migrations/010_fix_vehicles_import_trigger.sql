@@ -11,10 +11,12 @@
 -- Safe to re-run.
 -- ============================================================
 
--- ====== 1. DROP EXISTING ======
+-- ====== 1. DROP EXISTING (all trigger name variants) ======
 
+DROP TRIGGER IF EXISTS trigger_process_import ON vehicles_import;
 DROP TRIGGER IF EXISTS trg_vehicles_import ON vehicles_import;
-DROP FUNCTION IF EXISTS process_vehicles_import();
+DROP TRIGGER IF EXISTS vehicles_import_trigger ON vehicles_import;
+DROP FUNCTION IF EXISTS process_vehicles_import() CASCADE;
 
 -- ====== 2. ENSURE vehicles.plate HAS A UNIQUE CONSTRAINT ======
 -- Required for ON CONFLICT (plate) to work.
@@ -111,7 +113,7 @@ BEGIN
   END IF;
 
   -- ====== PREPARE FIELDS ======
-  _model        := TRIM(COALESCE(NEW.model, 'Không xác định'));
+  _model        := NULLIF(TRIM(COALESCE(NEW.model, '')), '');
   _fuel_type    := normalize_fuel(NEW.fuel_type);
   _displacement := NULLIF(TRIM(COALESCE(NEW.displacement, '')), '');
   _mileage      := NULLIF(TRIM(COALESCE(NEW.mileage, '')), '');
@@ -141,25 +143,38 @@ BEGIN
   END;
 
   -- ====== UPSERT ======
+  --
+  -- Strategy:
+  --   1. Try UPDATE first — only overwrite when CSV has a non-empty value.
+  --   2. If no row matched → INSERT with fallback defaults for NOT NULL cols.
+  --
+  -- This avoids the UPSERT problem where COALESCE in VALUES poisons EXCLUDED.
 
-  INSERT INTO vehicles (
-    plate, model, year, fuel_type, displacement,
-    mileage, color, cost_price, sell_price, status
-  ) VALUES (
-    _plate, _model, _year, _fuel_type, _displacement,
-    _mileage, _color, _cost_price, _sell_price, _status
-  )
-  ON CONFLICT (plate) DO UPDATE SET
-    model       = COALESCE(vehicles.model,       EXCLUDED.model),
-    year        = COALESCE(vehicles.year,         EXCLUDED.year),
-    fuel_type   = COALESCE(vehicles.fuel_type,    EXCLUDED.fuel_type),
-    displacement= COALESCE(vehicles.displacement, EXCLUDED.displacement),
-    mileage     = COALESCE(vehicles.mileage,      EXCLUDED.mileage),
-    color       = COALESCE(vehicles.color,        EXCLUDED.color),
-    cost_price  = COALESCE(vehicles.cost_price,   EXCLUDED.cost_price),
-    sell_price  = COALESCE(vehicles.sell_price,   EXCLUDED.sell_price),
-    status      = COALESCE(vehicles.status,       EXCLUDED.status),
-    updated_at  = now();
+  UPDATE vehicles SET
+    model       = COALESCE(NULLIF(_model, ''),        vehicles.model),
+    year        = COALESCE(_year,                     vehicles.year),
+    fuel_type   = COALESCE(NULLIF(_fuel_type, ''),    vehicles.fuel_type),
+    displacement= COALESCE(NULLIF(_displacement, ''), vehicles.displacement),
+    mileage     = COALESCE(NULLIF(_mileage, ''),      vehicles.mileage),
+    color       = COALESCE(NULLIF(_color, ''),        vehicles.color),
+    cost_price  = COALESCE(_cost_price,               vehicles.cost_price),
+    sell_price  = COALESCE(_sell_price,               vehicles.sell_price),
+    status      = COALESCE(_status, vehicles.status),
+    updated_at  = now()
+  WHERE plate = _plate;
+
+  IF NOT FOUND THEN
+    INSERT INTO vehicles (
+      plate, model, year, fuel_type, displacement,
+      mileage, color, cost_price, sell_price, status
+    ) VALUES (
+      _plate,
+      COALESCE(_model, 'Không xác định'),
+      _year, _fuel_type, _displacement,
+      _mileage, _color, _cost_price, _sell_price,
+      COALESCE(_status, 'available')
+    );
+  END IF;
 
   RETURN NEW;
 END;
