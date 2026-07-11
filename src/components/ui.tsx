@@ -68,13 +68,13 @@ export function WheelPicker({
   max = 100,
   unit = '',
 }: {
-  value: number | undefined
+  value: number
   onChange: (v: number) => void
   min?: number
   max?: number
   unit?: string
 }) {
-  const safeValue = value ?? min
+  const safeValue = value
   const items = Array.from({ length: max - min + 1 }, (_, i) => min + i)
   const containerRef = useRef<HTMLDivElement>(null)
   const isScrolling = useRef(false)
@@ -85,14 +85,12 @@ export function WheelPicker({
   const VISIBLE_COUNT = 5
   const PICKER_HEIGHT = ITEM_HEIGHT * VISIBLE_COUNT
   const PADDING = ITEM_HEIGHT * 2
-  const CENTER_POSITION = PADDING + ITEM_HEIGHT / 2 // = 90 (center of picker)
+  const CENTER_POSITION = PADDING + ITEM_HEIGHT / 2
 
   // Calculate which item is centered
   const selectedIndex = items.indexOf(safeValue)
 
   // Sync scroll position when value changes externally
-  // Formula: scrollTop = index * ITEM_HEIGHT
-  // This centers item N at visual position PADDING (72px), which is center of highlight
   useEffect(() => {
     if (containerRef.current) {
       const targetScrollTop = Math.max(0, selectedIndex * ITEM_HEIGHT)
@@ -367,8 +365,8 @@ export function ConfirmDialog({
 // ====== BATTERY CHECK COMPONENT ======
 
 interface BatteryCheckProps {
-  soh: number | undefined
-  soc: number | undefined
+  soh: number
+  soc: number
   pickerOpen: 'soh' | 'soc' | null
   onSOHChange: (v: number) => void
   onSOCChange: (v: number) => void
@@ -376,7 +374,7 @@ interface BatteryCheckProps {
 }
 
 export function BatteryCheck({ soh, soc, pickerOpen, onSOHChange, onSOCChange, onPickerOpen }: BatteryCheckProps) {
-  const isNormal = soc != null && soc >= 50
+  const isNormal = soc >= 50
 
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -391,7 +389,7 @@ export function BatteryCheck({ soh, soc, pickerOpen, onSOHChange, onSOCChange, o
             onClick={() => onPickerOpen('soh')}
             className="w-full rounded-lg border border-slate-200 bg-white py-3 text-center text-lg font-semibold text-slate-700 transition-colors hover:border-brand-300 hover:bg-brand-50 active:bg-brand-100"
           >
-            {soh != null ? `${soh}%` : '--'}
+            {soh}%
           </button>
         </div>
         {/* SOC */}
@@ -401,7 +399,7 @@ export function BatteryCheck({ soh, soc, pickerOpen, onSOHChange, onSOCChange, o
             onClick={() => onPickerOpen('soc')}
             className="w-full rounded-lg border border-slate-200 bg-white py-3 text-center text-lg font-semibold text-slate-700 transition-colors hover:border-brand-300 hover:bg-brand-50 active:bg-brand-100"
           >
-            {soc != null ? `${soc}%` : '--'}
+            {soc}%
           </button>
         </div>
       </div>
