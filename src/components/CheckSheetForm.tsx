@@ -1003,10 +1003,7 @@ export default function CheckSheetForm({
     setIsSaving(true)
 
     try {
-      // 1. Tạo/Cập nhật Tasks
-      await handleCreateOrUpdateTasks()
-
-      // 2. Lưu CheckSheet
+      // 1. Lưu CheckSheet — rule engine tự động sinh task
       await handleSave()
 
       // 3. Notification
