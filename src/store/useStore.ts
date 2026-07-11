@@ -26,8 +26,7 @@ import * as usersService from '../services/users.service'
 import * as taskService from '../services/task.service'
 import * as attendanceService from '../services/attendance.service'
 import * as checksheetService from '../services/checksheet.service'
-import * as notificationService from '../services/notification.service'
-import { createEvent } from '../services/notification.service'
+// Notification disabled — will be rebuilt later
 import * as moveLogService from '../services/moveLog.service'
 import * as vehicleMediaService from '../services/vehicleMedia.service'
 import * as storageService from '../services/storage.service'
@@ -66,14 +65,13 @@ const defaultSettings: Settings = {
 
 export async function initializeFromSupabase(): Promise<void> {
   try {
-    const [vehicles, positions, employees, tasks, checkSheets, attendance, notifications, moveLogs] = await Promise.all([
+    const [vehicles, positions, employees, tasks, checkSheets, attendance, moveLogs] = await Promise.all([
       vehicleService.getVehicles().catch(() => []),
       positionService.getPositions().catch(() => []),
       usersService.getEmployees().catch(() => []),
       taskService.getTasks().catch(() => []),
       checksheetService.getCheckSheets().catch(() => []),
       attendanceService.getAttendanceEntries().catch(() => []),
-      notificationService.getNotifications().catch(() => []),
       moveLogService.getMoveLogs().catch(() => []),
     ])
 
@@ -101,7 +99,7 @@ export async function initializeFromSupabase(): Promise<void> {
       tasks,
       checkSheets,
       attendance,
-      notifications,
+      notifications: [],
       moveLogs,
       isInitialized: true,
     })
@@ -636,15 +634,7 @@ export const useStore = create<StoreState>()(
               ruleId: gen.ruleId,
             })
             set((s) => ({ tasks: [created, ...s.tasks] }))
-            // Notification per auto-generated task
-            if (genVehicle) {
-              const nn = taskCreated(genVehicle.id, genVehicle.model, genVehicle.plate, gen.title, created.id)
-              createEvent('TASK_CREATED', {
-              vehicleId: genVehicle.id, vehicleModel: genVehicle.model, plateNumber: genVehicle.plate,
-              taskName: gen.title, taskId: created.id,
-              employeeName: "Hệ thống",
-            }).then((n) => { if (n) get().addNotification(n) })
-            }
+            // Notification disabled
           } catch (err) {
             console.error(`  \uD83D\uDD34 [STORE] CREATE TASK FAILED: "${gen.title}"`, err)
           }
@@ -923,18 +913,14 @@ export const useStore = create<StoreState>()(
     markNotificationRead: async (id) => {
       set((s) => ({ notifications: s.notifications.map((n) => (n.id === id ? { ...n, read: true } : n)) }))
       try {
-        await notificationService.markNotificationRead(id)
       } catch (err) {
-        console.error('\uD83D\uDD34 [STORE] Failed to mark notification read in Supabase:', err)
       }
     },
 
     markAllNotificationsRead: async () => {
       set((s) => ({ notifications: s.notifications.map((n) => ({ ...n, read: true })) }))
       try {
-        await notificationService.markAllNotificationsRead()
       } catch (err) {
-        console.error('\uD83D\uDD34 [STORE] Failed to mark all notifications read in Supabase:', err)
       }
     },
 
