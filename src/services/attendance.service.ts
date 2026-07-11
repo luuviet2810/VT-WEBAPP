@@ -4,7 +4,7 @@ import type { AttendanceEntry } from '../types'
 function mapRow(row: Record<string, unknown>): AttendanceEntry {
   return {
     id: row.id as string,
-    employeeId: row.employee_id as string,
+    employeeId: row.user_id as string,
     date: row.date as string,
     checkIn: row.check_in as string | null,
     checkOut: row.check_out as string | null,
@@ -36,7 +36,7 @@ export async function getAttendanceByEmployee(employeeId: string): Promise<Atten
   const { data, error } = await supabase
     .from('attendance')
     .select('*')
-    .eq('employee_id', employeeId)
+    .eq('user_id', employeeId)
     .order('date', { ascending: false })
 
   if (error) throw error
@@ -49,7 +49,7 @@ export async function createAttendanceEntry(
   const { data, error } = await supabase
     .from('attendance')
     .insert({
-      employee_id: entry.employeeId,
+      user_id: entry.employeeId,
       date: entry.date,
       check_in: entry.checkIn ?? null,
       check_out: entry.checkOut ?? null,
@@ -99,7 +99,7 @@ export async function findOrCreateTodayEntry(
   const { data, error } = await supabase
     .from('attendance')
     .select('*')
-    .eq('employee_id', employeeId)
+    .eq('user_id', employeeId)
     .eq('date', date)
     .limit(1)
 
@@ -137,6 +137,9 @@ export async function checkOut(employeeId: string): Promise<AttendanceEntry> {
 
   const existing = await findOrCreateTodayEntry(employeeId, date)
   if (existing) {
+    if (existing.checkOut) {
+      return existing // Already checked out
+    }
     return updateAttendanceEntry(existing.id, { checkOut: time })
   }
 
