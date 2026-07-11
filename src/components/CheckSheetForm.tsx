@@ -38,6 +38,7 @@ import { CollapsibleCard, SegButton, WheelPicker, BatteryCheck, Badge } from './
 import { emptyExteriorCheck } from '../store/useStore'
 import { uid } from '../utils/format'
 import { generateTasks, GeneratedTask } from '../utils/taskRules'
+import { classifyStatus } from '../utils/statusClassification'
 
 const DEBOUNCE_MS = 500
 
@@ -486,42 +487,54 @@ export default function CheckSheetForm({
       let noteCount = 0
 
       // Màn hình
-      if (screen === 'normal' || screen === 'android') ok++
-      else if (screen === 'broken') error++
+      const s = classifyStatus(screen)
+      if (s === 'ok') ok++
+      else if (s === 'bad') error++
+      else if (s === 'install') { error++; none++ }
 
       // Camera lùi
-      if (rearCamera === 'ok') ok++
-      else if (rearCamera === 'blurry') error++
-      else if (rearCamera === 'broken') error++
+      const r = classifyStatus(rearCamera)
+      if (r === 'ok') ok++
+      else if (r === 'bad') error++
+      else if (r === 'install') { error++; none++ }
 
       // Hi-Pass: KHÔNG tính vào thống kê
 
       // Cảm biến lùi
-      if (rearSensor === 'ok') ok++
-      else if (rearSensor === 'broken') error++
-      else if (rearSensor === 'none') none++
+      const rs = classifyStatus(rearSensor)
+      if (rs === 'ok') ok++
+      else if (rs === 'bad') error++
+      else if (rs === 'install') { error++; none++ }
 
       // Camera hành trình
-      if (dashcam === 'good') ok++
-      else if (dashcam === 'maybe') none++
-      else if (dashcam === 'none') none++
+      const d = classifyStatus(dashcam)
+      if (d === 'ok') ok++
+      else if (d === 'bad') error++
+      else if (d === 'install') { error++; none++ }
 
       // Điều hòa (Đầu vào)
-      if (inputDieuHoa.status === 'need_gas') error++
-      else ok++
+      const dh = classifyStatus(inputDieuHoa.status)
+      if (dh === 'ok') ok++
+      else if (dh === 'bad') error++
+      else if (dh === 'install') { error++; none++ }
 
       // Sưởi ghế (Đầu vào)
-      if (inputSuoiGhe.status === 'broken') error++
-      else ok++
+      const sg = classifyStatus(inputSuoiGhe.status)
+      if (sg === 'ok') ok++
+      else if (sg === 'bad') error++
+      else if (sg === 'install') { error++; none++ }
 
       // Tình trạng lốp (Đầu vào)
-      if (inputTireState.status === 'ok') ok++
-      else if (inputTireState.status === 'error') error++
-      else if (inputTireState.status === 'none') error++
+      const tl = classifyStatus(inputTireState.status)
+      if (tl === 'ok') ok++
+      else if (tl === 'bad') error++
+      else if (tl === 'install') { error++; none++ }
 
       // Nhiên liệu
-      if (fuelLevel === 'empty') error++
-      else ok++
+      const fl = classifyStatus(fuelLevel)
+      if (fl === 'ok') ok++
+      else if (fl === 'bad') error++
+      else if (fl === 'install') { error++; none++ }
 
       // SOC ắc quy < 50%
       if (inputAcquySOC >= 0 && inputAcquySOC < 50) error++
@@ -529,15 +542,19 @@ export default function CheckSheetForm({
 
       // Nội thất
       Object.values(interior).forEach((v) => {
-        if (v.condition === 'good') ok++
-        else error++
+        const c = classifyStatus(v.condition)
+        if (c === 'ok') ok++
+        else if (c === 'bad') error++
+        else if (c === 'install') { error++; none++ }
         if (v.note) noteCount++
       })
 
       // Ngoại thất
       Object.values(exterior).forEach((v) => {
-        if (v.condition === 'good' || v.condition === 'polish' || v.condition === 'touchup') ok++
-        else error++
+        const c = classifyStatus(v.condition)
+        if (c === 'ok') ok++
+        else if (c === 'bad') error++
+        else if (c === 'install') { error++; none++ }
       })
 
       return { ok, error, none, noteCount }
@@ -547,32 +564,43 @@ export default function CheckSheetForm({
       let error = 0
       let none = 0
 
-      // Còn Song nưng - "Cần song nưng lại" = Hỏng, "Còn" = OK
-      if (outCheck.conSeongnyeong.status === 'can_repair') error++
-      else ok++
+      // Còn Song nưng
+      const csn = classifyStatus(outCheck.conSeongnyeong?.status)
+      if (csn === 'ok') ok++
+      else if (csn === 'bad') error++
+      else if (csn === 'install') { error++; none++ }
 
-      // Dầu máy - "Hết dầu rồi" = Hỏng, "Đang đi thay" hoặc "Còn tốt" = OK
-      if (outCheck.dauMay.status === 'empty') error++
-      else ok++
+      // Dầu máy
+      const dm = classifyStatus(outCheck.dauMay?.status)
+      if (dm === 'ok') ok++
+      else if (dm === 'bad') error++
+      else if (dm === 'install') { error++; none++ }
 
-      // Nước làm mát - "Hết" = Hỏng, "Đang đi thay" hoặc "Còn tốt" = OK
-      if (outCheck.nuocLamMat.status === 'empty') error++
-      else ok++
+      // Nước làm mát
+      const nlm = classifyStatus(outCheck.nuocLamMat?.status)
+      if (nlm === 'ok') ok++
+      else if (nlm === 'bad') error++
+      else if (nlm === 'install') { error++; none++ }
 
       // Các item generic
-      Object.values(outCheck).forEach((v) => {
-        if (v.status === 'ok') ok++
-        else if (v.status === 'error') error++
-        else if (v.status === 'none') none++
+      Object.values(outCheck).forEach((v: any) => {
+        const c = classifyStatus(v?.status)
+        if (c === 'ok') ok++
+        else if (c === 'bad') error++
+        else if (c === 'install') { error++; none++ }
       })
 
-      // Điều hòa - "Cần đổ ga" = Hỏng
-      if (outCheck.dieuHoa.status === 'need_gas') error++
-      else ok++
+      // Điều hòa
+      const dh = classifyStatus(outCheck.dieuHoa?.status)
+      if (dh === 'ok') ok++
+      else if (dh === 'bad') error++
+      else if (dh === 'install') { error++; none++ }
 
-      // Sưởi ghế - "Hỏng nút" = Hỏng, "Không có" = OK (không tính vào Cần lắp)
-      if (outCheck.suoiGhe.status === 'broken') error++
-      else ok++
+      // Sưởi ghế
+      const sg = classifyStatus(outCheck.suoiGhe?.status)
+      if (sg === 'ok') ok++
+      else if (sg === 'bad') error++
+      else if (sg === 'install') { error++; none++ }
 
       return { ok, error, none, noteCount: outNotes ? 1 : 0 }
     }
