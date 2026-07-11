@@ -225,58 +225,48 @@ export interface UpsertVehicleInput {
 
 /**
  * Upsert a vehicle by plate.
- * - If plate exists → UPDATE only the provided fields (COALESCE).
- * - If plate does not exist → INSERT with fallback defaults.
+ *
+ * Uses a single atomic INSERT ... ON CONFLICT (plate) DO UPDATE SET
+ * to avoid race conditions during concurrent imports.
+ *
+ * - Plate exists → UPDATE every provided field.
+ * - Plate missing → INSERT with fallback defaults for NOT NULL columns.
  *
  * Never modifies: id, created_at, images, documents, check_sheets, tasks,
  * workflow_logs, move_logs, position history, or any relationship.
  */
 export async function upsertVehicle(data: UpsertVehicleInput): Promise<'inserted' | 'updated'> {
-  const { data: existing } = await supabase
-    .from('vehicles')
-    .select('id')
-    .eq('plate', data.plate)
-    .maybeSingle()
-
-  if (existing) {
-    // UPDATE — only set fields that are explicitly provided
-    const patch: Record<string, unknown> = {}
-    if (data.model != null) patch.model = data.model
-    if (data.year != null) patch.year = data.year
-    if (data.fuelType != null) patch.fuel_type = data.fuelType
-    if (data.displacement != null) patch.displacement = data.displacement
-    if (data.mileage != null) patch.mileage = data.mileage
-    if (data.color != null) patch.color = data.color
-    if (data.costPrice != null) patch.cost_price = data.costPrice
-    if (data.sellPrice != null) patch.sell_price = data.sellPrice
-    if (data.status != null) patch.status = data.status
-    patch.updated_at = new Date().toISOString()
-
-    const { error } = await supabase
-      .from('vehicles')
-      .update(patch)
-      .eq('id', existing.id)
-
-    if (error) throw error
-    return 'updated'
+  // Build the upsert record.
+  // Supabase JS serialises to JSON — keys with undefined are dropped
+  // by JSON.stringify, so they are omitted from the INSERT/UPDATE entirely.
+  // model/status are always included (NOT NULL columns need fallbacks).
+  const record: Record<string, unknown> = {
+    plate: data.plate,
+    model: data.model ?? 'Không xác định',
+    status: data.status ?? 'available',
+    updated_at: new Date().toISOString(),
   }
 
-  // INSERT — use fallback defaults for NOT NULL columns
-  const { error } = await supabase
+  // Optional fields — only included when the caller supplies a value.
+  // When omitted:
+  //   INSERT → column gets its DEFAULT (NULL for nullable cols).
+  //   UPDATE → column is not in the SET clause → unchanged.
+  if (data.year != null) record.year = data.year
+  if (data.fuelType != null) record.fuel_type = data.fuelType
+  if (data.displacement != null) record.displacement = data.displacement
+  if (data.mileage != null) record.mileage = data.mileage
+  if (data.color != null) record.color = data.color
+  if (data.costPrice != null) record.cost_price = data.costPrice
+  if (data.sellPrice != null) record.sell_price = data.sellPrice
+
+  const { error, status } = await supabase
     .from('vehicles')
-    .insert({
-      plate: data.plate,
-      model: data.model ?? 'Không xác định',
-      year: data.year ?? null,
-      fuel_type: data.fuelType ?? null,
-      displacement: data.displacement ?? null,
-      mileage: data.mileage ?? null,
-      color: data.color ?? null,
-      cost_price: data.costPrice ?? null,
-      sell_price: data.sellPrice ?? null,
-      status: data.status ?? 'available',
-    })
+    .upsert(record, { onConflict: 'plate' })
 
   if (error) throw error
-  return 'inserted'
+
+  // Detect whether a row was inserted or updated:
+  //  201 = Created (INSERT)
+  //  200 = OK      (UPDATE — row existed)
+  return status === 201 ? 'inserted' : 'updated'
 }
