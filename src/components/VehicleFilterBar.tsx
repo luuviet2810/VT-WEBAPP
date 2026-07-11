@@ -68,10 +68,10 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
   }
 
   return (
-    <div className="card mb-5 py-3">
-      <div className="flex flex-wrap items-center gap-3 lg:flex-nowrap">
-        {/* Search — takes remaining width */}
-        <div className="relative min-w-0 flex-1 lg:min-w-[420px]">
+    <div className="card mt-8 px-6 py-4">
+      <div className="flex flex-wrap items-center gap-4 lg:flex-nowrap">
+        {/* Search — grows naturally */}
+        <div className="relative min-w-0 flex-1 lg:min-w-[400px]">
           <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             className="input h-10 pl-10"
@@ -81,8 +81,8 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
           />
         </div>
 
-        {/* Filters — fixed width on desktop */}
-        <select className="input h-10 w-full sm:w-auto lg:w-[220px]" value={filters.status} onChange={(e) => updateFilter('status', e.target.value)}>
+        {/* Status */}
+        <select className="input h-10 w-full min-w-0 sm:min-w-[180px] sm:w-auto" value={filters.status} onChange={(e) => updateFilter('status', e.target.value)}>
           {STATUS_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
@@ -90,7 +90,8 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
           ))}
         </select>
 
-        <select className="input h-10 w-full sm:w-auto lg:w-[220px]" value={filters.positionId} onChange={(e) => updateFilter('positionId', e.target.value)}>
+        {/* Location */}
+        <select className="input h-10 w-full min-w-0 sm:min-w-[180px] sm:w-auto" value={filters.positionId} onChange={(e) => updateFilter('positionId', e.target.value)}>
           {positionOptions.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
@@ -98,7 +99,8 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
           ))}
         </select>
 
-        <select className="input h-10 w-full sm:w-auto lg:w-[220px]" value={filters.assigneeId} onChange={(e) => updateFilter('assigneeId', e.target.value)}>
+        {/* Assigned Staff */}
+        <select className="input h-10 w-full min-w-0 sm:min-w-[220px] sm:w-auto" value={filters.assigneeId} onChange={(e) => updateFilter('assigneeId', e.target.value)}>
           {assigneeOptions.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
@@ -107,7 +109,7 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
         </select>
 
         {/* Reset */}
-        <button type="button" onClick={resetFilters} className="btn-secondary flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap px-4">
+        <button type="button" onClick={resetFilters} className="btn-secondary flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap px-5">
           <RotateCcw size={15} />
           Đặt lại
         </button>
