@@ -2,13 +2,15 @@
 
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Car, User, ListChecks, ClipboardList, Fuel, Monitor, Camera, AlertCircle } from 'lucide-react'
+import { Car, User, ListChecks, ClipboardList, Fuel, Monitor, Camera, AlertCircle, Wrench } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import { Badge, EmptyState, Modal } from '../components/ui'
 import VehicleFilterBar from '../components/VehicleFilterBar'
 import { formatCurrency } from '../utils/format'
 import { VehicleStatus, FuelLevel } from '../types'
 import { getVehicleWorkflowStatus, WORKFLOW_STATUS_TONE, WORKFLOW_STATUS_LABEL } from '../utils/vehicleWorkflow'
+import TaskDrawer from '../components/tasks/TaskDrawer'
+import type { VehicleGroup } from '../components/tasks/VehicleTaskCard'
 
 const STATUS_LABEL: Record<VehicleStatus, string> = {
   available: 'Chưa bán',
@@ -42,6 +44,11 @@ export default function VehicleList() {
   })
   const [previewSheet, setPreviewSheet] = useState<typeof checkSheets[0] | null>(null)
   const [previewType, setPreviewType] = useState<'in' | 'out'>('in')
+  const [selectedTaskVehicleId, setSelectedTaskVehicleId] = useState<string | null>(null)
+  const toggleTaskChecklistItem = useStore((s) => s.toggleTaskChecklistItem)
+  const updateTask = useStore((s) => s.updateTask)
+  const deleteTask = useStore((s) => s.deleteTask)
+  const addTask = useStore((s) => s.addTask)
 
   const filtered = useMemo(() => {
     const q = filters.query.trim().toLowerCase()
@@ -72,6 +79,26 @@ export default function VehicleList() {
     setPreviewSheet(type === 'in' ? sheets.latestIn : sheets.latestOut)
     setPreviewType(type)
   }
+
+  // Build group for TaskDrawer
+  const taskDrawerGroup = useMemo<VehicleGroup | null>(() => {
+    if (!selectedTaskVehicleId) return null
+    const v = vehicles.find((x) => x.id === selectedTaskVehicleId)
+    if (!v) return null
+    const vehicleTasks = tasks.filter((t) => t.vehicleId === v.id)
+    const total = vehicleTasks.length
+    const done = vehicleTasks.filter((t) => t.status === 'done').length
+    const pos = positions.find((p) => p.id === v.positionId)
+    return {
+      vehicleId: v.id,
+      vehicle: { plate: v.plate, model: v.model, positionId: v.positionId, images: v.images },
+      positionName: pos?.name ?? null,
+      tasks: vehicleTasks,
+      total,
+      done,
+      section: 'todo' as const,
+    }
+  }, [selectedTaskVehicleId, vehicles, tasks, positions])
 
   return (
     <div>
@@ -163,29 +190,48 @@ export default function VehicleList() {
                     <div className="mt-1 text-sm font-bold text-slate-700">{formatCurrency(v.sellPrice)} đ</div>
                   )}
                   
-                  {/* Quick CheckSheet Preview */}
-                  {hasCheckSheet && (
-                    <div className="mt-3 flex gap-2 border-t border-slate-100 pt-3">
-                      {latestIn && (
-                        <button
-                          onClick={(e) => { e.preventDefault(); handleOpenPreview(v.id, 'in') }}
-                          className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-blue-50 px-2 py-1.5 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-100"
-                        >
-                          <ClipboardList size={12} />
-                          Đầu vào
-                        </button>
+                  {/* Quick Actions */}
+                  <div className="mt-3 flex gap-1.5 border-t border-slate-100 pt-3">
+                    {/* Nhiệm vụ */}
+                    <button
+                      onClick={(e) => { e.preventDefault(); setSelectedTaskVehicleId(v.id) }}
+                      className={`flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors ${
+                        vehicleTasks.length === 0
+                          ? 'bg-slate-50 text-slate-400 hover:bg-slate-100'
+                          : vehicleTasks.every((t) => t.status === 'done')
+                            ? 'bg-green-50 text-green-600 hover:bg-green-100'
+                            : vehicleTasks.some((t) => t.status !== 'done' && (t.priority === 'high' || t.priority === 'urgent'))
+                              ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                              : 'bg-amber-50 text-amber-600 hover:bg-amber-100'
+                      }`}
+                    >
+                      <Wrench size={12} />
+                      Nhiệm vụ
+                      {vehicleTasks.filter((t) => t.status !== 'done').length > 0 && (
+                        <span>({vehicleTasks.filter((t) => t.status !== 'done').length})</span>
                       )}
-                      {latestOut && (
-                        <button
-                          onClick={(e) => { e.preventDefault(); handleOpenPreview(v.id, 'out') }}
-                          className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-purple-50 px-2 py-1.5 text-xs font-medium text-purple-600 transition-colors hover:bg-purple-100"
-                        >
-                          <ClipboardList size={12} />
-                          Đầu ra
-                        </button>
-                      )}
-                    </div>
-                  )}
+                    </button>
+                    {/* Đầu vào */}
+                    <button
+                      onClick={(e) => { e.preventDefault(); handleOpenPreview(v.id, 'in') }}
+                      className={`flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors ${
+                        latestIn ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
+                      }`}
+                    >
+                      <ClipboardList size={12} />
+                      Đầu vào
+                    </button>
+                    {/* Đầu ra */}
+                    <button
+                      onClick={(e) => { e.preventDefault(); handleOpenPreview(v.id, 'out') }}
+                      className={`flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors ${
+                        latestOut ? 'bg-purple-50 text-purple-600 hover:bg-purple-100' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
+                      }`}
+                    >
+                      <ClipboardList size={12} />
+                      Đầu ra
+                    </button>
+                  </div>
                 </div>
               </Link>
             )
@@ -268,6 +314,20 @@ export default function VehicleList() {
           </div>
         )}
       </Modal>
+
+      <TaskDrawer
+        open={!!selectedTaskVehicleId && !!taskDrawerGroup}
+        onClose={() => setSelectedTaskVehicleId(null)}
+        selectedVehicleId={selectedTaskVehicleId}
+        groups={taskDrawerGroup ? [taskDrawerGroup] : []}
+        onToggleChecklist={toggleTaskChecklistItem}
+        onUpdateTask={updateTask}
+        onDeleteTask={deleteTask}
+        onAddTask={addTask}
+        employees={employees.map((e) => ({ id: e.id, name: e.name }))}
+        vehicles={vehicles.map((v) => ({ id: v.id, plate: v.plate }))}
+        positionName={taskDrawerGroup?.positionName ?? null}
+      />
     </div>
   )
 }

@@ -213,7 +213,7 @@ export const useStore = create<StoreState>()(
       })
       set((s) => ({ vehicles: [created, ...s.vehicles] }))
       const emp = get().employees.find((e) => e.id === get().currentEmployeeId)
-      get().addNotification({ type: 'vehicle_added', title: 'Xe m\u1edbi \u0111\u01b0\u1ee3c th\u00eam', body: `${emp?.name || 'Ai \u0111\u00f3'} v\u1eeba th\u00eam xe "${created.model}" (${created.plate})` })
+      get().addNotification({ type: 'vehicle_added', title: 'Xe m\u1edbi \u0111\u01b0\u1ee3c th\u00eam', body: `${emp?.name || 'Ai \u0111\u00f3'} v\u1eeba th\u00eam xe "${created.model}" (${created.plate})`, data: { vehicleId: created.id } })
       return created
     },
 
@@ -467,7 +467,7 @@ export const useStore = create<StoreState>()(
       }
 
       const emp = get().employees.find((e) => e.id === get().currentEmployeeId)
-      get().addNotification({ type: 'task_created', title: 'Nhiệm vụ mới', body: `${emp?.name || 'Ai đó'} vừa tạo nhiệm vụ "${task.title}"` })
+      get().addNotification({ type: 'task_created', title: 'Nhiệm vụ mới', body: `${emp?.name || 'Ai đó'} vừa tạo nhiệm vụ "${task.title}"`, data: { vehicleId: task.vehicleId ?? undefined, taskId: task.id } })
 
       // Telegram notification - fire and forget, never blocks business flow
       const vehicle = get().vehicles.find((v) => v.id === task.vehicleId)

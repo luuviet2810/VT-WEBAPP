@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { Task } from '../../types'
 
 export type VehicleGroup = {
@@ -10,7 +11,7 @@ export type VehicleGroup = {
   section: 'todo' | 'doing' | 'done'
 }
 
-export default function VehicleTaskCard({ group, onClick }: { group: VehicleGroup; onClick: () => void }) {
+const VehicleTaskCard = memo(function VehicleTaskCard({ group, onClick }: { group: VehicleGroup; onClick: () => void }) {
   const { vehicle, tasks, total, done } = group
   const progress = total > 0 ? Math.round((done / total) * 100) : 0
 
@@ -48,4 +49,6 @@ export default function VehicleTaskCard({ group, onClick }: { group: VehicleGrou
       </div>
     </button>
   )
-}
+})
+
+export default VehicleTaskCard

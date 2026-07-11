@@ -128,6 +128,12 @@ export interface Notification {
   body: string
   read: boolean
   createdAt: string
+  data?: {
+    vehicleId?: string
+    taskId?: string
+    checksheetId?: string
+    tab?: string
+  }
 }
 
 export type FuelLevel = 'empty' | 'quarter' | 'half' | 'full'

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, memo } from 'react'
 import { Pencil, Trash2, Check, X } from 'lucide-react'
 import type { Task } from '../../types'
 
@@ -9,7 +9,7 @@ type Props = {
   onDeleteTask: (id: string) => void
 }
 
-export default function TaskRow({ task, onToggleChecklist, onUpdateTask, onDeleteTask }: Props) {
+const TaskRow = memo(function TaskRow({ task, onToggleChecklist, onUpdateTask, onDeleteTask }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
 
@@ -88,4 +88,6 @@ export default function TaskRow({ task, onToggleChecklist, onUpdateTask, onDelet
       </div>
     </div>
   )
-}
+})
+
+export default TaskRow

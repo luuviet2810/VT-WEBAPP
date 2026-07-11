@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight, Expand, X } from 'lucide-react'
 import { Modal, EmptyState } from './ui'
-import PhotoUploader from './PhotoUploader'
 import clsx from 'clsx'
 
 type VehicleGalleryProps = {
@@ -78,13 +77,6 @@ export default function VehicleGallery({
       )}
 
       <div className="mt-4">
-        <PhotoUploader
-          images={images}
-          onChange={onChange}
-          label={label}
-          emptyText={emptyText}
-          rightContent={uploaderRightContent}
-        />
       </div>
 
       <Modal open={previewIndex !== null} onClose={closePreview} title={title} width="max-w-5xl">

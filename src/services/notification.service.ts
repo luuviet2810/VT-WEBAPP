@@ -39,12 +39,14 @@ export async function getNotificationById(id: string): Promise<Notification | nu
 export async function createNotification(
   notif: Omit<Notification, 'id' | 'read' | 'createdAt'>
 ): Promise<Notification> {
+  // Strip in-memory-only data field before sending to DB
+  const { data: _data, ...dbPayload } = notif as any
   const { data, error } = await supabase
     .from('notifications')
     .insert({
-      type: notif.type,
-      title: notif.title,
-      body: notif.body,
+      type: dbPayload.type,
+      title: dbPayload.title,
+      body: dbPayload.body,
       read: false,
     })
     .select()

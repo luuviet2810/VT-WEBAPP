@@ -4,7 +4,6 @@ import {
   Car,
   LogOut,
   X,
-  Shield,
   Bell,
 } from 'lucide-react'
 import { NavLink, useNavigate } from 'react-router-dom'
@@ -121,15 +120,6 @@ function DrawerContent({ onClose }: { onClose: () => void }) {
         </button>
       </div>
 
-      {/* Admin badge - only show for admin with admin view mode */}
-      {effectiveRole === 'admin' && (
-        <div className="mx-4 my-3 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
-          <Shield size={16} className="text-amber-600" />
-          <span className="text-sm font-medium text-amber-700">Admin Mode</span>
-        </div>
-      )}
-
-      {/* Navigation - Top items */}
       <nav className="flex-1 overflow-y-auto px-3 py-2">
         {sidebarConfig.top.map((item) => {
           const showBadge = item.key === 'employees' && false
@@ -284,15 +274,6 @@ function DesktopSidebarContent() {
           </div>
         </div>
       </div>
-
-      {/* Admin badge - only show for admin with admin view mode */}
-      {effectiveRole === 'admin' && (
-        <div className="mx-3 mb-3 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
-          <Shield size={14} className="text-amber-600" />
-          <span className="text-xs font-medium text-amber-700">Admin Mode</span>
-        </div>
-      )}
-
       {/* Navigation - Top items */}
       <nav className="flex-1 space-y-0.5 px-3">
         {sidebarConfig.top.map((item) => {
