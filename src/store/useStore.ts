@@ -27,6 +27,7 @@ import * as taskService from '../services/task.service'
 import * as attendanceService from '../services/attendance.service'
 import * as checksheetService from '../services/checksheet.service'
 import * as notificationService from '../services/notification.service'
+import { createEvent } from '../services/notification.service'
 import * as moveLogService from '../services/moveLog.service'
 import * as vehicleMediaService from '../services/vehicleMedia.service'
 import * as storageService from '../services/storage.service'
@@ -215,7 +216,7 @@ export const useStore = create<StoreState>()(
       set((s) => ({ vehicles: [created, ...s.vehicles] }))
       const empName = get().employees.find((e) => e.id === get().currentEmployeeId)?.name || ''
       const n = vehicleAdded(created.id, created.model, created.plate, empName)
-      get().addNotification(n)
+      // vehicleAdded notification removed — not critical for operations
       return created
     },
 
@@ -638,7 +639,11 @@ export const useStore = create<StoreState>()(
             // Notification per auto-generated task
             if (genVehicle) {
               const nn = taskCreated(genVehicle.id, genVehicle.model, genVehicle.plate, gen.title, created.id)
-              get().addNotification({ ...nn, data: { ...nn.data, employeeName: "Hệ thống" } })
+              createEvent('TASK_CREATED', {
+              vehicleId: genVehicle.id, vehicleModel: genVehicle.model, plateNumber: genVehicle.plate,
+              taskName: gen.title, taskId: created.id,
+              employeeName: "Hệ thống",
+            }).then((n) => { if (n) get().addNotification(n) })
             }
           } catch (err) {
             console.error(`  \uD83D\uDD34 [STORE] CREATE TASK FAILED: "${gen.title}"`, err)
@@ -913,11 +918,6 @@ export const useStore = create<StoreState>()(
       }
       const notif: Notification = { ...n, id: uid('notif'), read: false, createdAt: todayISO() }
       set((s) => ({ notifications: [notif, ...s.notifications] }))
-      try {
-        await notificationService.createNotification(n)
-      } catch (err) {
-        console.error('\uD83D\uDD34 [STORE] Failed to create notification in Supabase:', err)
-      }
     },
 
     markNotificationRead: async (id) => {
