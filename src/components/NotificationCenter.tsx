@@ -38,6 +38,15 @@ function getEventBg(type: string) {
   return 'bg-slate-50'
 }
 
+function getPriorityColor(type: string): string {
+  // Red: tasks needing action
+  if (type === 'task_created') return '#dc2626'
+  // Green: completed items
+  if (['task_done', 'vehicle_added'].includes(type)) return '#16a34a'
+  // Amber: info/updates
+  return '#d97706'
+}
+
 export default function NotificationCenter() {
   const navigate = useNavigate()
   const notifications = useStore((s) => s.notifications)
@@ -193,9 +202,9 @@ export default function NotificationCenter() {
                           }
                         }}
                           className={`flex items-start gap-3 rounded-xl px-3 py-3 transition-colors cursor-pointer hover:bg-slate-50 ${!item.read ? 'bg-blue-50/40' : ''}`}>
-                          {/* Icon */}
-                          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${getEventBg(item.type)}`}>
-                            <Bell size={14} className={item.read ? 'text-slate-400' : 'text-blue-500'} />
+                          {/* Priority dot */}
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ background: `${getPriorityColor(item.type)}15` }}>
+                            <span className="h-3 w-3 rounded-full" style={{ background: getPriorityColor(item.type) }} />
                           </div>
 
                           {/* Content */}

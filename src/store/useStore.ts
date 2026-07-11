@@ -18,6 +18,7 @@ import {
 } from '../types'
 import { generateTasks } from '../utils/taskRules'
 import { getVehicleWorkflowStatus, WORKFLOW_STATUS_LABEL } from '../utils/vehicleWorkflow'
+import { bindGetEmployeeName, taskCreated, taskCompleted, taskAdded, vehicleMoved, vehicleAdded, checksheetCompleted } from '../utils/notificationTemplates'
 import { todayISO, uid } from '../utils/format'
 import * as vehicleService from '../services/vehicle.service'
 import * as positionService from '../services/position.service'
@@ -104,6 +105,11 @@ export async function initializeFromSupabase(): Promise<void> {
       isInitialized: true,
     })
     useStore.getState().loadTemplates()
+    // Bind employee name getter for notification templates
+    bindGetEmployeeName(() => {
+      const emp = useStore.getState().employees.find((e) => e.id === useStore.getState().currentEmployeeId)
+      return emp?.name || ''
+    })
   } catch (err) {
     console.error('\uD83D\uDD34 [STORE] Failed to initialize from Supabase:', err)
     useStore.setState({ isInitialized: true })
@@ -212,8 +218,8 @@ export const useStore = create<StoreState>()(
         documents: [],
       })
       set((s) => ({ vehicles: [created, ...s.vehicles] }))
-      const emp = get().employees.find((e) => e.id === get().currentEmployeeId)
-      get().addNotification({ type: 'vehicle_added', title: 'Xe m\u1edbi \u0111\u01b0\u1ee3c th\u00eam', body: `${emp?.name || 'Ai \u0111\u00f3'} v\u1eeba th\u00eam xe "${created.model}" (${created.plate})`, data: { vehicleId: created.id } })
+      const n = vehicleAdded(created.plate, created.model)
+      get().addNotification({ type: n.type, title: n.title, body: n.body, data: { vehicleId: created.id } })
       return created
     },
 
@@ -467,14 +473,6 @@ export const useStore = create<StoreState>()(
       }
 
       const emp = get().employees.find((e) => e.id === get().currentEmployeeId)
-      get().addNotification({ type: 'task_created', title: 'Nhiệm vụ mới', body: `${emp?.name || 'Ai đó'} vừa tạo nhiệm vụ "${task.title}"`, data: { vehicleId: task.vehicleId ?? undefined, taskId: task.id } })
-
-      // Telegram notification - fire and forget, never blocks business flow
-      const vehicle = get().vehicles.find((v) => v.id === task.vehicleId)
-      const assignee = task.assigneeId ? get().employees.find((e) => e.id === task.assigneeId) : undefined
-      dispatchTaskCreated(task, vehicle, assignee).catch((err) => {
-        console.error('[STORE] Telegram dispatchTaskCreated failed:', err)
-      })
     },
 
     updateTask: async (id, patch) => {

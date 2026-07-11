@@ -349,7 +349,9 @@ export type NotificationType =
   | 'vehicle_status'
   | 'attendance_edited'
   | 'system'
-  | 'user_registered'   // New user registered - for admin
-  | 'user_approved'     // User account approved
-  | 'user_rejected'     // User account rejected
+  | 'user_registered'
+  | 'user_approved'
+  | 'user_rejected'
   | 'error'
+  | 'checksheet_in'
+  | 'checksheet_out'
