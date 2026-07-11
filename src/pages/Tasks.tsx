@@ -1,5 +1,5 @@
-import { useMemo, useState, useEffect } from 'react'
-import { Plus, X, Trash2 } from 'lucide-react'
+import { useMemo, useState, useEffect, useRef } from 'react'
+import { Plus, X, Trash2, GripVertical } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import { useTaskPermissions } from '../rbac/usePermissions'
 import { Badge } from '../components/ui'
@@ -29,7 +29,7 @@ export default function Tasks() {
   const [assigneeFilter, setAssigneeFilter] = useState('all')
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null)
 
-  // Add-task drawer state
+  // Add-task drawer
   const [showAddDrawer, setShowAddDrawer] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [newPriority, setNewPriority] = useState<TaskPriority>('medium')
@@ -39,12 +39,12 @@ export default function Tasks() {
   const [newDueDate, setNewDueDate] = useState('')
   const [newDueTime, setNewDueTime] = useState('')
 
-  // ESC to close add-task drawer
+  // Drag state
+  const dragVehicleIdRef = useRef<string | null>(null)
+
   useEffect(() => {
     if (!showAddDrawer) return
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { setShowAddDrawer(false); resetAddForm() }
-    }
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') { setShowAddDrawer(false); resetAddForm() } }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [showAddDrawer])
@@ -84,6 +84,43 @@ export default function Tasks() {
     return result
   }, [filtered, vehicles, positions])
 
+  const sectionGroups = useMemo(() => {
+    const map: Record<WorkSection, VehicleGroup[]> = { todo: [], doing: [], done: [] }
+    for (const g of groups) map[g.section].push(g)
+    return map
+  }, [groups])
+
+  // DnD handlers
+  function handleDragStart(_e: React.DragEvent, vehicleId: string) {
+    dragVehicleIdRef.current = vehicleId
+  }
+
+  function handleColumnDrop(section: WorkSection) {
+    return (e: React.DragEvent) => {
+      e.preventDefault()
+      const vehicleId = dragVehicleIdRef.current
+      dragVehicleIdRef.current = null
+      if (!vehicleId) return
+
+      // Find the vehicle group
+      const group = groups.find((g) => g.vehicleId === vehicleId)
+      if (!group || group.section === section) return
+
+      // Update all unfinished tasks in this vehicle to the new section's status
+      for (const t of group.tasks) {
+        if (t.status !== 'done') {
+          const newStatus: TaskStatus = section === 'todo' ? 'todo' : section === 'doing' ? 'doing' : 'done'
+          if (t.status !== newStatus) updateTask(t.id, { status: newStatus })
+        }
+      }
+    }
+  }
+
+  function handleColumnDragOver(e: React.DragEvent) {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }
+
   function resetAddForm() {
     setNewTitle('')
     setNewChecklist([{ id: uid('chk'), text: '', done: false }])
@@ -119,48 +156,58 @@ export default function Tasks() {
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Nhiệm vụ</h1>
-          <p className="mt-1 text-sm text-slate-500">Theo dõi tiến độ theo từng xe</p>
+          <p className="mt-1 text-sm text-slate-500">Kéo thả giữa các cột để cập nhật trạng thái</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <select
-            className="input w-44"
-            value={assigneeFilter}
-            onChange={(e) => setAssigneeFilter(e.target.value)}
-          >
+          <select className="input w-44" value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)}>
             <option value="all">Tất cả nhân viên</option>
-            {employees.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.name}
-              </option>
-            ))}
+            {employees.map((e) => (<option key={e.id} value={e.id}>{e.name}</option>))}
           </select>
           {taskPerms.canCreate && (
             <button className="btn-primary" onClick={() => { resetAddForm(); setShowAddDrawer(true) }}>
-              <Plus size={16} />
-              Thêm nhiệm vụ
+              <Plus size={16} /> Thêm nhiệm vụ
             </button>
           )}
         </div>
       </div>
 
-      {/* Vehicle Work Board */}
-      <div className="flex flex-col gap-6">
+      {/* Kanban Board */}
+      <div className="flex gap-5 overflow-x-auto pb-4">
         {SECTION_CONFIG.map((section) => {
-          const sectionGroups = groups.filter((g) => g.section === section.key)
+          const cards = sectionGroups[section.key]
 
           return (
-            <div key={section.key} className="animate-fade-in-up">
+            <div
+              key={section.key}
+              onDragOver={handleColumnDragOver}
+              onDrop={handleColumnDrop(section.key)}
+              className="flex w-80 shrink-0 flex-col rounded-2xl border-2 p-4 transition-all duration-200"
+              style={{ background: 'rgba(255,255,255,0.5)', borderColor: 'rgba(0,0,0,0.06)' }}
+            >
+              {/* Column Header */}
               <div className="mb-3 flex items-center gap-2">
                 <span className="text-sm font-semibold text-slate-700">{section.icon} {section.label}</span>
-                <Badge tone={section.tone}>{sectionGroups.length}</Badge>
+                <Badge tone={section.tone}>{cards.length}</Badge>
               </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {sectionGroups.map((group) => (
-                  <VehicleTaskCard
+
+              {/* Cards */}
+              <div className="flex-1 space-y-3 min-h-[120px]">
+                {cards.length === 0 && (
+                  <div className="flex items-center justify-center rounded-xl border-2 border-dashed py-8 text-xs text-slate-400" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
+                    Kéo xe vào đây
+                  </div>
+                )}
+                {cards.map((group) => (
+                  <div
                     key={group.vehicleId}
-                    group={group}
-                    onClick={() => setSelectedVehicleId(group.vehicleId)}
-                  />
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, group.vehicleId)}
+                  >
+                    <VehicleTaskCard
+                      group={group}
+                      onClick={() => setSelectedVehicleId(group.vehicleId)}
+                    />
+                  </div>
                 ))}
               </div>
             </div>
@@ -168,7 +215,7 @@ export default function Tasks() {
         })}
       </div>
 
-      {/* Task Drawer (right panel for vehicle tasks) */}
+      {/* Task Drawer (lightweight — add/edit/delete only) */}
       <TaskDrawer
         open={!!selectedVehicleId}
         onClose={() => setSelectedVehicleId(null)}
@@ -190,9 +237,7 @@ export default function Tasks() {
           <div className="absolute right-0 top-0 flex h-full w-full max-w-lg flex-col bg-white shadow-2xl animate-slide-in-right">
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
               <h2 className="text-base font-semibold text-slate-900">Tạo nhiệm vụ mới</h2>
-              <button type="button" className="btn-icon" onClick={() => { setShowAddDrawer(false); resetAddForm() }}>
-                <X size={18} />
-              </button>
+              <button type="button" className="btn-icon" onClick={() => { setShowAddDrawer(false); resetAddForm() }}><X size={18} /></button>
             </div>
             <div className="flex-1 overflow-y-auto px-5 py-4">
               <div className="space-y-4">
@@ -234,27 +279,18 @@ export default function Tasks() {
                     {newChecklist.map((item, idx) => (
                       <div key={item.id} className="flex gap-2">
                         <input className="input flex-1" placeholder="Bước kiểm tra" value={item.text}
-                          onChange={(e) => setNewChecklist((rows) => rows.map((r, i) => (i === idx ? { ...r, text: e.target.value } : r)))}
-                        />
+                          onChange={(e) => setNewChecklist((rows) => rows.map((r, i) => (i === idx ? { ...r, text: e.target.value } : r)))} />
                         <button type="button" className="btn-icon shrink-0"
-                          onClick={() => setNewChecklist((rows) => (rows.length === 1 ? rows : rows.filter((_, i) => i !== idx)))}
-                        ><Trash2 size={15} /></button>
+                          onClick={() => setNewChecklist((rows) => (rows.length === 1 ? rows : rows.filter((_, i) => i !== idx)))}><Trash2 size={15} /></button>
                       </div>
                     ))}
                   </div>
                   <button type="button" className="mt-2 flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
-                    onClick={() => setNewChecklist((rows) => [...rows, { id: uid('chk'), text: '', done: false }])}
-                  ><Plus size={14} /> Thêm bước</button>
+                    onClick={() => setNewChecklist((rows) => [...rows, { id: uid('chk'), text: '', done: false }])}><Plus size={14} /> Thêm bước</button>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="label">Ngày hạn</label>
-                    <input type="date" className="input w-full" value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="label">Giờ hạn</label>
-                    <input type="time" className="input w-full" value={newDueTime} onChange={(e) => setNewDueTime(e.target.value)} />
-                  </div>
+                  <div><label className="label">Ngày hạn</label><input type="date" className="input w-full" value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)} /></div>
+                  <div><label className="label">Giờ hạn</label><input type="time" className="input w-full" value={newDueTime} onChange={(e) => setNewDueTime(e.target.value)} /></div>
                 </div>
               </div>
             </div>
