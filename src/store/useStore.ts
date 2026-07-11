@@ -18,7 +18,7 @@ import {
 } from '../types'
 import { generateTasks } from '../utils/taskRules'
 import { getVehicleWorkflowStatus, WORKFLOW_STATUS_LABEL } from '../utils/vehicleWorkflow'
-import { taskCreated, taskCompleted, taskUpdated, vehicleAdded } from '../utils/notificationTemplates'
+import { taskCreated, taskCompleted, vehicleAdded } from '../utils/notificationTemplates'
 import { todayISO, uid } from '../utils/format'
 import * as vehicleService from '../services/vehicle.service'
 import * as positionService from '../services/position.service'
@@ -648,11 +648,6 @@ export const useStore = create<StoreState>()(
 
         if (match.title !== gen.title || match.status !== gen.status) {
           get().updateTask(match.id, { title: gen.title, status: gen.status })
-          // Notify update — task already existed, rules re-evaluated
-          if (genVehicle) {
-            const un = taskUpdated(genVehicle.id, genVehicle.model, genVehicle.plate, gen.title, match.id)
-            get().addNotification({ ...un, data: { ...un.data, employeeName: "__UPDATE__" } })
-          }
         }
 
         const activeTexts = gen.checklist.map((item) => item.text)
