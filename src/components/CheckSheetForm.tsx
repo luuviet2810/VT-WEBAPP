@@ -355,34 +355,60 @@ export default function CheckSheetForm({
   useEffect(() => {
     async function init() {
       try {
-        const sheet = await checksheetService.getOrCreateCheckSheet(vehicle.id, type, {
+        const { sheet, isNew } = await checksheetService.getOrCreateCheckSheet(vehicle.id, type, {
           checkerId: currentEmployeeId,
         })
         setSheetId(sheet.id)
         setCheckerId(sheet.checkerId ?? currentEmployeeId)
         setCheckDate(sheet.checkDate)
-        setFuelLevelIdx(() => {
-          const idx = FUEL_LEVEL_ITEMS.findIndex((i) => i.value === sheet.fuelLevel)
-          return idx >= 0 ? idx : -1
-        })
-        setScreen(sheet.screen)
-        setRearCamera(sheet.rearCamera)
-        setHipass(sheet.hipass)
-        setRearSensor(sheet.rearSensor)
-        setDashcam(sheet.dashcam)
-        setInterior(sheet.interior)
-        setExterior(Object.keys(sheet.exterior ?? {}).length > 0 ? sheet.exterior : emptyExteriorCheck())
-        setOutCheck(sheet.outCheck ?? EMPTY_CHECK_SHEET.outCheck)
-        setOutNotes(sheet.outNotes ?? '')
-        setInputAcquySOH(sheet.inputAcquySOH ?? 100)
-        setInputAcquySOC(sheet.inputAcquySOC ?? 100)
-        setAcquySOH(sheet.acquySOH ?? 100)
-        setAcquySOC(sheet.acquySOC ?? 100)
-        setInputDieuHoa(sheet.inputDieuHoa ?? { status: '' as DieuHoaStatus })
-        setInputSuoiGhe(sheet.inputSuoiGhe ?? { status: '' as SuoiGheStatus })
-        setInputTireState(sheet.inputTireState ?? { status: '' as CheckOutStatus })
-        setOutTireState(sheet.outTireState ?? { status: '' as CheckOutStatus })
-        setInputNotes(sheet.inputNotes ?? '')
+
+        if (isNew) {
+          // Brand-new sheet — nothing pre-selected (DB may have applied
+          // column defaults, but those are NOT user choices).
+          setFuelLevelIdx(-1)
+          setScreen(undefined)
+          setRearCamera(undefined)
+          setHipass(undefined)
+          setRearSensor(undefined)
+          setDashcam(undefined)
+          setInterior(EMPTY_CHECK_SHEET.interior)
+          setExterior(emptyExteriorCheck())
+          setOutCheck(EMPTY_CHECK_SHEET.outCheck)
+          setOutNotes('')
+          setInputAcquySOH(100)
+          setInputAcquySOC(100)
+          setAcquySOH(100)
+          setAcquySOC(100)
+          setInputDieuHoa({ status: '' as DieuHoaStatus })
+          setInputSuoiGhe({ status: '' as SuoiGheStatus })
+          setInputTireState({ status: '' as CheckOutStatus })
+          setOutTireState({ status: '' as CheckOutStatus })
+          setInputNotes('')
+        } else {
+          // Existing sheet — load saved values as-is.
+          setFuelLevelIdx(() => {
+            const idx = FUEL_LEVEL_ITEMS.findIndex((i) => i.value === sheet.fuelLevel)
+            return idx >= 0 ? idx : -1
+          })
+          setScreen(sheet.screen)
+          setRearCamera(sheet.rearCamera)
+          setHipass(sheet.hipass)
+          setRearSensor(sheet.rearSensor)
+          setDashcam(sheet.dashcam)
+          setInterior(sheet.interior)
+          setExterior(Object.keys(sheet.exterior ?? {}).length > 0 ? sheet.exterior : emptyExteriorCheck())
+          setOutCheck(sheet.outCheck ?? EMPTY_CHECK_SHEET.outCheck)
+          setOutNotes(sheet.outNotes ?? '')
+          setInputAcquySOH(sheet.inputAcquySOH ?? 100)
+          setInputAcquySOC(sheet.inputAcquySOC ?? 100)
+          setAcquySOH(sheet.acquySOH ?? 100)
+          setAcquySOC(sheet.acquySOC ?? 100)
+          setInputDieuHoa(sheet.inputDieuHoa ?? { status: '' as DieuHoaStatus })
+          setInputSuoiGhe(sheet.inputSuoiGhe ?? { status: '' as SuoiGheStatus })
+          setInputTireState(sheet.inputTireState ?? { status: '' as CheckOutStatus })
+          setOutTireState(sheet.outTireState ?? { status: '' as CheckOutStatus })
+          setInputNotes(sheet.inputNotes ?? '')
+        }
         // Mark init complete so auto-save can start
         initRef.current = true
       } catch (err) {

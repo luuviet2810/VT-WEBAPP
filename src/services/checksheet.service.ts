@@ -227,7 +227,7 @@ export async function getOrCreateCheckSheet(
     inputAcquySOH?: number
     inputAcquySOC?: number
   }
-): Promise<CheckSheet> {
+): Promise<{ sheet: CheckSheet; isNew: boolean }> {
   const { data, error } = await supabase
     .from('check_sheets')
     .select('*')
@@ -242,7 +242,7 @@ export async function getOrCreateCheckSheet(
   }
 
   if (data) {
-    return mapRow(data as Record<string, unknown>)
+    return { sheet: mapRow(data as Record<string, unknown>), isNew: false }
   }
 
   // No record exists — create a brand-new empty sheet
@@ -272,7 +272,7 @@ export async function getOrCreateCheckSheet(
     acquySOC: undefined,
   })
 
-  return created
+  return { sheet: created, isNew: true }
 }
 
 export async function deleteCheckSheet(id: string): Promise<void> {
