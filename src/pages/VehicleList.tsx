@@ -320,9 +320,10 @@ function InCheckSheetPreview({ sheet, employees, vehicleId }: { sheet: CheckShee
     { label: 'Ắc quy SOC', status: sheet.inputAcquySOC != null ? String(sheet.inputAcquySOC) : null },
   ]
 
-  // Summary
+  // Summary — Hi-Pass is informational only, never counted
   let ok = 0, bad = 0, install = 0, unchecked = 0
   for (const item of items) {
+    if (item.label === 'Hi-Pass') continue
     if (!item.status) { unchecked++; continue }
     if (!isNaN(Number(item.status))) {
       // numeric battery value — count as ok
@@ -335,7 +336,9 @@ function InCheckSheetPreview({ sheet, employees, vehicleId }: { sheet: CheckShee
     else if (c === 'install') { bad++; install++ }
   }
 
+  // Abnormal items — Hi-Pass is informational only, never a warning
   const abnormal = items.filter((i) => {
+    if (i.label === 'Hi-Pass') return false
     if (!i.status) return false
     if (!isNaN(Number(i.status))) return false
     const c = classifyStatus(i.status)
