@@ -130,7 +130,13 @@ export interface Notification {
   createdAt: string
   data?: {
     vehicleId?: string
+    vehicleModel?: string
+    plateNumber?: string
+    employeeName?: string
     taskId?: string
+    taskName?: string
+    locationName?: string
+    imageCount?: number
     checksheetId?: string
     tab?: string
   }

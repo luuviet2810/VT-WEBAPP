@@ -18,7 +18,7 @@ import {
 } from '../types'
 import { generateTasks } from '../utils/taskRules'
 import { getVehicleWorkflowStatus, WORKFLOW_STATUS_LABEL } from '../utils/vehicleWorkflow'
-import { bindGetEmployeeName, taskCreated, taskCompleted, taskAdded, vehicleMoved, vehicleAdded, checksheetCompleted } from '../utils/notificationTemplates'
+import { taskCreated, taskCompleted, vehicleAdded } from '../utils/notificationTemplates'
 import { todayISO, uid } from '../utils/format'
 import * as vehicleService from '../services/vehicle.service'
 import * as positionService from '../services/position.service'
@@ -105,11 +105,6 @@ export async function initializeFromSupabase(): Promise<void> {
       isInitialized: true,
     })
     useStore.getState().loadTemplates()
-    // Bind employee name getter for notification templates
-    bindGetEmployeeName(() => {
-      const emp = useStore.getState().employees.find((e) => e.id === useStore.getState().currentEmployeeId)
-      return emp?.name || ''
-    })
   } catch (err) {
     console.error('\uD83D\uDD34 [STORE] Failed to initialize from Supabase:', err)
     useStore.setState({ isInitialized: true })
@@ -218,8 +213,9 @@ export const useStore = create<StoreState>()(
         documents: [],
       })
       set((s) => ({ vehicles: [created, ...s.vehicles] }))
-      const n = vehicleAdded(created.plate, created.model)
-      get().addNotification({ type: n.type, title: n.title, body: n.body, data: { vehicleId: created.id } })
+      const empName = get().employees.find((e) => e.id === get().currentEmployeeId)?.name || ''
+      const n = vehicleAdded(created.id, created.model, created.plate, empName)
+      get().addNotification(n)
       return created
     },
 
@@ -575,7 +571,12 @@ export const useStore = create<StoreState>()(
       get().addTaskActivity(taskId, `${emp?.name || 'Ai \u0111\u00f3'} ${item && !item.done ? 'ho\u00e0n th\u00e0nh' : 'b\u1ecf ho\u00e0n th\u00e0nh'} "${item?.text}"`, get().currentEmployeeId)
 
       if (updated && updated.checklist.every((i) => i.done)) {
-        get().addNotification({ type: 'task_done', title: 'Nhi\u1ec7m v\u1ee5 ho\u00e0n th\u00e0nh', body: `"${updated.title}" -- t\u1ea5t c\u1ea3 checklist \u0111\u00e3 xong!` })
+        const tv = get().vehicles.find((ve) => ve.id === updated.vehicleId)
+        if (tv) {
+          const empNm = get().employees.find((e) => e.id === get().currentEmployeeId)?.name || ''
+          const nn = taskCompleted(tv.id, tv.model, tv.plate, updated.title, updated.id, empNm)
+          get().addNotification(nn)
+        }
       }
     },
 
@@ -593,6 +594,7 @@ export const useStore = create<StoreState>()(
       const generated = generateTasks(sheet, vehiclePlate)
       const stateBefore = get()
       const vehicleId = sheet.vehicleId
+      const genVehicle = vehicleId ? stateBefore.vehicles.find((v) => v.id === vehicleId) : undefined
 
       // Capture workflow status before changes
       const prevStatus = vehicleId
@@ -633,6 +635,11 @@ export const useStore = create<StoreState>()(
               ruleId: gen.ruleId,
             })
             set((s) => ({ tasks: [created, ...s.tasks] }))
+            // Notification per auto-generated task
+            if (genVehicle) {
+              const nn = taskCreated(genVehicle.id, genVehicle.model, genVehicle.plate, gen.title, created.id)
+              get().addNotification({ ...nn, data: { ...nn.data, employeeName: "Hệ thống" } })
+            }
           } catch (err) {
             console.error(`  \uD83D\uDD34 [STORE] CREATE TASK FAILED: "${gen.title}"`, err)
           }
