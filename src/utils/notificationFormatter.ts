@@ -38,12 +38,15 @@ function shortTime(iso: string): string {
 
 /** Build action text purely from type + data */
 function actionText(type: NotificationType, data: Notification['data']): string {
+  // Check if this is an update notification
+  const isUpdate = data?.employeeName === '__UPDATE__'
   switch (type) {
     case 'checksheet_in':
       return 'Đã lưu phiếu Đầu vào'
     case 'checksheet_out':
       return 'Đã lưu phiếu Đầu ra'
     case 'task_created':
+      if (isUpdate) return `Đã cập nhật nhiệm vụ "${data?.taskName || ''}"`
       return `Cần "${data?.taskName || ''}"`
     case 'task_done':
       return `Đã hoàn thành "${data?.taskName || ''}"`
@@ -97,8 +100,16 @@ function vehiclePrefix(data: Notification['data']): string {
 
 /** Build employee line */
 function employeeLine(notif: Notification): string {
+  if (notif.data?.employeeName === '__UPDATE__') return `Hệ thống • ${shortTime(notif.createdAt)}`
   const name = notif.data?.employeeName || 'Hệ thống'
   return `${name} • ${shortTime(notif.createdAt)}`
+}
+
+/** Check if this is an "update" notification (not a new task) */
+function isUpdate(notif: Notification): boolean {
+  // If the notification text contains "updated" somewhere, we know
+  // This is determined by the type + data combination
+  return false
 }
 
 // ====== MAIN ======

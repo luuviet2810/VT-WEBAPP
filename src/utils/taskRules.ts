@@ -178,19 +178,6 @@ const ruleDashcamNone: Rule = {
   },
 }
 
-// ====== HIPASS RULES ======
-
-const ruleHipassNone: Rule = {
-  id: 'in_hipass_none',
-  title: 'Kiểm tra Hipass',
-  description: 'Xe chưa có Hipass cần được kiểm tra/lắp đặt',
-  priority: 'medium',
-  evaluate(ctx: RuleContext) {
-    if (ctx.sheet.type !== 'in') return false
-    return ctx.sheet.hipass === 'none'
-  },
-}
-
 // ====== BATTERY RULES ======
 
 const ruleAcquySOCLow: Rule = {
@@ -376,7 +363,6 @@ const ALL_RULES: Rule[] = [
   ruleRearSensorNone,
   ruleDashcamMaybe,
   ruleDashcamNone,
-  ruleHipassNone,
   ruleAcquySOCLow,
   ruleTireBad,
   ruleScreenBroken,

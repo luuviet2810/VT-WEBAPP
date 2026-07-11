@@ -62,6 +62,17 @@ export function taskCompleted(
   }
 }
 
+export function taskUpdated(
+  vehicleId: string, model: string, plate: string, taskName: string, taskId: string
+): NotifInput {
+  return {
+    type: 'task_created',
+    title: '',
+    body: '',
+    data: { vehicleId, vehicleModel: model, plateNumber: plate, taskName, taskId, tab: 'tasks' },
+  }
+}
+
 export function vehicleMoved(
   vehicleId: string, model: string, plate: string, locationName: string, employeeName: string
 ): NotifInput {
