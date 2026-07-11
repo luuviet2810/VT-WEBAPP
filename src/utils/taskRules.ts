@@ -34,6 +34,8 @@ export interface Rule {
   description: string
   priority: TaskPriority
   evaluate(ctx: RuleContext): boolean
+  /** Dynamic title override — e.g. "Bọc lại 3 ghế" instead of static "Bọc lại ghế" */
+  generateTitle?(ctx: RuleContext): string
 }
 
 function uid(prefix: string): string {
@@ -42,19 +44,27 @@ function uid(prefix: string): string {
 
 // ====== INTERIOR RULES ======
 
+function countDirtySeats(ctx: RuleContext): number {
+  const { interior } = ctx.sheet
+  if (!interior) return 0
+  return [interior.driverSeat?.condition, interior.passengerSeat?.condition, interior.rearSeat?.condition]
+    .filter((c) => c === 'dirty').length
+}
+
+function countTornSeats(ctx: RuleContext): number {
+  const { interior } = ctx.sheet
+  if (!interior) return 0
+  return [interior.driverSeat?.condition, interior.passengerSeat?.condition, interior.rearSeat?.condition]
+    .filter((c) => c === 'torn').length
+}
+
 const ruleInteriorDirty: Rule = {
   id: 'in_interior_dirty',
   title: 'Vệ sinh nội thất',
   description: 'Nội thất xe bẩn cần được vệ sinh',
   priority: 'medium',
   evaluate(ctx: RuleContext) {
-    const { interior } = ctx.sheet
-    if (!interior) return false
-    return (
-      interior.driverSeat?.condition === 'dirty' ||
-      interior.passengerSeat?.condition === 'dirty' ||
-      interior.rearSeat?.condition === 'dirty'
-    )
+    return countDirtySeats(ctx) > 0
   },
 }
 
@@ -64,13 +74,11 @@ const ruleInteriorTorn: Rule = {
   description: 'Ghế xe bị rách cần được bọc lại',
   priority: 'high',
   evaluate(ctx: RuleContext) {
-    const { interior } = ctx.sheet
-    if (!interior) return false
-    return (
-      interior.driverSeat?.condition === 'torn' ||
-      interior.passengerSeat?.condition === 'torn' ||
-      interior.rearSeat?.condition === 'torn'
-    )
+    return countTornSeats(ctx) > 0
+  },
+  generateTitle(ctx: RuleContext) {
+    const n = countTornSeats(ctx)
+    return n > 1 ? `Bọc lại ${n} ghế` : 'Bọc lại ghế'
   },
 }
 
@@ -222,6 +230,29 @@ const ruleScreenBroken: Rule = {
   },
 }
 
+// ====== EXTERIOR PAINT RULES ======
+
+function countPaintIssues(ctx: RuleContext): number {
+  const { exterior } = ctx.sheet
+  if (!exterior) return 0
+  return Object.values(exterior).filter((v) => v?.condition === 'dent' || v?.condition === 'discolor').length
+}
+
+const rulePaintNeeded: Rule = {
+  id: 'in_paint_needed',
+  title: 'Cần sơn',
+  description: 'Ngoại thất có vết móp hoặc đổi màu cần sơn lại',
+  priority: 'medium',
+  evaluate(ctx: RuleContext) {
+    if (ctx.sheet.type !== 'in') return false
+    return countPaintIssues(ctx) > 0
+  },
+  generateTitle(ctx: RuleContext) {
+    const n = countPaintIssues(ctx)
+    return n > 1 ? `Cần sơn ${n} tấm` : 'Cần sơn'
+  },
+}
+
 // ====== FUEL RULES ======
 
 const ruleFuelEmpty: Rule = {
@@ -349,6 +380,7 @@ const ALL_RULES: Rule[] = [
   ruleAcquySOCLow,
   ruleTireBad,
   ruleScreenBroken,
+  rulePaintNeeded,
   ruleFuelEmpty,
   // Đầu ra
   ruleOutDauMayEmpty,
@@ -377,7 +409,7 @@ export function generateTasks(sheet: CheckSheet, vehiclePlate: string): Generate
 
   const result = triggered.map((rule) => ({
     id: uid('task'),
-    title: rule.title,
+    title: rule.generateTitle ? rule.generateTitle(ctx) : rule.title,
     description: rule.description,
     priority: rule.priority,
     status: 'todo' as TaskStatus,

@@ -826,6 +826,11 @@ export const useStore = create<StoreState>()(
         set((s) => ({
           checkSheets: s.checkSheets.map((c) => (c.id === id ? updated : c)),
         }))
+        // Auto-generate tasks from updated checksheet using rule engine
+        const vehicle = get().vehicles.find((v) => v.id === updated.vehicleId)
+        if (vehicle) {
+          get().generateTasksFromSheet(updated, vehicle.plate)
+        }
       } catch (err) {
         // Revert optimistic update
         if (prev) set((s) => ({ checkSheets: s.checkSheets.map((c) => (c.id === id ? prev : c)) }))
