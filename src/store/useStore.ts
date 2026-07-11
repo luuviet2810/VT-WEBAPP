@@ -608,14 +608,11 @@ export const useStore = create<StoreState>()(
       const existingTasks = get().tasks.filter((t) => t.vehicleId === sheet.vehicleId)
       const existingByRuleId = new Map(existingTasks.map((t) => [t.ruleId, t]))
 
-      console.log('🔄 [STORE] generateTasksFromSheet start — existing tasks:', existingTasks.map((t) => `[${t.ruleId}] ${t.title}`).join(' | ') || '(none)')
-      console.log('🔄 [STORE] generated tasks:', generated.map((g) => `[${g.ruleId}] ${g.title}`).join(' | ') || '(none)')
 
       const keepRuleIds = new Set(generated.map((g) => g.ruleId))
 
       for (const existing of existingTasks) {
         if (!existing.ruleId || !keepRuleIds.has(existing.ruleId)) {
-          console.log(`  🗑️ [STORE] DELETE TASK: [${existing.ruleId}] ${existing.title}`)
           get().deleteTask(existing.id)
         }
       }
@@ -624,7 +621,6 @@ export const useStore = create<StoreState>()(
         const match = existingByRuleId.get(gen.ruleId)
 
         if (!match) {
-          console.log(`  ➕ [STORE] CREATE TASK: [${gen.ruleId}] ${gen.title}`)
           try {
             const created = await taskService.createTask({
               title: gen.title,
@@ -646,7 +642,6 @@ export const useStore = create<StoreState>()(
         }
 
         if (match.title !== gen.title || match.status !== gen.status) {
-          console.log(`  ✏️ [STORE] UPDATE TASK: [${gen.ruleId}] ${match.title} -> ${gen.title}`)
           get().updateTask(match.id, { title: gen.title, status: gen.status })
         }
 

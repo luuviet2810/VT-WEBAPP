@@ -210,6 +210,9 @@ export default function CheckSheetForm({
   const addNotification = useStore((s) => s.addNotification)
   const checkSheets = useStore((s) => s.checkSheets)
 
+  // Guard: prevent auto-save during initial data population
+  const initRef = useRef(false)
+
   // ====== STATE — initialized from existing sheet or defaults ======
   const [sheetId, setSheetId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -405,6 +408,8 @@ export default function CheckSheetForm({
         setInputTireState(sheet.inputTireState ?? { status: 'ok' })
         setOutTireState(sheet.outTireState ?? { status: 'ok' })
         setInputNotes(sheet.inputNotes ?? '')
+        // Mark init complete so auto-save can start
+        initRef.current = true
       } catch (err) {
         console.error('[CheckSheetForm] Failed to load/create sheet:', err)
         addNotification({ type: 'error', title: 'Lỗi tải phiếu', body: 'Không thể tải dữ liệu phiếu kiểm tra.' })
@@ -460,7 +465,7 @@ export default function CheckSheetForm({
   }
 
   useEffect(() => {
-    if (!sheetId) return
+    if (!sheetId || !initRef.current) return
     scheduleSave()
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current)
@@ -468,7 +473,7 @@ export default function CheckSheetForm({
   }, [sheetId, checkerId, checkDate, fuelLevel, screen, rearCamera, hipass, rearSensor, dashcam, interior, exterior, inputDieuHoa, inputSuoiGhe, inputTireState, inputNotes, outCheck, outNotes, inputAcquySOH, inputAcquySOC, acquySOH, acquySOC])
 
   useEffect(() => {
-    if (!sheetId) return
+    if (!sheetId || !initRef.current) return
     scheduleRefreshSuggestions()
   }, [sheetId, type, checkerId, checkDate, fuelLevel, screen, rearCamera, hipass, rearSensor, dashcam, interior, exterior, inputDieuHoa, inputSuoiGhe, inputTireState, inputNotes, outCheck, outNotes, inputAcquySOH, inputAcquySOC, acquySOH, acquySOC])
 

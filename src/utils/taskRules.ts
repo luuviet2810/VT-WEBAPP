@@ -396,13 +396,11 @@ const ALL_RULES: Rule[] = [
 // ====== MAIN EXPORT ======
 
 export function generateTasks(sheet: CheckSheet, vehiclePlate: string): GeneratedTask[] {
-  console.log('🔵 [taskRules] GENERATE TASKS — sheet:', sheet.id, 'type:', sheet.type, 'vehicle:', vehiclePlate)
   const ctx: RuleContext = { sheet, vehiclePlate }
 
   const triggered = ALL_RULES.filter((rule) => {
     const result = rule.evaluate(ctx)
     if (result) {
-      console.log(`  🟡 Rule triggered: [${rule.id}] "${rule.title}"`)
     }
     return result
   })
@@ -419,6 +417,5 @@ export function generateTasks(sheet: CheckSheet, vehiclePlate: string): Generate
     createdAt: new Date().toISOString(),
   }))
 
-  console.log('  🟢 [taskRules] GENERATED:', result.map((r) => `[${r.ruleId}] ${r.title}`).join(' | ') || '(none)')
   return result
 }
