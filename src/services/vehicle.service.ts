@@ -207,3 +207,76 @@ export async function deleteVehicle(id: string): Promise<void> {
 export async function moveVehicle(vehicleId: string, toPositionId: string | null): Promise<Vehicle> {
   return updateVehicle(vehicleId, { positionId: toPositionId ?? undefined })
 }
+
+// ====== UPSERT (import) ======
+
+export interface UpsertVehicleInput {
+  plate: string
+  model?: string | null
+  year?: number | null
+  fuelType?: string | null
+  displacement?: string | null
+  mileage?: string | null
+  color?: string | null
+  costPrice?: number | null
+  sellPrice?: number | null
+  status?: string | null
+}
+
+/**
+ * Upsert a vehicle by plate.
+ * - If plate exists → UPDATE only the provided fields (COALESCE).
+ * - If plate does not exist → INSERT with fallback defaults.
+ *
+ * Never modifies: id, created_at, images, documents, check_sheets, tasks,
+ * workflow_logs, move_logs, position history, or any relationship.
+ */
+export async function upsertVehicle(data: UpsertVehicleInput): Promise<'inserted' | 'updated'> {
+  const { data: existing } = await supabase
+    .from('vehicles')
+    .select('id')
+    .eq('plate', data.plate)
+    .maybeSingle()
+
+  if (existing) {
+    // UPDATE — only set fields that are explicitly provided
+    const patch: Record<string, unknown> = {}
+    if (data.model != null) patch.model = data.model
+    if (data.year != null) patch.year = data.year
+    if (data.fuelType != null) patch.fuel_type = data.fuelType
+    if (data.displacement != null) patch.displacement = data.displacement
+    if (data.mileage != null) patch.mileage = data.mileage
+    if (data.color != null) patch.color = data.color
+    if (data.costPrice != null) patch.cost_price = data.costPrice
+    if (data.sellPrice != null) patch.sell_price = data.sellPrice
+    if (data.status != null) patch.status = data.status
+    patch.updated_at = new Date().toISOString()
+
+    const { error } = await supabase
+      .from('vehicles')
+      .update(patch)
+      .eq('id', existing.id)
+
+    if (error) throw error
+    return 'updated'
+  }
+
+  // INSERT — use fallback defaults for NOT NULL columns
+  const { error } = await supabase
+    .from('vehicles')
+    .insert({
+      plate: data.plate,
+      model: data.model ?? 'Không xác định',
+      year: data.year ?? null,
+      fuel_type: data.fuelType ?? null,
+      displacement: data.displacement ?? null,
+      mileage: data.mileage ?? null,
+      color: data.color ?? null,
+      cost_price: data.costPrice ?? null,
+      sell_price: data.sellPrice ?? null,
+      status: data.status ?? 'available',
+    })
+
+  if (error) throw error
+  return 'inserted'
+}
