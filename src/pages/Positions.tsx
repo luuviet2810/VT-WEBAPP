@@ -1,8 +1,8 @@
 // ====== POSITIONS PAGE - Kanban-style vehicle management ======
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Clock, Edit3, Plus, Trash2, X, GripVertical, ArrowRight } from 'lucide-react'
+import { Edit3, Plus, Trash2, X, GripVertical, ArrowRight, Activity } from 'lucide-react'
 import {
   DndContext,
   closestCenter,
@@ -24,6 +24,18 @@ import { useStore } from '../store/useStore'
 import { EmptyState, Modal, ConfirmDialog } from '../components/ui'
 import { formatDateTime } from '../utils/format'
 import { Position } from '../types'
+
+// Activity icon + label by type
+const ACTIVITY_META: Record<string, { label: string; icon: string }> = {
+  vehicle_created: { label: 'Nhập xe', icon: '🚗' },
+  vehicle_status_changed: { label: 'Đổi trạng thái', icon: '🔄' },
+  vehicle_workflow_changed: { label: 'Cập nhật tiến độ', icon: '📋' },
+  check_sheet_created: { label: 'CheckSheet', icon: '📝' },
+  task_generated: { label: 'Tạo nhiệm vụ', icon: '⚡' },
+  task_status_changed: { label: 'Cập nhật nhiệm vụ', icon: '✅' },
+  move_log: { label: 'Di chuyển', icon: '📍' },
+  custom: { label: 'Khác', icon: '📌' },
+}
 
 // Sortable position item component
 function SortablePositionItem({
@@ -99,6 +111,7 @@ export default function Positions() {
   const vehicles = useStore((s) => s.vehicles)
   const moveLogs = useStore((s) => s.moveLogs)
   const employees = useStore((s) => s.employees)
+  const vehicleTimelines = useStore((s) => s.vehicleTimelines)
   const moveVehicle = useStore((s) => s.moveVehicle)
   const addPosition = useStore((s) => s.addPosition)
   const updatePosition = useStore((s) => s.updatePosition)
@@ -172,10 +185,47 @@ export default function Positions() {
     setDragOverId(null)
   }
 
-  // Recent logs for activity feed
-  const recentLogs = [...moveLogs]
-    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
-    .slice(0, 12)
+  // Global activity feed — combine all vehicle timelines + moveLogs
+  const globalActivity = useMemo(() => {
+    const entries: { id: string; time: string; type: string; title: string; description: string; user?: string; vehicleId?: string }[] = []
+
+    // Collect timeline entries from all vehicles
+    for (const [, timeline] of Object.entries(vehicleTimelines)) {
+      for (const entry of timeline) {
+        entries.push({
+          id: entry.id,
+          time: entry.time,
+          type: entry.type,
+          title: entry.title,
+          description: entry.description,
+          user: entry.user,
+          vehicleId: entry.vehicleId,
+        })
+      }
+    }
+
+    // Add move logs as activity entries
+    for (const log of moveLogs) {
+      const v = vehicles.find((x) => x.id === log.vehicleId)
+      const from = positions.find((p) => p.id === log.fromPositionId)
+      const to = positions.find((p) => p.id === log.toPositionId)
+      const emp = employees.find((e) => e.id === log.employeeId)
+      entries.push({
+        id: log.id,
+        time: log.createdAt,
+        type: 'move_log',
+        title: `${v?.plate || '—'} → ${to?.name || '—'}`,
+        description: `${from?.name || '—'} → ${to?.name || '—'}`,
+        user: emp?.name || '—',
+        vehicleId: log.vehicleId,
+      })
+    }
+
+    // Sort newest first, take latest 50
+    return entries.sort((a, b) => (a.time < b.time ? 1 : -1)).slice(0, 50)
+  }, [vehicleTimelines, moveLogs, vehicles, positions, employees])
+
+  // Recent activity sorted by time, newest first
 
   function handleAddPosition() {
     if (!newPosName.trim()) return
@@ -212,24 +262,21 @@ export default function Positions() {
   }
 
   return (
-    <div>
+    <div className="flex h-[calc(100dvh-120px)] flex-col">
       {/* Header */}
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Vị trí xe</h1>
           <p className="mt-1 text-sm text-slate-500">Kéo thả xe giữa các công đoạn — cập nhật tự động</p>
         </div>
-        <button
-          className="btn-secondary"
-          onClick={() => setEditModalOpen(true)}
-        >
+        <button className="btn-secondary" onClick={() => setEditModalOpen(true)}>
           <Edit3 size={16} />
           Chỉnh sửa vị trí
         </button>
       </div>
 
-      {/* Kanban Board */}
-      <div className="flex gap-4 overflow-x-auto pb-4">
+      {/* Kanban Board — ~60% viewport */}
+      <div className="flex min-h-0 shrink-0 gap-4 overflow-x-auto pb-3" style={{ height: '58%' }}>
         {sortedPositions.map((p) => {
           const posVehicles = vehicles.filter((v) => v.positionId === p.id && v.status !== 'sold')
           const isDragOver = dragOverId === p.id
@@ -241,15 +288,15 @@ export default function Positions() {
               onDragLeave={handleVehicleDragLeave}
               onDrop={(e) => handleVehicleDrop(e, p.id)}
               className={`
-                w-72 shrink-0 rounded-2xl border-2 p-4 transition-all duration-200
-                ${isDragOver 
-                  ? 'border-brand-400 bg-brand-50 shadow-lg' 
+                w-72 shrink-0 rounded-2xl border-2 p-4 transition-all duration-200 flex flex-col
+                ${isDragOver
+                  ? 'border-brand-400 bg-brand-50 shadow-lg'
                   : 'border-slate-200 bg-slate-50'
                 }
               `}
             >
               {/* Column Header */}
-              <div className="mb-3 flex items-center justify-between">
+              <div className="mb-3 flex shrink-0 items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-100">
                     <span className="text-sm font-bold text-brand-600">{posVehicles.length}</span>
@@ -261,8 +308,8 @@ export default function Positions() {
                 )}
               </div>
 
-              {/* Vehicle Cards */}
-              <div className="space-y-2 min-h-[100px]">
+              {/* Vehicle Cards — scrollable column */}
+              <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">
                 {posVehicles.length === 0 && (
                   <div className={`
                     flex items-center justify-center rounded-xl border-2 border-dashed py-8 text-xs transition-colors
@@ -271,7 +318,7 @@ export default function Positions() {
                     {isDragOver ? 'Thả xe vào đây' : 'Kéo xe vào đây'}
                   </div>
                 )}
-                
+
                 {posVehicles.map((v) => {
                   const isDragging = dragId === v.id
 
@@ -290,12 +337,9 @@ export default function Positions() {
                         }
                       `}
                     >
-                      {/* Drag Handle */}
                       <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-400 opacity-0 transition-opacity group-hover:opacity-100">
                         <GripVertical size={14} />
                       </div>
-
-                      {/* Plate - Model */}
                       <span className="truncate text-sm font-semibold text-slate-800">
                         {v.plate} <span className="font-normal text-slate-400">- {v.model}</span>
                       </span>
@@ -309,8 +353,8 @@ export default function Positions() {
 
         {/* Sold Vehicles Column */}
         {vehicles.filter((v) => v.status === 'sold').length > 0 && (
-          <div className="w-72 shrink-0 rounded-2xl border-2 border-green-200 bg-green-50 p-4">
-            <div className="mb-3 flex items-center gap-2">
+          <div className="flex w-72 shrink-0 flex-col rounded-2xl border-2 border-green-200 bg-green-50 p-4">
+            <div className="mb-3 flex shrink-0 items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-100">
                 <span className="text-sm font-bold text-green-600">
                   {vehicles.filter((v) => v.status === 'sold').length}
@@ -318,7 +362,7 @@ export default function Positions() {
               </div>
               <span className="text-sm font-semibold text-green-700">Đã bán</span>
             </div>
-            <div className="space-y-2 min-h-[60px]">
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">
               {vehicles.filter((v) => v.status === 'sold').slice(0, 3).map((v) => (
                 <Link
                   key={v.id}
@@ -339,40 +383,49 @@ export default function Positions() {
         )}
       </div>
 
-      {/* Activity Feed */}
-      <div className="card mt-6 p-5">
-        <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
-          <Clock size={16} className="text-slate-400" />
-          Hoạt động gần đây
+      {/* Global Activity Feed — ~40% viewport */}
+      <div className="flex min-h-0 shrink-0 flex-col rounded-2xl border border-slate-200 bg-white" style={{ height: '38%' }}>
+        <div className="flex shrink-0 items-center gap-2 border-b border-slate-100 px-5 py-3">
+          <Activity size={16} className="text-slate-400" />
+          <span className="text-sm font-semibold text-slate-700">Hoạt động gần đây</span>
+          <span className="ml-auto text-xs text-slate-400">{globalActivity.length} sự kiện</span>
         </div>
-        {recentLogs.length === 0 ? (
-          <EmptyState title="Chưa có hoạt động nào" />
-        ) : (
-          <ul className="divide-y divide-slate-50">
-            {recentLogs.map((log) => {
-              const v = vehicles.find((x) => x.id === log.vehicleId)
-              const from = positions.find((p) => p.id === log.fromPositionId)
-              const to = positions.find((p) => p.id === log.toPositionId)
-              const emp = employees.find((e) => e.id === log.employeeId)
-              
-              return (
-                <li key={log.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2.5 text-sm">
-                  <div className="flex flex-wrap items-center gap-x-2">
-                    <span className="font-semibold text-slate-800">{v?.plate || '—'}</span>
-                    <span className="flex items-center gap-2 text-slate-500">
-                      <span className="shrink-0 text-slate-400">{from?.name || '—'}</span>
-                      <span className="shrink-0 text-brand-500">→</span>
-                      <span className="shrink-0 font-medium text-brand-600">{to?.name || '—'}</span>
-                    </span>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {globalActivity.length === 0 ? (
+            <div className="flex items-center justify-center py-12">
+              <EmptyState title="Chưa có hoạt động" />
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-50">
+              {globalActivity.map((entry) => {
+                const v = entry.vehicleId ? vehicles.find((x) => x.id === entry.vehicleId) : undefined
+                const meta = ACTIVITY_META[entry.type] || ACTIVITY_META.custom
+                return (
+                  <div key={entry.id} className="flex items-center gap-3 px-5 py-2.5 text-sm transition-colors hover:bg-slate-50">
+                    <span className="shrink-0 text-base">{meta.icon}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-slate-800">{entry.title}</span>
+                        {v && (
+                          <Link to={`/xe/${v.id}`} className="text-xs font-medium text-brand-600 hover:underline">
+                            {v.plate}
+                          </Link>
+                        )}
+                      </div>
+                      {entry.description && (
+                        <div className="text-xs text-slate-500">{entry.description}</div>
+                      )}
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <div className="text-xs text-slate-400">{entry.user || '—'}</div>
+                      <div className="text-[10px] text-slate-300">{formatDateTime(entry.time)}</div>
+                    </div>
                   </div>
-                  <span className="whitespace-nowrap text-xs text-slate-400">
-                    {emp?.name} • {formatDateTime(log.createdAt)}
-                  </span>
-                </li>
-              )
-            })}
-          </ul>
-        )}
+                )
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Edit Positions Modal */}
