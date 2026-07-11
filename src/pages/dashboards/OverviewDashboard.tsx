@@ -1,349 +1,453 @@
-// ====== TỔNG QUAN DASHBOARD - Daily Operations View ======
+// ====== OVERVIEW DASHBOARD v2 ======
 
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, Car, CheckCircle, Clock, Image as ImageIcon, Tag, Users, Wrench, TrendingUp, ClipboardList, Activity, ArrowRight, CarFront, Gauge } from 'lucide-react'
-import { useStore } from '../../store/useStore'
-import { useAuthStore } from '../../store/useAuthStore'
-import { formatDateTime, todayISO } from '../../utils/format'
+import {
+  Car, Users, AlertTriangle, Activity, MapPin, Bell, ClipboardList,
+  CheckCircle, Clock, TrendingUp, ArrowRight,
+} from 'lucide-react'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { Badge } from '../../components/ui'
+import { useDashboardViewModel } from './dashboard/DashboardViewModel'
+import type {
+  KpiData, AttendanceData, LiveFeedItem, LocationItem,
+  WarningItem, WorkflowColumn, TaskItem, QuickStats,
+} from './dashboard/DashboardViewModel'
 
-export default function OverviewDashboard() {
-  const vehicles = useStore((s) => s.vehicles)
-  const tasks = useStore((s) => s.tasks)
-  const positions = useStore((s) => s.positions)
-  const employees = useStore((s) => s.employees)
-  const attendance = useStore((s) => s.attendance)
-  const checkSheets = useStore((s) => s.checkSheets)
-  const moveLogs = useStore((s) => s.moveLogs)
+// ====== HEADER ======
 
-  const today = todayISO()
-  const currentEmployeeId = useStore((s) => s.currentEmployeeId)
-  
-  // ===== 1. VIỆC CẦN LÀM HÔM NAY =====
-  const todayVehicles = vehicles.filter((v) => {
-    // Xe chưa check đầu vào hôm nay
-    const hasInSheet = checkSheets.some((c) => c.vehicleId === v.id && c.type === 'in' && c.checkDate === today)
-    return !hasInSheet && v.status !== 'sold'
-  })
-  
-  const vehiclesNeedingPolish = vehicles.filter((v) => v.status !== 'sold').slice(0, 3)
-  
-  // Task cần làm hôm nay
-  const todayTasks = tasks.filter((t) => 
-    t.status !== 'done' && (
-      !t.dueDate || 
-      t.dueDate === today || 
-      new Date(t.dueDate) <= new Date()
-    )
-  )
-  
-  const overdueTasks = todayTasks.filter((t) => t.dueDate && new Date(t.dueDate) < new Date())
-  
-  // ===== 2. NHÂN VIÊN HÔM NAY =====
-  const todayAttendance = attendance.filter((a) => a.date === today)
-  const checkedInCount = todayAttendance.filter((a) => a.checkIn).length
-  const notCheckedIn = employees.filter((e) => !e.disabled && !todayAttendance.some((a) => a.employeeId === e.id))
-  const workingNow = todayAttendance.filter((a) => a.checkIn && !a.checkOut).length
-  
-  // ===== 3. XE ĐANG XỬ LÝ =====
-  const processingVehicles = vehicles.filter((v) => v.status !== 'sold')
-  
-  // Phân loại theo trạng thái xử lý (giả lập dựa trên task)
-  const vehiclesWithTasks = processingVehicles.map((v) => {
-    const vehicleTasks = tasks.filter((t) => t.vehicleId === v.id && t.status !== 'done')
-    return { ...v, activeTasks: vehicleTasks }
-  })
-  
-  // ===== 4. TASK ƯU TIÊN =====
-  const overdueTasksList = tasks
-    .filter((t) => t.status !== 'done' && t.dueDate && new Date(t.dueDate) < new Date())
-    .slice(0, 3)
-  
-  const todayTasksList = tasks
-    .filter((t) => t.status !== 'done' && t.dueDate === today)
-    .slice(0, 3)
-  
-  const unassignedTasks = tasks
-    .filter((t) => t.status !== 'done' && !t.assigneeId)
-    .slice(0, 3)
-  
-  // ===== 5. CẢNH BÁO =====
-  const noPhotoCount = vehicles.filter((v) => v.images.length === 0 && v.status !== 'sold').length
-  const noPriceCount = vehicles.filter((v) => !v.sellPrice && v.status !== 'sold').length
-  const noCheckSheetCount = vehicles.filter((v) => {
-    const hasSheet = checkSheets.some((c) => c.vehicleId === v.id)
-    return !hasSheet && v.status !== 'sold'
-  }).length
-  
-  // Xe chờ quá lâu (>7 ngày chưa bán)
-  const waitingTooLong = vehicles.filter((v) => {
-    if (v.status === 'sold') return false
-    const daysSinceCreated = Math.floor((Date.now() - new Date(v.createdAt).getTime()) / (1000 * 60 * 60 * 24))
-    return daysSinceCreated > 7
-  }).length
-  
-  // ===== 6. HOẠT ĐỘNG GẦN ĐÂY =====
-  const recentActivities = [...moveLogs]
-    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
-    .slice(0, 8)
-
+function DashboardHeader() {
   return (
-    <div>
-      {/* Header */}
-      <div className="mb-6">
+    <div className="mb-6 flex items-center justify-between">
+      <div>
         <h1 className="text-2xl font-bold text-slate-900">Tổng quan</h1>
         <p className="mt-1 text-sm text-slate-500">
           {new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
         </p>
       </div>
+    </div>
+  )
+}
 
-      {/* 1. Việc cần làm hôm nay */}
-      <div className="mb-5">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-base font-semibold text-slate-800">
-            <AlertTriangle size={18} className="text-amber-500" />
-            Việc cần làm hôm nay
-          </h2>
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className="card p-4 text-center">
-            <div className="text-2xl font-bold text-blue-600">{todayVehicles.length}</div>
-            <div className="mt-1 text-xs text-slate-500">Xe chưa kiểm tra đầu vào</div>
+// ====== KPI CARDS ======
+
+const KPI_CARDS = [
+  { key: 'noInputCheck', label: 'Xe chưa kiểm tra đầu vào', icon: ClipboardList, color: '#3b82f6' },
+  { key: 'needPolish', label: 'Xe cần đánh bóng', icon: Car, color: '#f59e0b' },
+  { key: 'washing', label: 'Xe đang rửa máy', icon: Car, color: '#10b981' },
+  { key: 'needTasks', label: 'Nhiệm vụ cần xử lý', icon: AlertTriangle, color: '#ef4444' },
+]
+
+function TodayKPICards({ kpi }: { kpi: KpiData }) {
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {KPI_CARDS.map((card) => {
+        const value = kpi[card.key as keyof typeof kpi] as number
+        return (
+          <div key={card.key} className="card p-4">
+            <div className="flex items-center justify-between">
+              <card.icon size={20} style={{ color: card.color }} />
+            </div>
+            <div className="mt-2 text-2xl font-bold" style={{ color: card.color }}>{value}</div>
+            <div className="mt-0.5 text-xs text-slate-500">{card.label}</div>
           </div>
-          <div className="card p-4 text-center">
-            <div className="text-2xl font-bold text-amber-600">{vehiclesNeedingPolish.length}</div>
-            <div className="mt-1 text-xs text-slate-500">Xe cần đánh bóng</div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ====== ATTENDANCE CARD ======
+
+function AttendanceCard({ data }: { data: AttendanceData }) {
+  return (
+    <div className="card p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+          <Users size={16} className="text-blue-500" />
+          Nhân viên hôm nay
+        </h3>
+        <Link to="/cham-cong" className="text-xs text-brand-600 hover:text-brand-700">Chi tiết <ArrowRight size={12} className="inline" /></Link>
+      </div>
+      <div className="flex items-center gap-4">
+        <CircularProgress pct={data.percentage} size={72} stroke={5} />
+        <div className="flex-1 space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-600">Đã check-in</span>
+            <span className="font-semibold text-green-600">{data.checkedIn}</span>
           </div>
-          <div className="card p-4 text-center">
-            <div className="text-2xl font-bold text-slate-600">1</div>
-            <div className="mt-1 text-xs text-slate-500">Xe đang rửa máy</div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-600">Đang làm việc</span>
+            <span className="font-semibold text-amber-600">{data.working}</span>
           </div>
-          <div className="card p-4 text-center">
-            <div className="text-2xl font-bold text-red-600">{overdueTasks.length}</div>
-            <div className="mt-1 text-xs text-slate-500">Task quá hạn</div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-600">Chưa check-in</span>
+            <span className="font-semibold text-slate-400">{data.notCheckedIn}</span>
           </div>
         </div>
       </div>
+    </div>
+  )
+}
 
-      {/* 2. Nhân viên hôm nay */}
-      <div className="mb-5">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-base font-semibold text-slate-800">
-            <Users size={18} className="text-blue-500" />
-            Nhân viên hôm nay
-          </h2>
-          <Link to="/cham-cong" className="text-sm text-brand-600 hover:text-brand-700">
-            Chi tiết <ArrowRight size={14} className="inline" />
-          </Link>
-        </div>
-        <div className="card p-4">
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <div>
-              <div className="text-2xl font-bold text-green-600">{checkedInCount}</div>
-              <div className="mt-1 text-xs text-slate-500">Đã check-in</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-amber-600">{workingNow}</div>
-              <div className="mt-1 text-xs text-slate-500">Đang làm việc</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-slate-400">{notCheckedIn.length}</div>
-              <div className="mt-1 text-xs text-slate-500">Chưa check-in</div>
-            </div>
-          </div>
-        </div>
+// ====== LIVE FEED CARD ======
+
+function LiveFeedCard({ items }: { items: LiveFeedItem[] }) {
+  return (
+    <div className="card p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+          <Activity size={16} className="text-slate-500" />
+          Hoạt động gần đây
+        </h3>
+        <Link to="/xe" className="text-xs text-brand-600 hover:text-brand-700">Xem tất cả <ArrowRight size={12} className="inline" /></Link>
       </div>
+      <div className="max-h-[320px] space-y-0 overflow-y-auto">
+        {items.length === 0 ? (
+          <p className="py-6 text-center text-sm text-slate-400">Chưa có hoạt động</p>
+        ) : (
+          items.map((item, i) => (
+            <div key={item.id} className="flex gap-3 border-b border-slate-50 py-2.5 last:border-0">
+              <div className="flex flex-col items-center">
+                <div className="h-2 w-2 rounded-full bg-brand-500" />
+                {i < items.length - 1 && <div className="mt-1 h-full w-px bg-slate-200" style={{ minHeight: 8 }} />}
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-slate-800">{item.employee}</span>
+                  <span className="text-xs text-slate-400">{item.time}</span>
+                </div>
+                <p className="text-xs text-slate-500">{item.action}</p>
+                <p className="text-xs font-medium text-slate-600">{item.vehicle}</p>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
 
-      {/* 3. Xe đang xử lý */}
-      <div className="mb-5">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-base font-semibold text-slate-800">
-            <Car size={18} className="text-brand-500" />
-            Xe đang xử lý
-          </h2>
-          <Link to="/xe" className="text-sm text-brand-600 hover:text-brand-700">
-            Xem tất cả <ArrowRight size={14} className="inline" />
-          </Link>
-        </div>
-        <div className="card p-4">
-          {processingVehicles.length === 0 ? (
-            <p className="text-sm text-slate-400">Không có xe nào đang xử lý</p>
-          ) : (
-            <div className="space-y-2">
-              {processingVehicles.slice(0, 5).map((v) => {
-                const vehicleTasks = tasks.filter((t) => t.vehicleId === v.id && t.status !== 'done')
-                const mainTask = vehicleTasks[0]
-                return (
+// ====== LOCATION SUMMARY CARD ======
+
+function LocationSummaryCard({ locations }: { locations: LocationItem[] }) {
+  return (
+    <div className="card p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+          <MapPin size={16} className="text-slate-500" />
+          Số xe theo khu vực
+        </h3>
+      </div>
+      <div className="space-y-2">
+        {locations.map((loc) => (
+          <button
+            key={loc.name}
+            onClick={() => console.log('Navigate to location:', loc.name)}
+            className="flex w-full items-center justify-between rounded-lg px-3 py-2 transition-colors hover:bg-slate-50"
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ background: loc.color }} />
+              <span className="text-sm text-slate-700">{loc.name}</span>
+            </div>
+            <span className="text-sm font-semibold text-slate-800">{loc.count}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ====== WARNING CARD ======
+
+function WarningCard({ warnings }: { warnings: WarningItem[] }) {
+  return (
+    <div className="card p-4">
+      <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
+        <Bell size={16} className="text-red-500" />
+        Cảnh báo
+      </div>
+      <div className="space-y-2">
+        {warnings.map((w) => (
+          <div
+            key={w.key}
+            className={`flex items-center justify-between rounded-lg px-3 py-2 ${
+              w.severity === 'red' ? 'bg-red-50' : 'bg-amber-50'
+            }`}
+          >
+            <span className={`text-sm ${w.severity === 'red' ? 'text-red-700' : 'text-amber-700'}`}>
+              {w.label}
+            </span>
+            <span
+              className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                w.severity === 'red'
+                  ? 'bg-red-100 text-red-600'
+                  : 'bg-amber-100 text-amber-600'
+              }`}
+            >
+              {w.count}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ====== WORKFLOW BOARD ======
+
+function WorkflowBoard({ columns }: { columns: WorkflowColumn[] }) {
+  return (
+    <div className="card p-4">
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+          <Car size={16} className="text-brand-500" />
+          Xe theo quy trình
+        </h3>
+        <Link to="/xe" className="text-xs text-brand-600 hover:text-brand-700">Xem tất cả <ArrowRight size={12} className="inline" /></Link>
+      </div>
+      <div className="flex gap-4 overflow-x-auto pb-2">
+        {columns.map((col) => (
+          <div key={col.title} className="min-w-[200px] shrink-0">
+            <div className="mb-2 flex items-center justify-between rounded-lg bg-slate-100 px-3 py-2">
+              <span className="text-xs font-semibold text-slate-700">{col.title}</span>
+              <span className="rounded-full bg-slate-300 px-2 py-0.5 text-xs font-bold text-slate-700">
+                {col.vehicles.length + (col.extra > 0 ? col.extra : 0)}
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              {col.vehicles.length === 0 ? (
+                <p className="py-4 text-center text-xs text-slate-400">Trống</p>
+              ) : (
+                col.vehicles.map((v) => (
                   <Link
                     key={v.id}
                     to={`/xe/${v.id}`}
-                    className="flex items-center justify-between rounded-lg bg-slate-50 p-3 transition-colors hover:bg-slate-100"
+                    className="block rounded-lg border border-slate-100 bg-white p-2.5 transition-colors hover:border-brand-200 hover:bg-brand-50"
                   >
-                    <div className="flex items-center gap-3">
-                      <CarFront size={20} className="text-slate-400" />
-                      <div>
-                        <div className="font-medium text-slate-800">{v.plate}</div>
-                        <div className="text-xs text-slate-500">{v.model}</div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      {mainTask ? (
-                        <Badge tone="blue">{mainTask.title}</Badge>
-                      ) : (
-                        <Badge tone="slate">Đang chờ</Badge>
-                      )}
+                    <div className="text-sm font-semibold text-slate-800">{v.plate}</div>
+                    <div className="text-xs text-slate-500">{v.model}</div>
+                    <div className="mt-1">
+                      <Badge tone="slate">{v.task}</Badge>
                     </div>
                   </Link>
-                )
-              })}
+                ))
+              )}
+              {col.extra > 0 && (
+                <p className="py-1 text-center text-xs font-medium text-brand-600">+{col.extra} xe khác</p>
+              )}
             </div>
-          )}
-        </div>
+          </div>
+        ))}
       </div>
+    </div>
+  )
+}
 
-      {/* 4. Task ưu tiên */}
-      <div className="mb-5">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-base font-semibold text-slate-800">
-            <ClipboardList size={18} className="text-purple-500" />
-            Task ưu tiên
-          </h2>
-          <Link to="/nhiem-vu" className="text-sm text-brand-600 hover:text-brand-700">
-            Xem tất cả <ArrowRight size={14} className="inline" />
-          </Link>
-        </div>
-        <div className="space-y-2">
-          {/* Quá hạn */}
-          {overdueTasksList.length > 0 && (
-            <div className="card p-4 border-l-4 border-red-400">
-              <div className="mb-2 text-xs font-semibold text-red-600 uppercase">Quá hạn</div>
-              {overdueTasksList.map((task) => {
-                const assignee = employees.find((e) => e.id === task.assigneeId)
-                return (
-                  <div key={task.id} className="flex items-center justify-between py-1">
-                    <span className="text-sm text-slate-700">{task.title}</span>
-                    <span className="text-xs text-slate-400">{assignee?.name || 'Chưa giao'}</span>
+// ====== MY TASKS CARD ======
+
+const TASK_TABS = [
+  { key: 'mine', label: 'Nhiệm vụ của tôi' },
+  { key: 'assigned', label: 'Giao cho tôi' },
+] as const
+
+function MyTasksCard({ mine, assigned }: { mine: TaskItem[]; assigned: TaskItem[] }) {
+  const [tab, setTab] = useState<'mine' | 'assigned'>('mine')
+  const items = tab === 'mine' ? mine : assigned
+
+  return (
+    <div className="card p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+          <ClipboardList size={16} className="text-purple-500" />
+          Công việc
+        </h3>
+        <Link to="/nhiem-vu" className="text-xs text-brand-600 hover:text-brand-700">Xem tất cả <ArrowRight size={12} className="inline" /></Link>
+      </div>
+      <div className="mb-3 flex gap-1 rounded-lg bg-slate-100 p-1">
+        {TASK_TABS.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+              tab === t.key ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <div className="max-h-[260px] space-y-1 overflow-y-auto">
+        {items.length === 0 ? (
+          <p className="py-6 text-center text-sm text-slate-400">Không có nhiệm vụ</p>
+        ) : (
+          items.map((task) => {
+            const statusColor = task.status === 'doing' ? '#f59e0b' : task.status === 'todo' ? '#94a3b8' : '#22c55e'
+            const statusLabel = task.status === 'doing' ? 'Đang làm' : task.status === 'todo' ? 'Chờ làm' : 'Hoàn thành'
+            return (
+              <div key={task.id} className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors hover:bg-slate-50">
+                <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-brand-600" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-slate-700">{task.plate || ''}</span>
+                    <span className="text-xs text-slate-500">{task.title}</span>
                   </div>
-                )
-              })}
-            </div>
-          )}
-          
-          {/* Hôm nay */}
-          {todayTasksList.length > 0 && (
-            <div className="card p-4 border-l-4 border-amber-400">
-              <div className="mb-2 text-xs font-semibold text-amber-600 uppercase">Hôm nay</div>
-              {todayTasksList.map((task) => {
-                const assignee = employees.find((e) => e.id === task.assigneeId)
-                return (
-                  <div key={task.id} className="flex items-center justify-between py-1">
-                    <span className="text-sm text-slate-700">{task.title}</span>
-                    <span className="text-xs text-slate-400">{assignee?.name || 'Chưa giao'}</span>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-          
-          {/* Chưa nhận */}
-          {unassignedTasks.length > 0 && (
-            <div className="card p-4 border-l-4 border-slate-400">
-              <div className="mb-2 text-xs font-semibold text-slate-600 uppercase">Chưa nhận</div>
-              {unassignedTasks.map((task) => (
-                <div key={task.id} className="py-1 text-sm text-slate-700">
-                  {task.title}
+                  {task.location && <div className="text-[10px] text-slate-400">{task.location}</div>}
                 </div>
-              ))}
-            </div>
-          )}
-          
-          {overdueTasksList.length === 0 && todayTasksList.length === 0 && unassignedTasks.length === 0 && (
-            <div className="card p-6 text-center">
-              <CheckCircle size={32} className="mx-auto mb-2 text-green-500" />
-              <p className="text-sm text-slate-600">Tất cả task đã hoàn thành!</p>
-            </div>
-          )}
+                <span
+                  className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium"
+                  style={{ background: `${statusColor}1a`, color: statusColor }}
+                >
+                  {statusLabel}
+                </span>
+              </div>
+            )
+          })
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ====== QUICK STATS CARD ======
+
+function QuickStatsCard({ stats }: { stats: QuickStats }) {
+  const cards = [
+    { label: 'Tổng số xe', value: stats.total, color: '#3b82f6', icon: Car },
+    { label: 'Xe đã bán', value: stats.sold, color: '#22c55e', icon: CheckCircle },
+    { label: 'Xe sắp bán', value: stats.pending, color: '#f59e0b', icon: Clock },
+    { label: 'Xe đang rửa', value: stats.washing, color: '#10b981', icon: Car },
+  ]
+
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {cards.map((c) => (
+        <div key={c.label} className="card p-3">
+          <div className="flex items-center gap-2">
+            <c.icon size={16} style={{ color: c.color }} />
+            <span className="text-2xl font-bold" style={{ color: c.color }}>{c.value}</span>
+          </div>
+          <div className="mt-1 text-xs text-slate-500">{c.label}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ====== REVENUE CHART CARD ======
+
+const MOCK_REVENUE = [
+  { month: 'T1', revenue: 0, cost: 0 },
+  { month: 'T2', revenue: 0, cost: 0 },
+  { month: 'T3', revenue: 0, cost: 0 },
+  { month: 'T4', revenue: 0, cost: 0 },
+  { month: 'T5', revenue: 0, cost: 0 },
+  { month: 'T6', revenue: 0, cost: 0 },
+  { month: 'T7', revenue: 0, cost: 0 },
+  { month: 'T8', revenue: 250, cost: 180 },
+  { month: 'T9', revenue: 0, cost: 0 },
+  { month: 'T10', revenue: 0, cost: 0 },
+  { month: 'T11', revenue: 0, cost: 0 },
+  { month: 'T12', revenue: 0, cost: 0 },
+]
+
+function RevenueChartCard() {
+  return (
+    <div className="card p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+          <TrendingUp size={16} className="text-emerald-500" />
+          Doanh thu
+        </h3>
+      </div>
+      <div className="h-48">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={MOCK_REVENUE} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+            <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+            <Tooltip />
+            <Line type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} name="Doanh thu" />
+            <Line type="monotone" dataKey="cost" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} name="Chi phí" />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  )
+}
+
+// ====== CIRCULAR PROGRESS ======
+
+function CircularProgress({ pct, size = 60, stroke = 4 }: { pct: number; size?: number; stroke?: number }) {
+  const r = (size - stroke) / 2
+  const circ = 2 * Math.PI * r
+  const dash = (pct / 100) * circ
+  return (
+    <svg width={size} height={size} className="shrink-0">
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#e2e8f0" strokeWidth={stroke} />
+      <circle
+        cx={size / 2} cy={size / 2} r={r} fill="none"
+        stroke={pct >= 75 ? '#22c55e' : pct >= 50 ? '#eab308' : '#ef4444'}
+        strokeWidth={stroke}
+        strokeDasharray={dash}
+        strokeDashoffset={circ - dash}
+        strokeLinecap="round"
+        transform={`rotate(-90 ${size / 2} ${size / 2})`}
+      />
+      <text x="50%" y="50%" textAnchor="middle" dy="0.35em" fontSize={size * 0.28} fontWeight="700" fill="#334155">
+        {pct}%
+      </text>
+    </svg>
+  )
+}
+
+// ====== PAGE ======
+
+export default function OverviewDashboard() {
+  const vm = useDashboardViewModel()
+
+  return (
+    <div className="space-y-4">
+      <DashboardHeader />
+
+      {/* ROW 1: KPI + Attendance */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
+        <div className="space-y-3 lg:col-span-4">
+          <h2 className="flex items-center gap-2 text-base font-semibold text-slate-800">
+            <AlertTriangle size={18} className="text-amber-500" />
+            Công việc cần làm hôm nay
+          </h2>
+          <TodayKPICards kpi={vm.kpi} />
+        </div>
+        <div className="lg:col-span-1">
+          <AttendanceCard data={vm.attendanceData} />
         </div>
       </div>
 
-      {/* 5. Cảnh báo */}
-      <div className="mb-5">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-base font-semibold text-slate-800">
-            <AlertTriangle size={18} className="text-red-500" />
-            Cảnh báo
-          </h2>
+      {/* ROW 2: LiveFeed + Locations + Warnings */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+        <div className="lg:col-span-5">
+          <LiveFeedCard items={vm.feedItems} />
         </div>
-        <div className="card p-4">
-          <ul className="space-y-2">
-            {noCheckSheetCount > 0 && (
-              <li className="flex items-center justify-between rounded-lg bg-red-50 px-3 py-2">
-                <span className="text-sm text-red-700">Xe thiếu CheckSheet</span>
-                <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-600">{noCheckSheetCount}</span>
-              </li>
-            )}
-            {noPhotoCount > 0 && (
-              <li className="flex items-center justify-between rounded-lg bg-amber-50 px-3 py-2">
-                <span className="text-sm text-amber-700">Xe chưa có ảnh</span>
-                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-600">{noPhotoCount}</span>
-              </li>
-            )}
-            {noPriceCount > 0 && (
-              <li className="flex items-center justify-between rounded-lg bg-amber-50 px-3 py-2">
-                <span className="text-sm text-amber-700">Xe chưa định giá</span>
-                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-600">{noPriceCount}</span>
-              </li>
-            )}
-            {waitingTooLong > 0 && (
-              <li className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
-                <span className="text-sm text-slate-700">Xe chờ quá 7 ngày</span>
-                <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-600">{waitingTooLong}</span>
-              </li>
-            )}
-            {noCheckSheetCount === 0 && noPhotoCount === 0 && noPriceCount === 0 && waitingTooLong === 0 && (
-              <li className="flex items-center justify-between rounded-lg bg-green-50 px-3 py-3">
-                <span className="text-sm text-green-700">Tất cả hoạt động bình thường</span>
-                <CheckCircle size={16} className="text-green-500" />
-              </li>
-            )}
-          </ul>
+        <div className="lg:col-span-3">
+          <LocationSummaryCard locations={vm.locationData} />
+        </div>
+        <div className="lg:col-span-4">
+          <WarningCard warnings={vm.warnings} />
         </div>
       </div>
 
-      {/* 6. Hoạt động gần đây */}
-      <div className="mb-5">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-base font-semibold text-slate-800">
-            <Activity size={18} className="text-slate-500" />
-            Hoạt động gần đây
-          </h2>
+      {/* ROW 3: Workflow Board */}
+      <WorkflowBoard columns={vm.workflowColumns} />
+
+      {/* ROW 4: My Tasks + Stats + Revenue */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
+        <div className="lg:col-span-3">
+          <MyTasksCard mine={vm.myTasks} assigned={vm.assignedToMe} />
         </div>
-        <div className="card p-4">
-          {recentActivities.length === 0 ? (
-            <p className="text-sm text-slate-400">Chưa có hoạt động nào</p>
-          ) : (
-            <ul className="space-y-3">
-              {recentActivities.map((log) => {
-                const vehicle = vehicles.find((v) => v.id === log.vehicleId)
-                const fromPos = positions.find((p) => p.id === log.fromPositionId)
-                const toPos = positions.find((p) => p.id === log.toPositionId)
-                const employee = employees.find((e) => e.id === log.employeeId)
-                
-                return (
-                  <li key={log.id} className="flex items-start gap-3 text-sm">
-                    <div className="mt-1 h-2 w-2 shrink-0 rounded-full bg-brand-500" />
-                    <div className="flex-1">
-                      <span className="font-medium text-slate-700">{vehicle?.plate || '—'}</span>
-                      <span className="text-slate-500"> chuyển {fromPos?.name.split(' ')[0] || '—'} → {toPos?.name.split(' ')[0] || '—'}</span>
-                      <div className="mt-0.5 text-xs text-slate-400">
-                        {employee?.name || '—'} • {formatDateTime(log.createdAt)}
-                      </div>
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
+        <div className="space-y-4 lg:col-span-2">
+          <QuickStatsCard stats={vm.quickStats} />
+          <RevenueChartCard />
         </div>
       </div>
     </div>
