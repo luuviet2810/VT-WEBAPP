@@ -1,10 +1,12 @@
-import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
-import { Plus, X, Trash2, GripVertical, Calendar, User, AlertCircle } from 'lucide-react'
+import { useMemo, useState, useEffect } from 'react'
+import { Plus, X, Trash2 } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import { useTaskPermissions } from '../rbac/usePermissions'
 import { Badge } from '../components/ui'
 import type { Task, TaskChecklistItem, TaskPriority, TaskStatus } from '../types'
-import { uid, formatDate } from '../utils/format'
+import { uid } from '../utils/format'
+import TaskDrawer from '../components/tasks/TaskDrawer'
+import VehicleTaskCard, { type VehicleGroup } from '../components/tasks/VehicleTaskCard'
 
 type WorkSection = 'todo' | 'doing' | 'done'
 
@@ -14,375 +16,20 @@ const SECTION_CONFIG: { key: WorkSection; label: string; icon: string; tone: 'sl
   { key: 'done', label: 'Đã hoàn thành', icon: '✅', tone: 'green' },
 ]
 
-const PRIORITY_LABEL: Record<TaskPriority, string> = {
-  low: 'Thấp',
-  medium: 'Trung bình',
-  high: 'Cao',
-  urgent: 'Khẩn cấp',
-}
-
-const PRIORITY_TONE: Record<TaskPriority, 'slate' | 'blue' | 'orange' | 'red'> = {
-  low: 'slate',
-  medium: 'blue',
-  high: 'orange',
-  urgent: 'red',
-}
-
-// ====== Kanban Task Card ======
-function TaskCard({
-  task,
-  vehiclePlate,
-  onEdit,
-  onDragStart,
-}: {
-  task: Task
-  vehiclePlate: string
-  onEdit: () => void
-  onDragStart: (e: React.DragEvent) => void
-}) {
-  const checklistDone = task.checklist?.filter((i) => i.done).length ?? 0
-  const checklistTotal = task.checklist?.length ?? 0
-  const isOverdue = task.dueDate && task.dueDate < new Date().toISOString().slice(0, 10) && task.status !== 'done'
-
-  return (
-    <div
-      draggable
-      onDragStart={onDragStart}
-      onClick={onEdit}
-      className="group cursor-pointer rounded-xl border border-slate-100 bg-white p-3 shadow-sm transition-all duration-200 hover:shadow-md hover:border-brand-200 active:scale-[0.98]"
-    >
-      <div className="flex items-start gap-2">
-        <div className="flex h-5 w-5 shrink-0 cursor-grab items-center justify-center rounded text-slate-300 opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing">
-          <GripVertical size={14} />
-        </div>
-        <div className="min-w-0 flex-1">
-          {/* Title + Priority */}
-          <div className="flex items-start justify-between gap-2">
-            <span className="text-sm font-medium text-slate-800 line-clamp-2">{task.title}</span>
-            <Badge tone={PRIORITY_TONE[task.priority]}>{PRIORITY_LABEL[task.priority]}</Badge>
-          </div>
-
-          {/* Vehicle plate */}
-          <div className="mt-1 text-xs text-slate-400">
-            {vehiclePlate ? `${vehiclePlate}` : 'Không có xe'}
-          </div>
-
-          {/* Meta row */}
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-400">
-            {isOverdue && (
-              <span className="flex items-center gap-1 font-medium text-red-500">
-                <AlertCircle size={12} />
-                Quá hạn
-              </span>
-            )}
-            {task.dueDate && !isOverdue && (
-              <span className="flex items-center gap-1">
-                <Calendar size={12} />
-                {task.dueDate}
-              </span>
-            )}
-            {task.dueTime && (
-              <span>{task.dueTime}</span>
-            )}
-          </div>
-
-          {/* Checklist progress */}
-          {checklistTotal > 0 && (
-            <div className="mt-2 flex items-center gap-2">
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
-                <div
-                  className="h-full rounded-full bg-brand-500 transition-all"
-                  style={{ width: `${Math.round((checklistDone / checklistTotal) * 100)}%` }}
-                />
-              </div>
-              <span className="text-[11px] text-slate-400">{checklistDone}/{checklistTotal}</span>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ====== Droppable Column ======
-function KanbanColumn({
-  section,
-  tasks,
-  vehiclesMap,
-  onEditTask,
-  onDrop,
-  onDragStart,
-}: {
-  section: (typeof SECTION_CONFIG)[0]
-  tasks: Task[]
-  vehiclesMap: Map<string, string>
-  onEditTask: (taskId: string) => void
-  onDrop: (e: React.DragEvent) => void
-  onDragStart: (e: React.DragEvent, taskId: string) => void
-}) {
-  const [dragOver, setDragOver] = useState(false)
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-    setDragOver(true)
-  }, [])
-
-  const handleDragLeave = useCallback(() => {
-    setDragOver(false)
-  }, [])
-
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault()
-      setDragOver(false)
-      onDrop(e)
-    },
-    [onDrop]
-  )
-
-  return (
-    <div
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-      className={`flex w-80 shrink-0 flex-col rounded-2xl border-2 p-4 transition-all duration-200 ${
-        dragOver ? 'border-brand-400 bg-brand-50 shadow-lg' : 'border-slate-200 bg-slate-50'
-      }`}
-    >
-      {/* Header */}
-      <div className="mb-3 flex items-center gap-2">
-        <span className="text-sm font-semibold text-slate-700">
-          {section.icon} {section.label}
-        </span>
-        <Badge tone={section.tone}>{tasks.length}</Badge>
-      </div>
-
-      {/* Cards */}
-      <div className="flex-1 space-y-2 min-h-[120px]">
-        {tasks.length === 0 && (
-          <div
-            className={`flex items-center justify-center rounded-xl border-2 border-dashed py-8 text-xs transition-colors ${
-              dragOver ? 'border-brand-300 bg-brand-100/50 text-brand-500' : 'border-slate-200 text-slate-400'
-            }`}
-          >
-            {dragOver ? 'Thả task vào đây' : 'Kéo task vào đây'}
-          </div>
-        )}
-        {tasks.map((task) => (
-          <div
-            key={task.id}
-            data-task-id={task.id}
-            onDragStart={(e) => onDragStart(e, task.id)}
-          >
-            <TaskCard
-              task={task}
-              vehiclePlate={vehiclesMap.get(task.vehicleId ?? '') ?? ''}
-              onEdit={() => onEditTask(task.id)}
-              onDragStart={(e) => onDragStart(e, task.id)}
-            />
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ====== Task Edit Drawer ======
-function TaskEditDrawer({
-  task,
-  vehicles,
-  employees,
-  onClose,
-  onUpdate,
-  onDelete,
-}: {
-  task: Task
-  vehicles: { id: string; plate: string; model: string }[]
-  employees: { id: string; name: string }[]
-  onClose: () => void
-  onUpdate: (id: string, patch: Partial<Task>) => void
-  onDelete: (id: string) => void
-}) {
-  const [title, setTitle] = useState(task.title)
-  const [priority, setPriority] = useState<TaskPriority>(task.priority)
-  const [status, setStatus] = useState<TaskStatus>(task.status)
-  const [assigneeId, setAssigneeId] = useState(task.assigneeId ?? '')
-  const [vehicleId, setVehicleId] = useState(task.vehicleId ?? '')
-  const [dueDate, setDueDate] = useState(task.dueDate ?? '')
-  const [dueTime, setDueTime] = useState(task.dueTime ?? '')
-  const [checklist, setChecklist] = useState<TaskChecklistItem[]>(task.checklist ?? [])
-  const [saving, setSaving] = useState(false)
-  const panelRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [onClose])
-
-  function handleSave() {
-    if (!title.trim()) return
-    setSaving(true)
-    onUpdate(task.id, {
-      title: title.trim(),
-      priority,
-      status,
-      assigneeId: assigneeId || null,
-      vehicleId: vehicleId || null,
-      dueDate: dueDate || null,
-      dueTime: dueTime || null,
-      checklist: checklist.filter((i) => i.text.trim()),
-    })
-    setSaving(false)
-    onClose()
-  }
-
-  function handleDelete() {
-    if (window.confirm('Xóa nhiệm vụ này?')) {
-      onDelete(task.id)
-      onClose()
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 animate-fade-in">
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
-      <div ref={panelRef} className="absolute right-0 top-0 flex h-full w-full max-w-lg flex-col bg-white shadow-2xl animate-slide-in-right">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-          <h2 className="text-base font-semibold text-slate-900">Chi tiết nhiệm vụ</h2>
-          <button type="button" className="btn-icon" onClick={onClose}>
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Form */}
-        <div className="flex-1 overflow-y-auto px-5 py-4">
-          <div className="space-y-4">
-            {/* Title */}
-            <div>
-              <label className="label">Tên công việc *</label>
-              <input className="input w-full" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
-            </div>
-
-            {/* Priority + Status */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="label">Mức ưu tiên</label>
-                <select className="input w-full" value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority)}>
-                  <option value="low">Thấp</option>
-                  <option value="medium">Trung bình</option>
-                  <option value="high">Cao</option>
-                  <option value="urgent">Khẩn cấp</option>
-                </select>
-              </div>
-              <div>
-                <label className="label">Trạng thái</label>
-                <select className="input w-full" value={status} onChange={(e) => setStatus(e.target.value as TaskStatus)}>
-                  <option value="todo">Chưa làm</option>
-                  <option value="doing">Đang làm</option>
-                  <option value="done">Đã hoàn thành</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Assignee + Vehicle */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="label">Người phụ trách</label>
-                <select className="input w-full" value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}>
-                  <option value="">Không phân công</option>
-                  {employees.map((e) => (
-                    <option key={e.id} value={e.id}>{e.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="label">Xe liên quan</label>
-                <select className="input w-full" value={vehicleId} onChange={(e) => setVehicleId(e.target.value)}>
-                  <option value="">Không có xe</option>
-                  {vehicles.map((v) => (
-                    <option key={v.id} value={v.id}>{v.plate} - {v.model}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Checklist */}
-            <div>
-              <label className="label">Các bước kiểm tra</label>
-              <div className="space-y-2">
-                {checklist.map((item, idx) => (
-                  <div key={item.id} className="flex gap-2">
-                    <input
-                      type="checkbox"
-                      checked={item.done}
-                      onChange={() => setChecklist((rows) => rows.map((r, i) => (i === idx ? { ...r, done: !r.done } : r)))}
-                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-brand-600"
-                    />
-                    <input className="input flex-1" placeholder="Bước kiểm tra" value={item.text}
-                      onChange={(e) => setChecklist((rows) => rows.map((r, i) => (i === idx ? { ...r, text: e.target.value } : r)))}
-                    />
-                    <button type="button" className="btn-icon shrink-0"
-                      onClick={() => setChecklist((rows) => rows.filter((_, i) => i !== idx))}
-                    ><Trash2 size={15} /></button>
-                  </div>
-                ))}
-              </div>
-              <button type="button" className="mt-2 flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
-                onClick={() => setChecklist((rows) => [...rows, { id: uid('chk'), text: '', done: false }])}
-              ><Plus size={14} /> Thêm bước</button>
-            </div>
-
-            {/* Due Date / Time */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="label">Ngày hạn</label>
-                <input type="date" className="input w-full" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-              </div>
-              <div>
-                <label className="label">Giờ hạn</label>
-                <input type="time" className="input w-full" value={dueTime} onChange={(e) => setDueTime(e.target.value)} />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="border-t border-slate-100 px-5 py-4">
-          <div className="flex gap-3">
-            <button type="button" className="btn-danger !px-3" onClick={handleDelete}>
-              <Trash2 size={15} />
-              Xoá
-            </button>
-            <div className="flex-1" />
-            <button type="button" className="btn-secondary" onClick={onClose}>Huỷ</button>
-            <button type="button" className="btn-primary" onClick={handleSave} disabled={saving || !title.trim()}>
-              {saving ? 'Đang lưu...' : 'Lưu'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ====== MAIN TASKS PAGE ======
 export default function Tasks() {
   const tasks = useStore((s) => s.tasks)
   const employees = useStore((s) => s.employees)
   const vehicles = useStore((s) => s.vehicles)
+  const positions = useStore((s) => s.positions)
+  const toggleTaskChecklistItem = useStore((s) => s.toggleTaskChecklistItem)
   const updateTask = useStore((s) => s.updateTask)
   const deleteTask = useStore((s) => s.deleteTask)
   const addTask = useStore((s) => s.addTask)
   const taskPerms = useTaskPermissions()
   const [assigneeFilter, setAssigneeFilter] = useState('all')
-  const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null)
 
-  // Add-task drawer
+  // Add-task drawer state
   const [showAddDrawer, setShowAddDrawer] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [newPriority, setNewPriority] = useState<TaskPriority>('medium')
@@ -392,56 +39,50 @@ export default function Tasks() {
   const [newDueDate, setNewDueDate] = useState('')
   const [newDueTime, setNewDueTime] = useState('')
 
-  // ESC to close drawers
+  // ESC to close add-task drawer
   useEffect(() => {
-    if (!showAddDrawer && !editingTaskId) return
+    if (!showAddDrawer) return
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { setShowAddDrawer(false); setEditingTaskId(null) }
+      if (e.key === 'Escape') { setShowAddDrawer(false); resetAddForm() }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [showAddDrawer, editingTaskId])
+  }, [showAddDrawer])
 
-  // Vehicle plate lookup
-  const vehiclesMap = useMemo(() => {
-    const m = new Map<string, string>()
-    for (const v of vehicles) m.set(v.id, v.plate)
-    return m
-  }, [vehicles])
-
-  // Filtered tasks for Kanban
-  const filteredTasks = useMemo(
+  const filtered = useMemo(
     () => tasks.filter((t) => assigneeFilter === 'all' || t.assigneeId === assigneeFilter),
     [tasks, assigneeFilter]
   )
 
-  const todoTasks = useMemo(() => filteredTasks.filter((t) => t.status === 'todo'), [filteredTasks])
-  const doingTasks = useMemo(() => filteredTasks.filter((t) => t.status === 'doing'), [filteredTasks])
-  const doneTasks = useMemo(() => filteredTasks.filter((t) => t.status === 'done'), [filteredTasks])
-
-  const sectionTasks: Record<WorkSection, Task[]> = {
-    todo: todoTasks,
-    doing: doingTasks,
-    done: doneTasks,
-  }
-
-  // Drag state
-  const dragTaskIdRef = useRef<string | null>(null)
-
-  function handleDragStart(_e: React.DragEvent, taskId: string) {
-    dragTaskIdRef.current = taskId
-  }
-
-  function handleDrop(section: WorkSection) {
-    return (e: React.DragEvent) => {
-      const taskId = dragTaskIdRef.current
-      if (!taskId) return
-      dragTaskIdRef.current = null
-      const task = tasks.find((t) => t.id === taskId)
-      if (!task || task.status === section) return
-      updateTask(taskId, { status: section })
+  // Group tasks by vehicle, compute section
+  const groups = useMemo(() => {
+    const map = new Map<string, typeof tasks>()
+    for (const t of filtered) {
+      const key = t.vehicleId || '__unassigned__'
+      const list = map.get(key)
+      if (list) list.push(t)
+      else map.set(key, [t])
     }
-  }
+
+    const result: VehicleGroup[] = []
+    for (const [vehicleId, groupedTasks] of map) {
+      const total = groupedTasks.length
+      const done = groupedTasks.filter((t) => t.status === 'done').length
+      const todo = groupedTasks.filter((t) => t.status === 'todo').length
+      const doing = groupedTasks.filter((t) => t.status === 'doing').length
+      let section: WorkSection
+      if (total > 0 && done === total) section = 'done'
+      else if (doing > 0 || (todo > 0 && done > 0)) section = 'doing'
+      else section = 'todo'
+
+      const vehicle = vehicleId === '__unassigned__' ? null : vehicles.find((v) => v.id === vehicleId) ?? null
+      const position = vehicle ? positions.find((p) => p.id === vehicle.positionId) : undefined
+      const positionName = position?.name ?? null
+
+      result.push({ vehicleId, vehicle, positionName, tasks: groupedTasks, total, done, section })
+    }
+    return result
+  }, [filtered, vehicles, positions])
 
   function resetAddForm() {
     setNewTitle('')
@@ -472,15 +113,13 @@ export default function Tasks() {
     resetAddForm()
   }
 
-  const editingTask = editingTaskId ? tasks.find((t) => t.id === editingTaskId) ?? null : null
-
   return (
     <div className="pb-16 md:pb-0">
       {/* Header */}
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Nhiệm vụ</h1>
-          <p className="mt-1 text-sm text-slate-500">Kéo thả để cập nhật trạng thái</p>
+          <p className="mt-1 text-sm text-slate-500">Theo dõi tiến độ theo từng xe</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <select
@@ -504,23 +143,45 @@ export default function Tasks() {
         </div>
       </div>
 
-      {/* Kanban Board */}
-      <div className="flex gap-4 overflow-x-auto pb-4">
+      {/* Vehicle Work Board */}
+      <div className="flex flex-col gap-6">
         {SECTION_CONFIG.map((section) => {
-          const tasksInSection = sectionTasks[section.key]
+          const sectionGroups = groups.filter((g) => g.section === section.key)
+
           return (
-            <KanbanColumn
-              key={section.key}
-              section={section}
-              tasks={tasksInSection}
-              vehiclesMap={vehiclesMap}
-              onEditTask={(taskId) => setEditingTaskId(taskId)}
-              onDrop={handleDrop(section.key)}
-              onDragStart={handleDragStart}
-            />
+            <div key={section.key} className="animate-fade-in-up">
+              <div className="mb-3 flex items-center gap-2">
+                <span className="text-sm font-semibold text-slate-700">{section.icon} {section.label}</span>
+                <Badge tone={section.tone}>{sectionGroups.length}</Badge>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {sectionGroups.map((group) => (
+                  <VehicleTaskCard
+                    key={group.vehicleId}
+                    group={group}
+                    onClick={() => setSelectedVehicleId(group.vehicleId)}
+                  />
+                ))}
+              </div>
+            </div>
           )
         })}
       </div>
+
+      {/* Task Drawer (right panel for vehicle tasks) */}
+      <TaskDrawer
+        open={!!selectedVehicleId}
+        onClose={() => setSelectedVehicleId(null)}
+        selectedVehicleId={selectedVehicleId}
+        groups={groups}
+        onToggleChecklist={toggleTaskChecklistItem}
+        onUpdateTask={updateTask}
+        onDeleteTask={deleteTask}
+        onAddTask={addTask}
+        employees={employees.map((e) => ({ id: e.id, name: e.name }))}
+        vehicles={vehicles.map((v) => ({ id: v.id, plate: v.plate }))}
+        positionName={groups.find((g) => g.vehicleId === selectedVehicleId)?.positionName ?? null}
+      />
 
       {/* Add-task Drawer */}
       {showAddDrawer && (
@@ -605,18 +266,6 @@ export default function Tasks() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Task Edit Drawer */}
-      {editingTask && (
-        <TaskEditDrawer
-          task={editingTask}
-          vehicles={vehicles}
-          employees={employees}
-          onClose={() => setEditingTaskId(null)}
-          onUpdate={updateTask}
-          onDelete={deleteTask}
-        />
       )}
     </div>
   )

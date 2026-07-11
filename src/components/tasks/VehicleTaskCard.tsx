@@ -3,7 +3,7 @@ import type { Task } from '../../types'
 
 export type VehicleGroup = {
   vehicleId: string
-  vehicle: { plate?: string; model?: string; positionId?: string | null; images?: string[] } | null
+  vehicle: { plate?: string; model?: string; positionId?: string | null } | null
   positionName?: string | null
   tasks: Task[]
   total: number
@@ -12,8 +12,7 @@ export type VehicleGroup = {
 }
 
 const VehicleTaskCard = memo(function VehicleTaskCard({ group, onClick }: { group: VehicleGroup; onClick: () => void }) {
-  const { vehicle, tasks, total, done } = group
-  const progress = total > 0 ? Math.round((done / total) * 100) : 0
+  const { vehicle, tasks, total } = group
 
   return (
     <button
@@ -22,15 +21,13 @@ const VehicleTaskCard = memo(function VehicleTaskCard({ group, onClick }: { grou
       className="card w-full overflow-hidden text-left transition hover:shadow-md hover:-translate-y-0.5"
     >
       <div className="p-4">
-        <div className="text-base font-bold text-slate-900">{vehicle?.plate || '—'}</div>
-        <div className="mt-1 text-xs text-slate-500">{vehicle?.model || 'Chưa có xe liên quan'}</div>
-        <div className="mt-3 text-sm font-semibold text-slate-700">
-          {done}/{total} hoàn thành
-        </div>
-        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
-          <div className="h-full rounded-full bg-brand-500 transition-all" style={{ width: `${progress}%` }} />
-        </div>
-        <div className="mt-2 space-y-0.5">
+        <div className="text-base font-bold text-slate-900">Kiểm tra xe {vehicle?.plate || '—'}</div>
+        <div className="mt-1 text-sm text-slate-500">{vehicle?.model || 'Chưa có xe liên quan'}</div>
+        {group.positionName && (
+          <div className="mt-0.5 text-xs font-medium text-brand-600">{group.positionName}</div>
+        )}
+
+        <div className="mt-3 space-y-1">
           {tasks.slice(0, 4).map((t) => (
             <div key={t.id} className="flex items-start gap-2 text-xs text-slate-600">
               <input
