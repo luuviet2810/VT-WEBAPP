@@ -361,52 +361,45 @@ export default function VehicleDetail() {
         )}
 
         {tab === 'files' && (
-          <div className="space-y-6">
-            {vehiclePerms.canUploadPhoto ? (
+          <div className="space-y-8">
+            {/* Photos */}
+            <div>
               <VehicleGallery
                 title="Ảnh xe"
                 images={currentVehicle.images}
                 onChange={(images) => updateVehicle(currentVehicle.id, { images })}
+                vehicleId={currentVehicle.id}
               />
-            ) : (
-              <div className="card p-4">
-                <div className="mb-2 text-sm font-semibold text-slate-700">Ảnh xe</div>
-                {currentVehicle.images.length === 0 ? (
-                  <p className="text-sm text-slate-400">Chưa có ảnh</p>
-                ) : (
-                  <div className="grid grid-cols-3 gap-2">
-                    {currentVehicle.images.map((img, i) => (
-                      <img key={i} src={img} alt="" className="aspect-square w-full rounded-lg object-cover" />
-                    ))}
-                  </div>
-                )}
+            </div>
+
+            {/* Documents */}
+            <div>
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-slate-800">Giấy tờ</h3>
+                <span className="text-xs text-slate-400">{currentVehicle.documents.length} giấy tờ</span>
               </div>
-            )}
-            {vehiclePerms.canUploadDoc ? (
-              <div>
-                <h3 className="mb-2 text-sm font-semibold text-slate-700">Giấy tờ</h3>
+              {vehiclePerms.canUploadDoc ? (
                 <PhotoUploader
                   images={currentVehicle.documents}
                   onChange={(documents) => updateVehicle(currentVehicle.id, { documents })}
                   label="Thêm giấy tờ"
                 />
-              </div>
-            ) : (
-              <div className="card p-4">
-                <div className="mb-2 text-sm font-semibold text-slate-700">Giấy tờ</div>
-                {currentVehicle.documents.length === 0 ? (
-                  <p className="text-sm text-slate-400">Chưa có giấy tờ</p>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {currentVehicle.documents.map((doc, i) => (
-                      <a key={i} href={doc} target="_blank" rel="noreferrer" className="text-sm text-brand-600 underline">
-                        Giấy tờ {i + 1}
-                      </a>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+              ) : (
+                <div className="card p-5">
+                  {currentVehicle.documents.length === 0 ? (
+                    <p className="text-sm text-slate-400">Chưa có giấy tờ</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-3">
+                      {currentVehicle.documents.map((doc, i) => (
+                        <a key={i} href={doc} target="_blank" rel="noreferrer" className="text-sm font-medium text-blue-600 underline">
+                          Giấy tờ {i + 1}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

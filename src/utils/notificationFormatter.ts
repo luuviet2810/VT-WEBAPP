@@ -56,23 +56,25 @@ function extractEmployee(body: string): string {
 function actionText(type: NotificationType, title: string, body: string): string {
   switch (type) {
     case 'task_created': {
-      // body might be from template: "Cần "Sơn lại..."
-      if (body.startsWith('Cần "') || body.startsWith('Cần xử lý')) return body
-      // Fallback: extract from title
+      // body format: "Cần "<tên>""
       const tMatch = title.match(/"(.+?)"/)
-      return tMatch ? `Cần "${tMatch[1]}"` : body
+      const taskName = tMatch ? tMatch[1] : body
+      return `Cần "${taskName}"`
     }
-    case 'task_done': return body.startsWith('đã hoàn thành') ? body : `đã hoàn thành ${title.replace(/^.+?"(.+?)".*$/, '"$1"')}`
+    case 'task_done': {
+      const tMatch = title.match(/"(.+?)"/)
+      const taskName = tMatch ? tMatch[1] : body
+      return `Đã hoàn thành "${taskName}"`
+    }
     case 'vehicle_added': return 'Đã nhập bãi'
     case 'vehicle_status': {
-      if (body.includes('Đã chuyển sang') || body.includes('chuyển sang')) return body
-      if (body.includes('Đã bàn giao') || body.includes('Đã bán')) return 'Đã bàn giao khách'
+      if (body.includes('Đã chuyển sang')) return body
+      if (body.includes('Đã bàn giao') || body.includes('Đã bán')) return 'Đã chuyển sang trạng thái Đã bán'
       return body
     }
     case 'checksheet_in': return 'Đã lưu phiếu Đầu vào'
     case 'checksheet_out': return 'Đã lưu phiếu Đầu ra'
     case 'attendance_edited': return body
-    case 'error': return body
     default: return body
   }
 }
