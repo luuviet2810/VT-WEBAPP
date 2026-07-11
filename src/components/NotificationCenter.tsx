@@ -2,21 +2,9 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Bell, X, Search, CheckCheck, ArrowRight } from 'lucide-react'
 import { useStore } from '../store/useStore'
-import { formatDateTime } from '../utils/format'
+import { formatNotification } from '../utils/notificationFormatter'
 
 type EventType = 'all' | 'location' | 'checksheet' | 'tasks' | 'images' | 'documents'
-
-interface TimelineItem {
-  id: string
-  type: string
-  plate: string
-  model: string
-  title: string
-  description: string
-  createdAt: string
-  read: boolean
-  data?: { vehicleId?: string; taskId?: string; checksheetId?: string; tab?: string }
-}
 
 function getDateGroup(dateStr: string): string {
   const now = new Date()
@@ -29,22 +17,6 @@ function getDateGroup(dateStr: string): string {
   if (diffDays <= 14) return 'Tuần trước'
   if (diffDays <= 30) return 'Tháng này'
   return 'Cũ hơn'
-}
-
-function getEventBg(type: string) {
-  if (['task_created', 'task_done'].includes(type)) return 'bg-amber-50'
-  if (type === 'vehicle_added' || type === 'vehicle_status') return 'bg-blue-50'
-  if (type === 'attendance_edited') return 'bg-amber-50'
-  return 'bg-slate-50'
-}
-
-function getPriorityColor(type: string): string {
-  // Red: tasks needing action
-  if (type === 'task_created') return '#dc2626'
-  // Green: completed items
-  if (['task_done', 'vehicle_added'].includes(type)) return '#16a34a'
-  // Amber: info/updates
-  return '#d97706'
 }
 
 export default function NotificationCenter() {
@@ -67,45 +39,36 @@ export default function NotificationCenter() {
     return () => window.removeEventListener('keydown', handler)
   }, [open])
 
-  // Build timeline items
-  const timelineItems = useMemo(() => {
-    return notifications.map((n) => ({
-      id: n.id,
-      type: n.type,
-      plate: '',
-      model: '',
-      title: n.title,
-      description: n.body,
-      createdAt: n.createdAt,
-      read: n.read,
-      data: n.data,
-    }))
-  }, [notifications])
+  // Format all notifications
+  const formatted = useMemo(() => notifications.map(formatNotification), [notifications])
 
   // Filter + search
   const filtered = useMemo(() => {
-    let items = timelineItems
+    let items = formatted
     if (filter !== 'all') {
       const typeMap: Partial<Record<EventType, string[]>> = {
-        location: ['location', 'move_log'],
-        checksheet: ['check_sheet_in', 'check_sheet_out', 'checksheet'],
-        tasks: ['task_created', 'task_done', 'task_assigned'],
-        images: ['image'],
-        documents: ['document'],
+        location: ['vehicle_status'],
+        checksheet: ['checksheet_in', 'checksheet_out'],
+        tasks: ['task_created', 'task_done'],
+        images: [],
+        documents: [],
       }
       const types = typeMap[filter] || []
-      items = items.filter((i) => types.includes(i.type))
+      items = items.filter((i) => {
+        const n = notifications.find((n) => n.id === i.id)
+        return n && types.includes(n.type)
+      })
     }
     if (search.trim()) {
       const q = search.trim().toLowerCase()
-      items = items.filter((i) => i.title.toLowerCase().includes(q) || i.description.toLowerCase().includes(q))
+      items = items.filter((i) => i.title.toLowerCase().includes(q))
     }
     return items
-  }, [timelineItems, filter, search])
+  }, [formatted, filter, search, notifications])
 
   // Group by date
   const groups = useMemo(() => {
-    const map = new Map<string, TimelineItem[]>()
+    const map = new Map<string, typeof filtered>()
     for (const item of filtered) {
       const group = getDateGroup(item.createdAt)
       const list = map.get(group) || []
@@ -165,8 +128,6 @@ export default function NotificationCenter() {
                 { key: 'location' as EventType, label: 'Location' },
                 { key: 'checksheet' as EventType, label: 'Checksheet' },
                 { key: 'tasks' as EventType, label: 'Tasks' },
-                { key: 'images' as EventType, label: 'Images' },
-                { key: 'documents' as EventType, label: 'Documents' },
               ]).map((chip) => (
                 <button key={chip.key} onClick={() => setFilter(chip.key)}
                   className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
@@ -196,22 +157,18 @@ export default function NotificationCenter() {
                       {group.items.map((item) => (
                         <div key={item.id} onClick={() => {
                           markNotificationRead(item.id)
-                          if (item.data?.vehicleId) {
-                            navigate(`/xe/${item.data.vehicleId}${item.data.tab ? `?tab=${item.data.tab}` : ''}`)
-                            setOpen(false)
-                          }
+                          if (item.link) { navigate(item.link); setOpen(false) }
                         }}
-                          className={`flex items-start gap-3 rounded-xl px-3 py-3 transition-colors cursor-pointer hover:bg-slate-50 ${!item.read ? 'bg-blue-50/40' : ''}`}>
-                          {/* Priority dot */}
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ background: `${getPriorityColor(item.type)}15` }}>
-                            <span className="h-3 w-3 rounded-full" style={{ background: getPriorityColor(item.type) }} />
+                          className={`flex items-start gap-3 rounded-xl px-3 py-3.5 transition-colors cursor-pointer hover:bg-slate-50 ${!item.read ? 'bg-blue-50/40' : ''}`}>
+                          {/* Color dot */}
+                          <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={{ background: `${item.iconColor}18` }}>
+                            <span className="h-2.5 w-2.5 rounded-full" style={{ background: item.iconColor }} />
                           </div>
 
-                          {/* Content */}
+                          {/* Two-line content */}
                           <div className="min-w-0 flex-1">
-                            <div className={`text-sm font-semibold ${item.read ? 'text-slate-600' : 'text-slate-900'}`}>{item.title}</div>
-                            {item.description && <div className="text-xs text-slate-400 mt-0.5 line-clamp-2">{item.description}</div>}
-                            <div className="text-[11px] text-slate-400 mt-1">{formatDateTime(item.createdAt)}</div>
+                            <div className={`text-sm font-semibold leading-tight ${item.read ? 'text-slate-600' : 'text-slate-900'}`}>{item.title}</div>
+                            <div className="text-xs text-slate-400 mt-1">{item.subtitle}</div>
                           </div>
                           {!item.read && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-blue-500" />}
                         </div>
