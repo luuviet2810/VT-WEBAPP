@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { signInWithEmail, signUpWithEmail, signOut as authSignOut, onAuthStateChanged } from '../services/auth.service'
 import type { AuthProfile } from '../services/auth.service'
 import type { UserRole, UserStatus } from '../types'
+import { useStore } from './useStore'
 
 interface AuthState {
   currentUser: AuthProfile | null
@@ -89,4 +90,8 @@ async function loadProfileIntoStore(authId: string) {
   }
 
   useAuthStore.setState({ currentUser: profile, isAuthenticated: true, authLoading: false })
+
+  // Sync the current employee ID to the main store so attendance and other
+  // features that depend on currentEmployeeId work correctly.
+  useStore.getState().setCurrentEmployee(profile.id)
 }
