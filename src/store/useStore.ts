@@ -845,6 +845,7 @@ export const useStore = create<StoreState>()(
     },
 
     checkIn: async (employeeId) => {
+      if (!employeeId) return
       const dateStr = new Date().toISOString().slice(0, 10)
       const timeStr = new Date().toTimeString().slice(0, 5)
 
@@ -869,6 +870,7 @@ export const useStore = create<StoreState>()(
     },
 
     checkOut: async (employeeId) => {
+      if (!employeeId) return
       const dateStr = new Date().toISOString().slice(0, 10)
       const timeStr = new Date().toTimeString().slice(0, 5)
 
