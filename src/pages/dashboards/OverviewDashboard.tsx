@@ -40,11 +40,11 @@ const KPI_CARDS = [
 
 function TodayKPICards({ kpi }: { kpi: KpiData }) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div className="flex flex-1 gap-3">
       {KPI_CARDS.map((card) => {
         const value = kpi[card.key as keyof typeof kpi] as number
         return (
-          <div key={card.key} className="card p-4">
+          <div key={card.key} className="card flex flex-1 flex-col justify-center p-4">
             <div className="flex items-center justify-between">
               <card.icon size={20} style={{ color: card.color }} />
             </div>
@@ -61,7 +61,7 @@ function TodayKPICards({ kpi }: { kpi: KpiData }) {
 
 function AttendanceCard({ data }: { data: AttendanceData }) {
   return (
-    <div className="card p-4">
+    <div className="card flex flex-1 flex-col p-4">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
           <Users size={16} className="text-blue-500" />
@@ -69,7 +69,7 @@ function AttendanceCard({ data }: { data: AttendanceData }) {
         </h3>
         <Link to="/cham-cong" className="text-xs text-brand-600 hover:text-brand-700">Chi tiết <ArrowRight size={12} className="inline" /></Link>
       </div>
-      <div className="flex items-center gap-4">
+      <div className="flex flex-1 items-center gap-4">
         <CircularProgress pct={data.percentage} size={72} stroke={5} />
         <div className="flex-1 space-y-2">
           <div className="flex items-center justify-between text-sm">
@@ -94,7 +94,7 @@ function AttendanceCard({ data }: { data: AttendanceData }) {
 
 function LiveFeedCard({ items }: { items: LiveFeedItem[] }) {
   return (
-    <div className="card p-4">
+    <div className="card flex flex-1 flex-col p-4">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
           <Activity size={16} className="text-slate-500" />
@@ -102,7 +102,7 @@ function LiveFeedCard({ items }: { items: LiveFeedItem[] }) {
         </h3>
         <Link to="/xe" className="text-xs text-brand-600 hover:text-brand-700">Xem tất cả <ArrowRight size={12} className="inline" /></Link>
       </div>
-      <div className="max-h-[320px] space-y-0 overflow-y-auto">
+      <div className="max-h-[320px] flex-1 space-y-0 overflow-y-auto">
         {items.length === 0 ? (
           <p className="py-6 text-center text-sm text-slate-400">Chưa có hoạt động</p>
         ) : (
@@ -132,7 +132,7 @@ function LiveFeedCard({ items }: { items: LiveFeedItem[] }) {
 
 function LocationSummaryCard({ locations }: { locations: LocationItem[] }) {
   return (
-    <div className="card p-4">
+    <div className="card flex flex-1 flex-col p-4">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
           <MapPin size={16} className="text-slate-500" />
@@ -162,7 +162,7 @@ function LocationSummaryCard({ locations }: { locations: LocationItem[] }) {
 
 function WarningCard({ warnings }: { warnings: WarningItem[] }) {
   return (
-    <div className="card p-4">
+    <div className="card flex flex-1 flex-col p-4">
       <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
         <Bell size={16} className="text-red-500" />
         Cảnh báo
@@ -256,7 +256,7 @@ function MyTasksCard({ mine, assigned }: { mine: TaskItem[]; assigned: TaskItem[
   const items = tab === 'mine' ? mine : assigned
 
   return (
-    <div className="card p-4">
+    <div className="card flex flex-1 flex-col p-4">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
           <ClipboardList size={16} className="text-purple-500" />
@@ -320,16 +320,18 @@ function QuickStatsCard({ stats }: { stats: QuickStats }) {
   ]
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-      {cards.map((c) => (
-        <div key={c.label} className="card p-3">
-          <div className="flex items-center gap-2">
-            <c.icon size={16} style={{ color: c.color }} />
-            <span className="text-2xl font-bold" style={{ color: c.color }}>{c.value}</span>
+    <div className="card flex flex-1 flex-col p-4">
+      <div className="flex flex-1 flex-wrap items-center gap-3">
+        {cards.map((c) => (
+          <div key={c.label} className="flex min-w-[100px] flex-1 flex-col items-center rounded-xl bg-slate-50 p-3 text-center">
+            <div className="flex items-center gap-2">
+              <c.icon size={18} style={{ color: c.color }} />
+              <span className="text-2xl font-bold" style={{ color: c.color }}>{c.value}</span>
+            </div>
+            <div className="mt-1 text-xs text-slate-500">{c.label}</div>
           </div>
-          <div className="mt-1 text-xs text-slate-500">{c.label}</div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   )
 }
@@ -353,14 +355,14 @@ const MOCK_REVENUE = [
 
 function RevenueChartCard() {
   return (
-    <div className="card p-4">
+    <div className="card flex flex-1 flex-col p-4">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
           <TrendingUp size={16} className="text-emerald-500" />
           Doanh thu
         </h3>
       </div>
-      <div className="h-48">
+      <div className="flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={MOCK_REVENUE} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -407,45 +409,47 @@ export default function OverviewDashboard() {
   const vm = useDashboardViewModel()
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-7">
       <DashboardHeader />
 
-      {/* ROW 1: KPI + Attendance */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-        <div className="space-y-3 lg:col-span-4">
-          <h2 className="flex items-center gap-2 text-base font-semibold text-slate-800">
+      {/* ROW 1: KPI + Attendance — equal-height cards */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
+        <div className="flex flex-col lg:col-span-4">
+          <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-slate-800">
             <AlertTriangle size={18} className="text-amber-500" />
             Công việc cần làm hôm nay
           </h2>
-          <TodayKPICards kpi={vm.kpi} />
+          <div className="flex flex-1 items-stretch">
+            <TodayKPICards kpi={vm.kpi} />
+          </div>
         </div>
-        <div className="lg:col-span-1">
+        <div className="flex flex-col lg:col-span-1">
           <AttendanceCard data={vm.attendanceData} />
         </div>
       </div>
 
-      {/* ROW 2: LiveFeed + Locations + Warnings */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-        <div className="lg:col-span-5">
+      {/* ROW 2: LiveFeed + Locations + Warnings — equal-height cards */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+        <div className="flex flex-col lg:col-span-5">
           <LiveFeedCard items={vm.feedItems} />
         </div>
-        <div className="lg:col-span-3">
+        <div className="flex flex-col lg:col-span-3">
           <LocationSummaryCard locations={vm.locationData} />
         </div>
-        <div className="lg:col-span-4">
+        <div className="flex flex-col lg:col-span-4">
           <WarningCard warnings={vm.warnings} />
         </div>
       </div>
 
-      {/* ROW 3: Workflow Board */}
+      {/* ROW 3: Workflow Board — full width, independent height */}
       <WorkflowBoard columns={vm.workflowColumns} />
 
-      {/* ROW 4: My Tasks + Stats + Revenue */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-        <div className="lg:col-span-3">
+      {/* ROW 4: My Tasks + Stats & Revenue — equal-height cards */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
+        <div className="flex flex-col lg:col-span-3">
           <MyTasksCard mine={vm.myTasks} assigned={vm.assignedToMe} />
         </div>
-        <div className="space-y-4 lg:col-span-2">
+        <div className="flex flex-col gap-5 lg:col-span-2">
           <QuickStatsCard stats={vm.quickStats} />
           <RevenueChartCard />
         </div>
