@@ -3,14 +3,14 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  Car, Users, AlertTriangle, Activity, MapPin, Bell, ClipboardList,
+  Car, AlertTriangle, Activity, MapPin, Bell, ClipboardList,
   CheckCircle, Clock, TrendingUp, ArrowRight,
 } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { Badge } from '../../components/ui'
 import { useDashboardViewModel } from './dashboard/DashboardViewModel'
 import type {
-  KpiData, AttendanceData, LiveFeedItem, LocationItem,
+  KpiData, LiveFeedItem, LocationItem,
   WarningItem, WorkflowColumn, TaskItem, QuickStats,
 } from './dashboard/DashboardViewModel'
 
@@ -40,11 +40,11 @@ const KPI_CARDS = [
 
 function TodayKPICards({ kpi }: { kpi: KpiData }) {
   return (
-    <div className="flex flex-1 gap-3">
+    <div className="grid w-full grid-cols-4 gap-5">
       {KPI_CARDS.map((card) => {
         const value = kpi[card.key as keyof typeof kpi] as number
         return (
-          <div key={card.key} className="card flex flex-1 flex-col justify-center p-4">
+          <div key={card.key} className="card flex flex-col justify-center p-4">
             <div className="flex items-center justify-between">
               <card.icon size={20} style={{ color: card.color }} />
             </div>
@@ -53,39 +53,6 @@ function TodayKPICards({ kpi }: { kpi: KpiData }) {
           </div>
         )
       })}
-    </div>
-  )
-}
-
-// ====== ATTENDANCE CARD ======
-
-function AttendanceCard({ data }: { data: AttendanceData }) {
-  return (
-    <div className="card flex flex-1 flex-col p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-          <Users size={16} className="text-blue-500" />
-          Nhân viên hôm nay
-        </h3>
-        <Link to="/cham-cong" className="text-xs text-brand-600 hover:text-brand-700">Chi tiết <ArrowRight size={12} className="inline" /></Link>
-      </div>
-      <div className="flex flex-1 items-center gap-4">
-        <CircularProgress pct={data.percentage} size={72} stroke={5} />
-        <div className="flex-1 space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-600">Đã check-in</span>
-            <span className="font-semibold text-green-600">{data.checkedIn}</span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-600">Đang làm việc</span>
-            <span className="font-semibold text-amber-600">{data.working}</span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-600">Chưa check-in</span>
-            <span className="font-semibold text-slate-400">{data.notCheckedIn}</span>
-          </div>
-        </div>
-      </div>
     </div>
   )
 }
@@ -378,31 +345,6 @@ function RevenueChartCard() {
   )
 }
 
-// ====== CIRCULAR PROGRESS ======
-
-function CircularProgress({ pct, size = 60, stroke = 4 }: { pct: number; size?: number; stroke?: number }) {
-  const r = (size - stroke) / 2
-  const circ = 2 * Math.PI * r
-  const dash = (pct / 100) * circ
-  return (
-    <svg width={size} height={size} className="shrink-0">
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#e2e8f0" strokeWidth={stroke} />
-      <circle
-        cx={size / 2} cy={size / 2} r={r} fill="none"
-        stroke={pct >= 75 ? '#22c55e' : pct >= 50 ? '#eab308' : '#ef4444'}
-        strokeWidth={stroke}
-        strokeDasharray={dash}
-        strokeDashoffset={circ - dash}
-        strokeLinecap="round"
-        transform={`rotate(-90 ${size / 2} ${size / 2})`}
-      />
-      <text x="50%" y="50%" textAnchor="middle" dy="0.35em" fontSize={size * 0.28} fontWeight="700" fill="#334155">
-        {pct}%
-      </text>
-    </svg>
-  )
-}
-
 // ====== PAGE ======
 
 export default function OverviewDashboard() {
@@ -412,20 +354,9 @@ export default function OverviewDashboard() {
     <div className="space-y-7">
       <DashboardHeader />
 
-      {/* ROW 1: KPI + Attendance — equal-height cards */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
-        <div className="flex flex-col lg:col-span-4">
-          <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-slate-800">
-            <AlertTriangle size={18} className="text-amber-500" />
-            Công việc cần làm hôm nay
-          </h2>
-          <div className="flex flex-1 items-stretch">
-            <TodayKPICards kpi={vm.kpi} />
-          </div>
-        </div>
-        <div className="flex flex-col lg:col-span-1">
-          <AttendanceCard data={vm.attendanceData} />
-        </div>
+      {/* ROW 1: 4 KPI cards — equal width, full row */}
+      <div className="flex flex-1 gap-5">
+        <TodayKPICards kpi={vm.kpi} />
       </div>
 
       {/* ROW 2: LiveFeed + Locations + Warnings — equal-height cards */}
