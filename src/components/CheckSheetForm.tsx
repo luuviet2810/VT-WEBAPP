@@ -564,43 +564,13 @@ export default function CheckSheetForm({
       let error = 0
       let none = 0
 
-      // Còn Song nưng
-      const csn = classifyStatus(outCheck.conSeongnyeong?.status)
-      if (csn === 'ok') ok++
-      else if (csn === 'bad') error++
-      else if (csn === 'install') { error++; none++ }
-
-      // Dầu máy
-      const dm = classifyStatus(outCheck.dauMay?.status)
-      if (dm === 'ok') ok++
-      else if (dm === 'bad') error++
-      else if (dm === 'install') { error++; none++ }
-
-      // Nước làm mát
-      const nlm = classifyStatus(outCheck.nuocLamMat?.status)
-      if (nlm === 'ok') ok++
-      else if (nlm === 'bad') error++
-      else if (nlm === 'install') { error++; none++ }
-
-      // Các item generic
+      // Tất cả các mục kiểm tra đầu ra — mỗi mục chỉ được duyệt 1 lần
       Object.values(outCheck).forEach((v: any) => {
         const c = classifyStatus(v?.status)
         if (c === 'ok') ok++
         else if (c === 'bad') error++
         else if (c === 'install') { error++; none++ }
       })
-
-      // Điều hòa
-      const dh = classifyStatus(outCheck.dieuHoa?.status)
-      if (dh === 'ok') ok++
-      else if (dh === 'bad') error++
-      else if (dh === 'install') { error++; none++ }
-
-      // Sưởi ghế
-      const sg = classifyStatus(outCheck.suoiGhe?.status)
-      if (sg === 'ok') ok++
-      else if (sg === 'bad') error++
-      else if (sg === 'install') { error++; none++ }
 
       return { ok, error, none, noteCount: outNotes ? 1 : 0 }
     }
