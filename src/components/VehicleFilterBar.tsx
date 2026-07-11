@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
 import { Search, RotateCcw } from 'lucide-react'
-import clsx from 'clsx'
 import { useStore } from '../store/useStore'
 import { VehicleStatus } from '../types'
 
@@ -70,47 +69,48 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
   }
 
   return (
-    <div className="card mb-5">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <div className="relative lg:col-span-2">
+    <div className="card mb-5 py-3">
+      <div className="flex flex-wrap items-center gap-3 lg:flex-nowrap">
+        {/* Search — takes remaining width */}
+        <div className="relative min-w-0 flex-1 lg:min-w-[420px]">
           <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
-            className="input pl-10"
+            className="input h-10 pl-10"
             placeholder="Tìm biển số hoặc dòng xe..."
             value={filters.query}
             onChange={(e) => updateFilter('query', e.target.value)}
           />
         </div>
-        <select className="input" value={filters.status} onChange={(e) => updateFilter('status', e.target.value)}>
+
+        {/* Filters — fixed width on desktop */}
+        <select className="input h-10 w-full sm:w-auto lg:w-[200px]" value={filters.status} onChange={(e) => updateFilter('status', e.target.value)}>
           {STATUS_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
           ))}
         </select>
-        <select className="input" value={filters.positionId} onChange={(e) => updateFilter('positionId', e.target.value)}>
+
+        <select className="input h-10 w-full sm:w-auto lg:w-[200px]" value={filters.positionId} onChange={(e) => updateFilter('positionId', e.target.value)}>
           {positionOptions.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
           ))}
         </select>
-        <select className="input" value={filters.assigneeId} onChange={(e) => updateFilter('assigneeId', e.target.value)}>
+
+        <select className="input h-10 w-full sm:w-auto lg:w-[200px]" value={filters.assigneeId} onChange={(e) => updateFilter('assigneeId', e.target.value)}>
           {assigneeOptions.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
           ))}
         </select>
-      </div>
 
-      <div className="mt-3 flex items-center justify-between gap-3">
-        <div className="text-xs text-slate-400">
-          Bộ lọc hoạt động theo thời gian thực trên danh sách xe đang hiển thị.
-        </div>
-        <button type="button" onClick={resetFilters} className={clsx('btn-secondary flex items-center gap-1.5')}>
-          <RotateCcw size={16} />
-          Đặt lại bộ lọc
+        {/* Reset */}
+        <button type="button" onClick={resetFilters} className="btn-secondary flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap px-3">
+          <RotateCcw size={15} />
+          Đặt lại
         </button>
       </div>
     </div>

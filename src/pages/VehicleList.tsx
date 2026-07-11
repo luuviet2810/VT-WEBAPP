@@ -122,7 +122,7 @@ export default function VehicleList() {
           <EmptyState icon={<Car size={36} />} title="Không tìm thấy xe nào" subtitle="Thử thay đổi bộ lọc hoặc từ khoá tìm kiếm" />
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 2xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-5 lg:grid-cols-4 2xl:grid-cols-5">
           {filtered.map((v) => {
             const position = positions.find((p) => p.id === v.positionId)
             const assignee = employees.find((e) => e.id === v.assigneeId)
@@ -138,61 +138,63 @@ export default function VehicleList() {
                 to={`/xe/${v.id}`}
                 className="card group overflow-hidden transition hover:shadow-md hover:-translate-y-0.5 text-sm"
               >
-                {/* Vehicle Image */}
-                <div className="aspect-[16/9] max-h-44 w-full overflow-hidden bg-slate-100">
+                {/* Vehicle Image — ~40% height */}
+                <div className="aspect-[4/3] w-full overflow-hidden bg-slate-100">
                   {v.images[0] ? (
                     <img src={v.images[0]} alt={v.model} className="h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-slate-300">
-                      <Car size={40} />
+                      <Car size={36} />
                     </div>
                   )}
                 </div>
-                
-                {/* Vehicle Info */}
-                <div className="p-3">
+
+                {/* Vehicle Info — ~60% height */}
+                <div className="p-3 pb-2.5">
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-base font-bold text-slate-900">{v.plate || '—'}</span>
-                    <div className="flex flex-col items-end gap-1">
+                    <div className="flex flex-col items-end gap-0.5">
                       <Badge tone={WORKFLOW_STATUS_TONE[workflowStatus]}>{WORKFLOW_STATUS_LABEL[workflowStatus]}</Badge>
                       <Badge tone={STATUS_TONE[v.status]}>{STATUS_LABEL[v.status]}</Badge>
                       {hasCheckSheet && (
-                        <div className="flex items-center gap-1 text-xs text-brand-600">
-                          <ListChecks size={12} />
+                        <div className="flex items-center gap-1 text-[10px] text-brand-600">
+                          <ListChecks size={10} />
                           <span>Đã kiểm tra</span>
                         </div>
                       )}
                     </div>
                   </div>
                   <div className="mt-0.5 text-sm text-slate-500">{v.model}</div>
-                  
+
                   {/* Position */}
                   {position && (
-                    <div className="mt-2">
+                    <div className="mt-1.5">
                       <span className="text-xs font-medium text-brand-600">{position.name}</span>
                     </div>
                   )}
-                  
+
                   {/* Assignee */}
-                  {assignee ? (
-                    <div className="mt-1 flex items-center gap-1 text-xs font-medium text-amber-600">
-                      <User size={12} />
-                      {assignee.name}
-                    </div>
-                  ) : (
-                    <div className="mt-1 flex items-center gap-1 text-xs text-slate-400">
-                      <User size={12} />
-                      Chưa phân công
-                    </div>
-                  )}
-                  
+                  <div className="mt-1 flex items-center gap-1 text-xs">
+                    {assignee ? (
+                      <span className="flex items-center gap-1 font-medium text-amber-600">
+                        <User size={11} />
+                        {assignee.name}
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-slate-400">
+                        <User size={11} />
+                        Chưa phân công
+                      </span>
+                    )}
+                  </div>
+
                   {/* Price */}
-                  {v.sellPrice !== undefined && (
-                    <div className="mt-1 text-sm font-bold text-slate-700">{formatCurrency(v.sellPrice)} đ</div>
+                  {v.sellPrice != null && (
+                    <div className="mt-0.5 text-sm font-bold text-slate-700">{formatCurrency(v.sellPrice)} đ</div>
                   )}
-                  
+
                   {/* Quick Actions */}
-                  <div className="mt-3 flex gap-1.5 border-t border-slate-100 pt-3">
+                  <div className="mt-2.5 flex gap-1.5 border-t border-slate-100 pt-2.5">
                     {/* Nhiệm vụ */}
                     <button
                       onClick={(e) => { e.preventDefault(); setSelectedTaskVehicleId(v.id) }}
