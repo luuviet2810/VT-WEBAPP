@@ -3,6 +3,7 @@
 import { Route, Routes, Navigate } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import GlobalSearch from './components/GlobalSearch'
+import NotificationCenter from './components/NotificationCenter'
 import { useEffect } from 'react'
 import { initializeFromSupabase } from './store/useStore'
 
@@ -27,6 +28,7 @@ import { useAuthStore } from './store/useAuthStore'
 import { useViewModeStore } from './store/viewModeStore'
 import { useState } from 'react'
 import { UserRole } from './rbac/roles'
+import { Search } from 'lucide-react'
 
 function AuthLayout({ children }: { children: React.ReactNode }) {
   return <>{children}</>
@@ -41,23 +43,22 @@ function MainLayout({ children }: { children: React.ReactNode }) {
 
       <main className="flex-1 overflow-y-auto overflow-x-hidden">
         <div className="px-4 py-4 pb-24 md:px-6 md:py-6">
-          <div className="mb-4 flex items-center justify-between md:hidden">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="btn-icon"
-              aria-label="Mở menu"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="4" x2="20" y1="12" y2="12"/>
-                <line x1="4" x2="20" y1="6" y2="6"/>
-                <line x1="4" x2="20" y1="18" y2="18"/>
-              </svg>
+          <div className="mb-4 flex items-center justify-between gap-2 md:hidden">
+            <button onClick={() => setSidebarOpen(true)} className="btn-icon" aria-label="Mở menu">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
             </button>
-            <GlobalSearch />
+            <div className="flex items-center gap-2">
+              <GlobalSearch />
+              <NotificationCenter />
+            </div>
           </div>
 
-          <div className="hidden md:mb-4 md:flex md:justify-end">
-            <GlobalSearch />
+          <div className="hidden md:mb-6 md:flex md:items-center md:justify-end md:gap-3">
+            <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+              <Search size={16} className="text-slate-400" />
+              <GlobalSearch />
+            </div>
+            <NotificationCenter />
           </div>
 
           {children}
