@@ -265,6 +265,14 @@ export async function upsertVehicle(data: UpsertVehicleInput): Promise<'inserted
 
   if (error) throw error
 
+  // For newly inserted vehicles, set the default starting position
+  if (status === 201) {
+    await supabase
+      .from('vehicles')
+      .update({ position_id: '00000000-0000-0000-0000-000000000001' })
+      .eq('plate', data.plate)
+  }
+
   // Detect whether a row was inserted or updated:
   //  201 = Created (INSERT)
   //  200 = OK      (UPDATE — row existed)

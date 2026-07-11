@@ -206,7 +206,7 @@ export const useStore = create<StoreState>()(
         costPrice: v.costPrice,
         sellPrice: v.sellPrice,
         status: v.status || 'available',
-        positionId: v.positionId ?? null,
+        positionId: v.positionId ?? '00000000-0000-0000-0000-000000000001',
         assigneeId: v.assigneeId ?? null,
         note: v.note || '',
         images: [],

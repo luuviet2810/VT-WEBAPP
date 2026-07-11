@@ -152,7 +152,7 @@ export default function VehicleFormModal({
       costPrice: form.costPrice ? Number(form.costPrice) : undefined,
       sellPrice: form.sellPrice ? Number(form.sellPrice) : undefined,
       status: form.status,
-      positionId: form.positionId || null,
+      positionId: form.positionId || '00000000-0000-0000-0000-000000000001',
       note: form.note || undefined,
     }
     if (vehicleId) {
