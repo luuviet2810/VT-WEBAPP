@@ -905,6 +905,12 @@ export const useStore = create<StoreState>()(
     },
 
     addNotification: async (n) => {
+      console.trace("NOTIFICATION:", n.type, JSON.stringify(n.data))
+      // Guard: block notifications with empty task names
+      if (n.data?.taskName && !n.data.taskName.trim()) {
+        console.warn("⚠️ [STORE] Blocked notification with empty task name:", n.type)
+        return
+      }
       const notif: Notification = { ...n, id: uid('notif'), read: false, createdAt: todayISO() }
       set((s) => ({ notifications: [notif, ...s.notifications] }))
       try {
