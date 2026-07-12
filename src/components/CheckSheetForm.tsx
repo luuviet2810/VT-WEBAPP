@@ -411,6 +411,13 @@ export default function CheckSheetForm({
         }
         // Mark init complete so auto-save can start
         initRef.current = true
+
+        // Ensure the sheet is in the Zustand store so VehicleList previews
+        // and other components see it immediately — no page refresh needed.
+        useStore.setState((s) => {
+          if (s.checkSheets.some((cs) => cs.id === sheet.id)) return s
+          return { checkSheets: [sheet, ...s.checkSheets] }
+        })
       } catch (err) {
         console.error('[CheckSheetForm] Failed to load/create sheet:', err)
         addNotification({ type: 'error', title: 'Lỗi tải phiếu', body: 'Không thể tải dữ liệu phiếu kiểm tra.' })
