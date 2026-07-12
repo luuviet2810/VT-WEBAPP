@@ -1,6 +1,6 @@
 // ====== ROLE-BASED SIDEBAR ======
 
-import logoSvg from '../assets/logo-vtauto.svg'
+import logo from '../assets/logo-vtauto.png'
 import { LogOut, X, Bell } from 'lucide-react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
@@ -97,7 +97,7 @@ function DrawerContent({ onClose }: { onClose: () => void }) {
       <div className="border-b border-slate-100 px-5 py-5">
         <div className="flex justify-center">
           <img
-            src={logoSvg}
+            src={logo}
             alt="VT AUTO"
             className="h-auto w-full max-w-[160px] select-none object-contain"
             draggable={false}
@@ -261,7 +261,7 @@ function DesktopSidebarContent() {
       <div className="px-5 py-5">
         <div className="flex justify-center">
           <img
-            src={logoSvg}
+            src={logo}
             alt="VT AUTO"
             className="h-auto w-full max-w-[160px] select-none object-contain"
             draggable={false}
