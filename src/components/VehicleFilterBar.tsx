@@ -90,7 +90,11 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
 
   const hasActiveFilters = filters.status !== 'all' || filters.positionId !== 'all' || filters.assigneeId !== 'all' || filters.sortBy !== 'default' || filters.priceMin > 0 || filters.priceMax < currentMax
 
+  // Format number with thousand separators
   const fmt = (v: number) => v.toLocaleString('vi-VN')
+
+  // Step size based on range: 1M for short range, 5M for extended
+  const stepSize = extendedRange ? 5000000 : 1000000
 
   return (
     <div className="card mt-8 px-6 py-5">
@@ -217,7 +221,7 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
                         type="range"
                         min={0}
                         max={currentMax}
-                        step={500000}
+                        step={stepSize}
                         value={Math.min(filters.priceMin, currentMax)}
                         onChange={(e) => {
                           const v = Number(e.target.value)
@@ -229,7 +233,7 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
                         type="range"
                         min={0}
                         max={currentMax}
-                        step={500000}
+                        step={stepSize}
                         value={Math.min(filters.priceMax, currentMax)}
                         onChange={(e) => {
                           const v = Number(e.target.value)
