@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Edit3, Plus, Trash2, X, GripVertical, ArrowRight, Activity } from 'lucide-react'
+import { Edit3, Plus, Trash2, X, GripVertical, ArrowRight, Clock } from 'lucide-react'
 import {
   DndContext,
   closestCenter,
@@ -22,20 +22,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { useStore } from '../store/useStore'
 import { EmptyState, Modal, ConfirmDialog } from '../components/ui'
-import { formatDateTime } from '../utils/format'
 import { Position } from '../types'
-
-// Activity icon + label by type
-const ACTIVITY_META: Record<string, { label: string; icon: string }> = {
-  vehicle_created: { label: 'Nhập xe', icon: '🚗' },
-  vehicle_status_changed: { label: 'Đổi trạng thái', icon: '🔄' },
-  vehicle_workflow_changed: { label: 'Cập nhật tiến độ', icon: '📋' },
-  check_sheet_created: { label: 'CheckSheet', icon: '📝' },
-  task_generated: { label: 'Tạo nhiệm vụ', icon: '⚡' },
-  task_status_changed: { label: 'Cập nhật nhiệm vụ', icon: '✅' },
-  move_log: { label: 'Di chuyển', icon: '📍' },
-  custom: { label: 'Khác', icon: '📌' },
-}
 
 // Sortable position item component
 function SortablePositionItem({
@@ -148,6 +135,7 @@ export default function Positions() {
   const [dragId, setDragId] = useState<string | null>(null)
   const [dragOverId, setDragOverId] = useState<string | null>(null)
   const [editModalOpen, setEditModalOpen] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const [newPosName, setNewPosName] = useState('')
   const [editingPosId, setEditingPosId] = useState<string | null>(null)
   const [editingPosName, setEditingPosName] = useState('')
@@ -264,19 +252,23 @@ export default function Positions() {
   return (
     <div className="flex h-[calc(100dvh-120px)] flex-col">
       {/* Header */}
-      <div className="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-4 flex shrink-0 items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Vị trí xe</h1>
           <p className="mt-1 text-sm text-slate-500">Kéo thả xe giữa các công đoạn — cập nhật tự động</p>
         </div>
-        <button className="btn-secondary" onClick={() => setEditModalOpen(true)}>
-          <Edit3 size={16} />
-          Chỉnh sửa vị trí
-        </button>
+        <div className="flex items-center gap-2">
+          <button className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:border-slate-300 hover:text-slate-700" onClick={() => setHistoryOpen(true)} title="Hoạt động gần đây">
+            <Clock size={18} />
+          </button>
+          <button className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:border-slate-300 hover:text-slate-700" onClick={() => setEditModalOpen(true)} title="Chỉnh sửa vị trí">
+            <Edit3 size={18} />
+          </button>
+        </div>
       </div>
 
-      {/* Kanban Board — ~60% viewport */}
-      <div className="flex min-h-0 shrink-0 gap-4 overflow-x-auto pb-3" style={{ height: '58%' }}>
+      {/* Kanban Board — ~85% viewport, full height */}
+      <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto pb-3">
         {sortedPositions.map((p) => {
           const posVehicles = vehicles.filter((v) => v.positionId === p.id && v.status !== 'sold')
           const isDragOver = dragOverId === p.id
@@ -383,50 +375,51 @@ export default function Positions() {
         )}
       </div>
 
-      {/* Global Activity Feed — ~40% viewport */}
-      <div className="flex min-h-0 shrink-0 flex-col rounded-2xl border border-slate-200 bg-white" style={{ height: '38%' }}>
-        <div className="flex shrink-0 items-center gap-2 border-b border-slate-100 px-5 py-3">
-          <Activity size={16} className="text-slate-400" />
-          <span className="text-sm font-semibold text-slate-700">Hoạt động gần đây</span>
-          <span className="ml-auto text-xs text-slate-400">{globalActivity.length} sự kiện</span>
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          {globalActivity.length === 0 ? (
-            <div className="flex items-center justify-center py-12">
-              <EmptyState title="Chưa có hoạt động" />
+      {/* History Drawer */}
+      {historyOpen && (
+        <>
+          <div className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm" onClick={() => setHistoryOpen(false)} />
+          <div className="fixed bottom-0 right-0 z-50 flex h-full w-full flex-col bg-white shadow-2xl sm:w-[460px]">
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-4">
+              <h2 className="text-base font-semibold text-slate-800">Hoạt động gần đây</h2>
+              <button onClick={() => setHistoryOpen(false)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+                <X size={18} />
+              </button>
             </div>
-          ) : (
-            <div className="divide-y divide-slate-50">
-              {globalActivity.map((entry) => {
-                const v = entry.vehicleId ? vehicles.find((x) => x.id === entry.vehicleId) : undefined
-                const meta = ACTIVITY_META[entry.type] || ACTIVITY_META.custom
-                return (
-                  <div key={entry.id} className="flex items-center gap-3 px-5 py-2.5 text-sm transition-colors hover:bg-slate-50">
-                    <span className="shrink-0 text-base">{meta.icon}</span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-slate-800">{entry.title}</span>
-                        {v && (
-                          <Link to={`/xe/${v.id}`} className="text-xs font-medium text-brand-600 hover:underline">
-                            {v.plate}
-                          </Link>
-                        )}
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {globalActivity.length === 0 ? (
+                <div className="flex items-center justify-center py-16">
+                  <EmptyState title="Chưa có hoạt động" />
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-50">
+                  {globalActivity.map((entry) => {
+                    const v = entry.vehicleId ? vehicles.find((x) => x.id === entry.vehicleId) : undefined
+                    return (
+                      <div key={entry.id} className="px-5 py-3 text-sm transition-colors hover:bg-slate-50">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-slate-400">{entry.time?.slice(11, 16) || ''}</span>
+                            <span className="text-xs font-medium text-slate-500">{entry.user || '—'}</span>
+                          </div>
+                          {v && (
+                            <Link to={`/xe/${v.id}`} className="text-xs font-semibold text-brand-600 hover:underline" onClick={() => setHistoryOpen(false)}>
+                              {v.plate}
+                            </Link>
+                          )}
+                        </div>
+                        <div className="mt-1 flex items-center gap-1.5 text-sm text-slate-700">
+                          {entry.description || entry.title}
+                        </div>
                       </div>
-                      {entry.description && (
-                        <div className="text-xs text-slate-500">{entry.description}</div>
-                      )}
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <div className="text-xs text-slate-400">{entry.user || '—'}</div>
-                      <div className="text-[10px] text-slate-300">{formatDateTime(entry.time)}</div>
-                    </div>
-                  </div>
-                )
-              })}
+                    )
+                  })}
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      </div>
+          </div>
+        </>
+      )}
 
       {/* Edit Positions Modal */}
       <Modal
