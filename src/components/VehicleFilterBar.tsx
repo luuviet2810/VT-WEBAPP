@@ -2,27 +2,33 @@ import { useMemo, useRef, useState } from 'react'
 import { Search, RotateCcw, Filter, X } from 'lucide-react'
 import { useStore } from '../store/useStore'
 
-type VehicleFilterBarProps = {
-  onFilterChange?: (filters: {
-    query: string
-    status: string
-    positionId: string
-    assigneeId: string
-  }) => void
-}
-
 type Filters = {
   query: string
   status: string
   positionId: string
   assigneeId: string
+  sortBy: 'default' | 'price_asc' | 'price_desc'
+  priceMin: number
+  priceMax: number
 }
+
+type VehicleFilterBarProps = {
+  onFilterChange?: (filters: Filters) => void
+}
+
+const PRICE_MAX = 110000000
 
 const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: 'all', label: 'Tất cả tình trạng' },
   { value: 'available', label: 'Chưa bán' },
   { value: 'deposited', label: 'Đã cọc' },
   { value: 'sold', label: 'Đã bán' },
+]
+
+const SORT_OPTIONS: { value: Filters['sortBy']; label: string }[] = [
+  { value: 'default', label: 'Mặc định' },
+  { value: 'price_asc', label: 'Giá: Thấp đến cao' },
+  { value: 'price_desc', label: 'Giá: Cao đến thấp' },
 ]
 
 export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarProps) {
@@ -36,6 +42,9 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
     status: 'all',
     positionId: 'all',
     assigneeId: 'all',
+    sortBy: 'default',
+    priceMin: 0,
+    priceMax: PRICE_MAX,
   })
 
   const positionOptions = useMemo(() => {
@@ -58,12 +67,15 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
   }
 
   function resetFilters() {
-    const next: Filters = { query: '', status: 'all', positionId: 'all', assigneeId: 'all' }
+    const next: Filters = { query: '', status: 'all', positionId: 'all', assigneeId: 'all', sortBy: 'default', priceMin: 0, priceMax: PRICE_MAX }
     setFilters(next)
     onFilterChange?.(next)
   }
 
-  const hasActiveFilters = filters.status !== 'all' || filters.positionId !== 'all' || filters.assigneeId !== 'all'
+  const hasActiveFilters = filters.status !== 'all' || filters.positionId !== 'all' || filters.assigneeId !== 'all' || filters.sortBy !== 'default' || filters.priceMin > 0 || filters.priceMax < PRICE_MAX
+
+  // Format number with thousand separators
+  const fmt = (v: number) => v.toLocaleString('vi-VN')
 
   return (
     <div className="card mt-8 px-6 py-5">
@@ -94,7 +106,13 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
             Bộ lọc
             {hasActiveFilters && (
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-500 text-[10px] font-bold text-white">
-                {[filters.status !== 'all', filters.positionId !== 'all', filters.assigneeId !== 'all'].filter(Boolean).length}
+                {[
+                  filters.status !== 'all',
+                  filters.positionId !== 'all',
+                  filters.assigneeId !== 'all',
+                  filters.sortBy !== 'default',
+                  filters.priceMin > 0 || filters.priceMax < PRICE_MAX,
+                ].filter(Boolean).length}
               </span>
             )}
           </button>
@@ -103,14 +121,25 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
           {filterOpen && (
             <>
               <div className="fixed inset-0 z-30" onClick={() => setFilterOpen(false)} />
-              <div className="absolute right-0 z-40 mt-2 w-[320px] rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
+              <div className="absolute right-0 z-40 mt-2 w-[360px] rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
                 <div className="mb-4 flex items-center justify-between">
                   <span className="text-sm font-semibold text-slate-800">Bộ lọc</span>
                   <button onClick={() => setFilterOpen(false)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
                     <X size={16} />
                   </button>
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-5">
+                  {/* Sort */}
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-slate-500">Sắp xếp</label>
+                    <select className="input h-11 w-full text-sm" value={filters.sortBy} onChange={(e) => updateFilter('sortBy', e.target.value as Filters['sortBy'])}>
+                      {SORT_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Status */}
                   <div>
                     <label className="mb-1.5 block text-xs font-medium text-slate-500">Tình trạng</label>
                     <select className="input h-11 w-full text-sm" value={filters.status} onChange={(e) => updateFilter('status', e.target.value)}>
@@ -119,6 +148,8 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
                       ))}
                     </select>
                   </div>
+
+                  {/* Location */}
                   <div>
                     <label className="mb-1.5 block text-xs font-medium text-slate-500">Vị trí</label>
                     <select className="input h-11 w-full text-sm" value={filters.positionId} onChange={(e) => updateFilter('positionId', e.target.value)}>
@@ -127,6 +158,8 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
                       ))}
                     </select>
                   </div>
+
+                  {/* Staff */}
                   <div>
                     <label className="mb-1.5 block text-xs font-medium text-slate-500">Người phụ trách</label>
                     <select className="input h-11 w-full text-sm" value={filters.assigneeId} onChange={(e) => updateFilter('assigneeId', e.target.value)}>
@@ -134,6 +167,53 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
                         <option key={o.value} value={o.value}>{o.label}</option>
                       ))}
                     </select>
+                  </div>
+
+                  {/* Price Range */}
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-slate-500">Khoảng giá</label>
+                    <div className="flex items-center justify-between text-xs text-slate-500">
+                      <span>{fmt(filters.priceMin)}₩</span>
+                      <span>{fmt(filters.priceMax)}₩</span>
+                    </div>
+                    <div className="relative mt-2 h-6">
+                      {/* Track background */}
+                      <div className="absolute top-1/2 h-1 w-full -translate-y-1/2 rounded-full bg-slate-200" />
+                      {/* Active range */}
+                      <div
+                        className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-brand-400"
+                        style={{
+                          left: `${(filters.priceMin / PRICE_MAX) * 100}%`,
+                          width: `${((filters.priceMax - filters.priceMin) / PRICE_MAX) * 100}%`,
+                        }}
+                      />
+                      {/* Min thumb */}
+                      <input
+                        type="range"
+                        min={0}
+                        max={PRICE_MAX}
+                        step={1000000}
+                        value={filters.priceMin}
+                        onChange={(e) => {
+                          const v = Number(e.target.value)
+                          if (v <= filters.priceMax) updateFilter('priceMin', v)
+                        }}
+                        className="pointer-events-none absolute inset-0 z-10 h-full w-full appearance-none bg-transparent [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-brand-500 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer"
+                      />
+                      {/* Max thumb */}
+                      <input
+                        type="range"
+                        min={0}
+                        max={PRICE_MAX}
+                        step={1000000}
+                        value={filters.priceMax}
+                        onChange={(e) => {
+                          const v = Number(e.target.value)
+                          if (v >= filters.priceMin) updateFilter('priceMax', v)
+                        }}
+                        className="pointer-events-none absolute inset-0 z-20 h-full w-full appearance-none bg-transparent [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-brand-500 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

@@ -42,6 +42,9 @@ export default function VehicleList() {
     status: 'all',
     positionId: 'all',
     assigneeId: 'all',
+    sortBy: 'default' as 'default' | 'price_asc' | 'price_desc',
+    priceMin: 0,
+    priceMax: 110000000,
   })
   const [previewSheet, setPreviewSheet] = useState<typeof checkSheets[0] | null>(null)
   const [previewType, setPreviewType] = useState<'in' | 'out'>('in')
@@ -61,9 +64,15 @@ export default function VehicleList() {
         const matchesAssignee =
           filters.assigneeId === 'all' ||
           v.assigneeId === filters.assigneeId
-        return matchesQuery && matchesPosition && matchesStatus && matchesAssignee
+        const price = v.sellPrice ?? 0
+        const matchesPrice = price >= filters.priceMin && price <= filters.priceMax
+        return matchesQuery && matchesPosition && matchesStatus && matchesAssignee && matchesPrice
       })
-      .sort((a, b) => a.plate.localeCompare(b.plate))
+      .sort((a, b) => {
+        if (filters.sortBy === 'price_asc') return (a.sellPrice ?? 0) - (b.sellPrice ?? 0)
+        if (filters.sortBy === 'price_desc') return (b.sellPrice ?? 0) - (a.sellPrice ?? 0)
+        return a.plate.localeCompare(b.plate)
+      })
   }, [vehicles, tasks, filters])
 
   // Get latest check sheets for a vehicle
