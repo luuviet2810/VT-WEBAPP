@@ -62,7 +62,7 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
     assigneeId: 'all',
     sortBy: 'default',
     priceMin: 0,
-    priceMax: steps[maxIdx],
+    priceMax: 110000000, // show all vehicles by default; slider clamps to nearest step
   })
 
   const positionOptions = useMemo(() => {
@@ -87,9 +87,10 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
   const toggleExtendedRange = useCallback(() => {
     setExtendedRange((prev) => {
       const next = !prev
-      const s = next ? STEPS_EXTENDED : STEPS_SHORT
       setFilters((f) => {
-        const nextFilters = { ...f, priceMin: 0, priceMax: s[s.length - 1] }
+        // Keep priceMax at 110M so the unfiltered list always shows everything.
+        // The slider visually clamps to the nearest step value.
+        const nextFilters = { ...f, priceMin: 0, priceMax: 110000000 }
         onFilterChange?.(nextFilters)
         return nextFilters
       })
@@ -98,11 +99,10 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
   }, [onFilterChange])
 
   const resetFilters = useCallback(() => {
-    const s = extendedRange ? STEPS_EXTENDED : STEPS_SHORT
-    const next: Filters = { query: '', status: 'all', positionId: 'all', assigneeId: 'all', sortBy: 'default', priceMin: 0, priceMax: s[s.length - 1] }
+    const next: Filters = { query: '', status: 'all', positionId: 'all', assigneeId: 'all', sortBy: 'default', priceMin: 0, priceMax: 110000000 }
     setFilters(next)
     onFilterChange?.(next)
-  }, [onFilterChange, extendedRange])
+  }, [onFilterChange])
 
   const hasActiveFilters = filters.status !== 'all' || filters.positionId !== 'all' || filters.assigneeId !== 'all' || filters.sortBy !== 'default' || filters.priceMin > 0 || filters.priceMax < steps[maxIdx]
 
