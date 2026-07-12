@@ -1,18 +1,14 @@
 // ====== ROLE-BASED SIDEBAR ======
 
-import {
-  Car,
-  LogOut,
-  X,
-  Bell,
-} from 'lucide-react'
+import logoSvg from '../assets/logo-vtauto.svg'
+import { LogOut, X, Bell } from 'lucide-react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { useAuthStore } from '../store/useAuthStore'
 import { useViewModeStore } from '../store/viewModeStore'
 import ViewModeToggle from './ViewModeToggle'
 import { SIDEBAR_CONFIG, getSidebarConfig } from '../rbac/sidebarConfig'
-import { ROLE_LABELS, BRAND_NAME } from '../rbac/roles'
+import { ROLE_LABELS } from '../rbac/roles'
 import { UserRole } from '../rbac/roles'
 
 interface SidebarProps {
@@ -97,24 +93,21 @@ function DrawerContent({ onClose }: { onClose: () => void }) {
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-100 px-4 py-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-600 text-white">
-            <Car size={20} />
-          </div>
-          <div>
-            <div className="font-semibold text-slate-900">VT AUTO</div>
-            <div className="text-xs text-slate-400">
-              {ROLE_LABELS[effectiveRole]}
-            </div>
-          </div>
+      {/* Logo */}
+      <div className="border-b border-slate-100 px-5 py-5">
+        <div className="flex justify-center">
+          <img
+            src={logoSvg}
+            alt="VT AUTO"
+            className="h-auto w-full max-w-[160px] select-none object-contain"
+            draggable={false}
+          />
         </div>
-        <button
-          onClick={onClose}
-          className="btn-icon"
-          aria-label="Đóng menu"
-        >
+      </div>
+
+      {/* Mobile Close */}
+      <div className="absolute right-2 top-2 md:hidden">
+        <button onClick={onClose} className="btn-icon" aria-label="Đóng menu">
           <X size={22} />
         </button>
       </div>
@@ -264,16 +257,15 @@ function DesktopSidebarContent() {
         </div>
       )}
 
-      {/* Logo & Title */}
-      <div className="flex items-center gap-2.5 px-5 py-5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-white">
-          <Car size={18} />
-        </div>
-        <div className="flex-1">
-          <div className="text-[15px] font-semibold text-slate-900 leading-tight">VT AUTO</div>
-          <div className="text-xs text-slate-400 leading-tight">
-            {ROLE_LABELS[effectiveRole]}
-          </div>
+      {/* Logo */}
+      <div className="px-5 py-5">
+        <div className="flex justify-center">
+          <img
+            src={logoSvg}
+            alt="VT AUTO"
+            className="h-auto w-full max-w-[160px] select-none object-contain"
+            draggable={false}
+          />
         </div>
       </div>
 
