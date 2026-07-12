@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState, useCallback } from 'react'
 import { Search, RotateCcw, Filter, X } from 'lucide-react'
 import { useStore } from '../store/useStore'
 
@@ -16,7 +16,8 @@ type VehicleFilterBarProps = {
   onFilterChange?: (filters: Filters) => void
 }
 
-const PRICE_MAX = 20000000
+const PRICE_MAX_SHORT = 20000000
+const PRICE_MAX_EXTENDED = 110000000
 
 const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: 'all', label: 'Tất cả tình trạng' },
@@ -36,6 +37,8 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
   const employees = useStore((s) => s.employees)
   const [filterOpen, setFilterOpen] = useState(false)
   const filterRef = useRef<HTMLDivElement>(null)
+  const [extendedRange, setExtendedRange] = useState(false)
+  const currentMax = extendedRange ? PRICE_MAX_EXTENDED : PRICE_MAX_SHORT
 
   const [filters, setFilters] = useState<Filters>({
     query: '',
@@ -44,7 +47,7 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
     assigneeId: 'all',
     sortBy: 'default',
     priceMin: 0,
-    priceMax: PRICE_MAX,
+    priceMax: currentMax,
   })
 
   const positionOptions = useMemo(() => {
@@ -58,23 +61,35 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
     ]
   }, [employees])
 
-  function updateFilter<K extends keyof Filters>(key: K, value: Filters[K]) {
+  const updateFilter = useCallback(<K extends keyof Filters>(key: K, value: Filters[K]) => {
     setFilters((prev) => {
       const next = { ...prev, [key]: value }
       onFilterChange?.(next)
       return next
     })
-  }
+  }, [onFilterChange])
 
-  function resetFilters() {
-    const next: Filters = { query: '', status: 'all', positionId: 'all', assigneeId: 'all', sortBy: 'default', priceMin: 0, priceMax: PRICE_MAX }
+  const toggleExtendedRange = useCallback(() => {
+    setExtendedRange((prev) => {
+      const next = !prev
+      const newMax = next ? PRICE_MAX_EXTENDED : PRICE_MAX_SHORT
+      setFilters((f) => {
+        const nextFilters = { ...f, priceMin: 0, priceMax: newMax }
+        onFilterChange?.(nextFilters)
+        return nextFilters
+      })
+      return next
+    })
+  }, [onFilterChange])
+
+  const resetFilters = useCallback(() => {
+    const next: Filters = { query: '', status: 'all', positionId: 'all', assigneeId: 'all', sortBy: 'default', priceMin: 0, priceMax: currentMax }
     setFilters(next)
     onFilterChange?.(next)
-  }
+  }, [onFilterChange, currentMax])
 
-  const hasActiveFilters = filters.status !== 'all' || filters.positionId !== 'all' || filters.assigneeId !== 'all' || filters.sortBy !== 'default' || filters.priceMin > 0 || filters.priceMax < PRICE_MAX
+  const hasActiveFilters = filters.status !== 'all' || filters.positionId !== 'all' || filters.assigneeId !== 'all' || filters.sortBy !== 'default' || filters.priceMin > 0 || filters.priceMax < currentMax
 
-  // Format number with thousand separators
   const fmt = (v: number) => v.toLocaleString('vi-VN')
 
   return (
@@ -111,7 +126,7 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
                   filters.positionId !== 'all',
                   filters.assigneeId !== 'all',
                   filters.sortBy !== 'default',
-                  filters.priceMin > 0 || filters.priceMax < PRICE_MAX,
+                  filters.priceMin > 0 || filters.priceMax < currentMax,
                 ].filter(Boolean).length}
               </span>
             )}
@@ -171,42 +186,51 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
 
                   {/* Price Range */}
                   <div>
-                    <label className="mb-1.5 block text-xs font-medium text-slate-500">Khoảng giá</label>
+                    <div className="mb-2 flex items-center justify-between">
+                      <label className="text-xs font-medium text-slate-500">Khoảng giá</label>
+                      <button
+                        type="button"
+                        onClick={toggleExtendedRange}
+                        className={`flex h-7 items-center gap-1 rounded-full border px-2.5 text-[10px] font-medium transition-colors ${
+                          extendedRange
+                            ? 'border-brand-400 bg-brand-50 text-brand-700'
+                            : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                        }`}
+                      >
+                        &gt;20.000.000₩
+                      </button>
+                    </div>
                     <div className="flex items-center justify-between text-xs text-slate-500">
                       <span>{fmt(filters.priceMin)}₩</span>
                       <span>{fmt(filters.priceMax)}₩</span>
                     </div>
                     <div className="relative mt-2 h-6">
-                      {/* Track background */}
                       <div className="absolute top-1/2 h-1 w-full -translate-y-1/2 rounded-full bg-slate-200" />
-                      {/* Active range */}
                       <div
                         className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-brand-400"
                         style={{
-                          left: `${(filters.priceMin / PRICE_MAX) * 100}%`,
-                          width: `${((filters.priceMax - filters.priceMin) / PRICE_MAX) * 100}%`,
+                          left: `${(filters.priceMin / currentMax) * 100}%`,
+                          width: `${((filters.priceMax - filters.priceMin) / currentMax) * 100}%`,
                         }}
                       />
-                      {/* Min thumb */}
                       <input
                         type="range"
                         min={0}
-                        max={PRICE_MAX}
+                        max={currentMax}
                         step={500000}
-                        value={filters.priceMin}
+                        value={Math.min(filters.priceMin, currentMax)}
                         onChange={(e) => {
                           const v = Number(e.target.value)
                           if (v <= filters.priceMax) updateFilter('priceMin', v)
                         }}
                         className="pointer-events-none absolute inset-0 z-10 h-full w-full appearance-none bg-transparent [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-brand-500 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer"
                       />
-                      {/* Max thumb */}
                       <input
                         type="range"
                         min={0}
-                        max={PRICE_MAX}
+                        max={currentMax}
                         step={500000}
-                        value={filters.priceMax}
+                        value={Math.min(filters.priceMax, currentMax)}
                         onChange={(e) => {
                           const v = Number(e.target.value)
                           if (v >= filters.priceMin) updateFilter('priceMax', v)
