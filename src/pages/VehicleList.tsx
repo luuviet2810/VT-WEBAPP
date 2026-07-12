@@ -44,7 +44,7 @@ export default function VehicleList() {
     assigneeId: 'all',
     sortBy: 'default' as 'default' | 'price_asc' | 'price_desc',
     priceMin: 0,
-    priceMax: 110000000,
+    priceMax: 20000000,
   })
   const [previewSheet, setPreviewSheet] = useState<typeof checkSheets[0] | null>(null)
   const [previewType, setPreviewType] = useState<'in' | 'out'>('in')

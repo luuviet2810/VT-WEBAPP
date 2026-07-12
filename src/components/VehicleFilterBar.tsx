@@ -16,7 +16,7 @@ type VehicleFilterBarProps = {
   onFilterChange?: (filters: Filters) => void
 }
 
-const PRICE_MAX = 110000000
+const PRICE_MAX = 20000000
 
 const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: 'all', label: 'Tất cả tình trạng' },
@@ -192,7 +192,7 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
                         type="range"
                         min={0}
                         max={PRICE_MAX}
-                        step={1000000}
+                        step={500000}
                         value={filters.priceMin}
                         onChange={(e) => {
                           const v = Number(e.target.value)
@@ -205,7 +205,7 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
                         type="range"
                         min={0}
                         max={PRICE_MAX}
-                        step={1000000}
+                        step={500000}
                         value={filters.priceMax}
                         onChange={(e) => {
                           const v = Number(e.target.value)
