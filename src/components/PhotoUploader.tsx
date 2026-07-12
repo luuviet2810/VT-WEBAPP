@@ -109,7 +109,7 @@ export default function PhotoUploader({
           <EmptyState icon={<Upload size={30} />} title={emptyText} subtitle="Ảnh đầu tiên sẽ là ảnh hiển thị" />
         </div>
       ) : (
-        <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4">
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7">
           {images.map((src, idx) => (
             <div
               key={`${idx}-${src.slice(0, 24)}`}
@@ -130,29 +130,29 @@ export default function PhotoUploader({
                 setOverIdx(null)
               }}
               className={clsx(
-                'group relative aspect-square cursor-grab overflow-hidden rounded-xl border bg-slate-50 active:cursor-grabbing',
+                'group relative aspect-[4/3] cursor-grab overflow-hidden rounded-lg border bg-slate-50 active:cursor-grabbing',
                 idx === 0 ? 'border-brand-400 ring-2 ring-brand-100' : 'border-slate-200',
                 overIdx === idx && dragIdx !== idx && 'scale-[0.98] border-brand-400'
               )}
             >
               <img src={src} className="h-full w-full object-cover" draggable={false} />
-              <div className="absolute left-1.5 top-1.5 flex items-center gap-1">
-                <span className="rounded-md bg-slate-900/60 p-1 text-white">
-                  <GripVertical size={12} />
+              <div className="absolute left-1 top-1 flex items-center gap-1">
+                <span className="rounded-md bg-slate-900/60 p-0.5 text-white">
+                  <GripVertical size={10} />
                 </span>
                 {idx === 0 && (
-                  <span className="flex items-center gap-0.5 rounded-md bg-brand-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                    <Star size={10} />
+                  <span className="flex items-center gap-0.5 rounded-md bg-brand-600 px-1 py-0.5 text-[9px] font-semibold text-white">
+                    <Star size={8} />
                     Hiển thị
                   </span>
                 )}
               </div>
-              <div className="absolute inset-x-1.5 bottom-1.5 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+              <div className="absolute inset-x-1 bottom-1 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                 {idx !== 0 && (
                   <button
                     type="button"
                     onClick={() => setCover(idx)}
-                    className="flex-1 rounded-lg bg-white/95 py-1 text-[10px] font-medium text-brand-700 shadow-sm"
+                    className="flex-1 rounded-md bg-white/95 py-0.5 text-[9px] font-medium text-brand-700 shadow-sm"
                   >
                     Làm ảnh hiển thị
                   </button>
@@ -160,9 +160,9 @@ export default function PhotoUploader({
                 <button
                   type="button"
                   onClick={() => removeAt(idx)}
-                  className="rounded-lg bg-slate-900/70 p-1.5 text-white"
+                  className="rounded-md bg-slate-900/70 p-1 text-white"
                 >
-                  <Trash2 size={12} />
+                  <Trash2 size={10} />
                 </button>
               </div>
             </div>
