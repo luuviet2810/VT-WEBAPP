@@ -16,8 +16,11 @@ type VehicleFilterBarProps = {
   onFilterChange?: (filters: Filters) => void
 }
 
-const PRICE_MAX_SHORT = 20000000
-const PRICE_MAX_EXTENDED = 110000000
+// Price step arrays — each entry is a position on the slider track.
+// Slider goes from index 0 to steps.length-1 with step=1.
+// The track has (steps.length-1) equal segments.
+const STEPS_SHORT = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20].map((n) => n * 1000000)
+const STEPS_EXTENDED = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110].map((n) => n * 1000000)
 
 const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: 'all', label: 'Tất cả tình trạng' },
@@ -38,7 +41,19 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
   const [filterOpen, setFilterOpen] = useState(false)
   const filterRef = useRef<HTMLDivElement>(null)
   const [extendedRange, setExtendedRange] = useState(false)
-  const currentMax = extendedRange ? PRICE_MAX_EXTENDED : PRICE_MAX_SHORT
+  const steps = extendedRange ? STEPS_EXTENDED : STEPS_SHORT
+  const maxIdx = steps.length - 1
+
+  // Clamp a price to the nearest step value
+  const nearestStep = (price: number) => {
+    let closest = steps[0]
+    let minDist = Infinity
+    for (const s of steps) {
+      const dist = Math.abs(s - price)
+      if (dist < minDist) { minDist = dist; closest = s }
+    }
+    return closest
+  }
 
   const [filters, setFilters] = useState<Filters>({
     query: '',
@@ -47,7 +62,7 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
     assigneeId: 'all',
     sortBy: 'default',
     priceMin: 0,
-    priceMax: currentMax,
+    priceMax: steps[maxIdx],
   })
 
   const positionOptions = useMemo(() => {
@@ -72,9 +87,9 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
   const toggleExtendedRange = useCallback(() => {
     setExtendedRange((prev) => {
       const next = !prev
-      const newMax = next ? PRICE_MAX_EXTENDED : PRICE_MAX_SHORT
+      const s = next ? STEPS_EXTENDED : STEPS_SHORT
       setFilters((f) => {
-        const nextFilters = { ...f, priceMin: 0, priceMax: newMax }
+        const nextFilters = { ...f, priceMin: 0, priceMax: s[s.length - 1] }
         onFilterChange?.(nextFilters)
         return nextFilters
       })
@@ -83,18 +98,16 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
   }, [onFilterChange])
 
   const resetFilters = useCallback(() => {
-    const next: Filters = { query: '', status: 'all', positionId: 'all', assigneeId: 'all', sortBy: 'default', priceMin: 0, priceMax: currentMax }
+    const s = extendedRange ? STEPS_EXTENDED : STEPS_SHORT
+    const next: Filters = { query: '', status: 'all', positionId: 'all', assigneeId: 'all', sortBy: 'default', priceMin: 0, priceMax: s[s.length - 1] }
     setFilters(next)
     onFilterChange?.(next)
-  }, [onFilterChange, currentMax])
+  }, [onFilterChange, extendedRange])
 
-  const hasActiveFilters = filters.status !== 'all' || filters.positionId !== 'all' || filters.assigneeId !== 'all' || filters.sortBy !== 'default' || filters.priceMin > 0 || filters.priceMax < currentMax
+  const hasActiveFilters = filters.status !== 'all' || filters.positionId !== 'all' || filters.assigneeId !== 'all' || filters.sortBy !== 'default' || filters.priceMin > 0 || filters.priceMax < steps[maxIdx]
 
   // Format number with thousand separators
   const fmt = (v: number) => v.toLocaleString('vi-VN')
-
-  // Step size based on range: 1M for short range, 5M for extended
-  const stepSize = extendedRange ? 5000000 : 1000000
 
   return (
     <div className="card mt-8 px-6 py-5">
@@ -130,7 +143,7 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
                   filters.positionId !== 'all',
                   filters.assigneeId !== 'all',
                   filters.sortBy !== 'default',
-                  filters.priceMin > 0 || filters.priceMax < currentMax,
+                  filters.priceMin > 0 || filters.priceMax < steps[maxIdx],
                 ].filter(Boolean).length}
               </span>
             )}
@@ -213,31 +226,31 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
                       <div
                         className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-brand-400"
                         style={{
-                          left: `${(filters.priceMin / currentMax) * 100}%`,
-                          width: `${((filters.priceMax - filters.priceMin) / currentMax) * 100}%`,
+                          left: `${(steps.indexOf(nearestStep(filters.priceMin)) / maxIdx) * 100}%`,
+                          width: `${((steps.indexOf(nearestStep(filters.priceMax)) - steps.indexOf(nearestStep(filters.priceMin))) / maxIdx) * 100}%`,
                         }}
                       />
                       <input
                         type="range"
                         min={0}
-                        max={currentMax}
-                        step={stepSize}
-                        value={Math.min(filters.priceMin, currentMax)}
+                        max={maxIdx}
+                        step={1}
+                        value={steps.indexOf(nearestStep(filters.priceMin))}
                         onChange={(e) => {
-                          const v = Number(e.target.value)
-                          if (v <= filters.priceMax) updateFilter('priceMin', v)
+                          const val = steps[Number(e.target.value)]
+                          if (val <= filters.priceMax) updateFilter('priceMin', val)
                         }}
                         className="pointer-events-none absolute inset-0 z-10 h-full w-full appearance-none bg-transparent [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-brand-500 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer"
                       />
                       <input
                         type="range"
                         min={0}
-                        max={currentMax}
-                        step={stepSize}
-                        value={Math.min(filters.priceMax, currentMax)}
+                        max={maxIdx}
+                        step={1}
+                        value={steps.indexOf(nearestStep(filters.priceMax))}
                         onChange={(e) => {
-                          const v = Number(e.target.value)
-                          if (v >= filters.priceMin) updateFilter('priceMax', v)
+                          const val = steps[Number(e.target.value)]
+                          if (val >= filters.priceMin) updateFilter('priceMax', val)
                         }}
                         className="pointer-events-none absolute inset-0 z-20 h-full w-full appearance-none bg-transparent [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-brand-500 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer"
                       />
