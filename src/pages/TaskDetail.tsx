@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeft, Check, Clock, Plus, Trash2, X } from 'lucide-react'
+import { ArrowLeft, Check, Clock, Plus, Trash2, X, Loader2 } from 'lucide-react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { Badge, EmptyState, Modal, ConfirmDialog } from '../components/ui'
@@ -82,6 +82,27 @@ export default function TaskDetail() {
 
   const vehicle = vehicles.find((v) => v.id === currentTask.vehicleId)
   const assignee = employees.find((e) => e.id === currentTask.assigneeId)
+  const [statusLoading, setStatusLoading] = useState(false)
+
+  async function handleQuickStatus(status: TaskStatus) {
+    if (statusLoading) return
+    setStatusLoading(true)
+    try {
+      await updateTask(currentTask.id, { status })
+      navigate('/nhiem-vu')
+    } catch {
+      setStatusLoading(false)
+    }
+  }
+
+  function statusActions() {
+    const all = [
+      { key: 'todo' as TaskStatus, label: 'Chưa làm', style: 'bg-slate-100 text-slate-700 hover:bg-slate-200' },
+      { key: 'doing' as TaskStatus, label: 'Đang làm', style: 'bg-blue-500 text-white hover:bg-blue-600' },
+      { key: 'done' as TaskStatus, label: 'Hoàn thành', style: 'bg-green-500 text-white hover:bg-green-600' },
+    ]
+    return all.filter((a) => a.key !== currentTask.status)
+  }
 
   return (
     <div>
@@ -247,6 +268,21 @@ export default function TaskDetail() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Quick Status Actions */}
+      <div className="mt-6 flex items-center gap-3">
+        {statusActions().map((action) => (
+          <button
+            key={action.key}
+            onClick={() => handleQuickStatus(action.key)}
+            disabled={statusLoading}
+            className={`flex h-11 min-w-[120px] flex-1 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold shadow-sm transition-all active:scale-[0.98] disabled:opacity-60 ${statusLoading ? 'bg-slate-100 text-slate-400' : action.style}`}
+          >
+            {statusLoading ? <Loader2 size={16} className="animate-spin" /> : null}
+            {action.label}
+          </button>
+        ))}
       </div>
 
       <ConfirmDialog
