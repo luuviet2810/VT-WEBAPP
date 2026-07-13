@@ -85,7 +85,9 @@ export default function VehicleList() {
 
   const handleOpenPreview = (vehicleId: string, type: 'in' | 'out') => {
     const sheets = getLatestCheckSheets(vehicleId)
-    setPreviewSheet(type === 'in' ? sheets.latestIn : sheets.latestOut)
+    const picked = type === 'in' ? sheets.latestIn : sheets.latestOut
+    console.log('🔍 handleOpenPreview:', { vehicleId, type, pickedId: picked?.id, pickedVehicle: picked?.vehicleId, checkDate: picked?.checkDate, createdAt: picked?.createdAt })
+    setPreviewSheet(picked)
     setPreviewType(type)
   }
 
@@ -264,10 +266,8 @@ export default function VehicleList() {
           </span>
         ) : undefined}
       >
-        {previewSheet && previewType === 'in' ? (
-          <InCheckSheetPreview sheet={previewSheet} employees={employees} vehicleId={previewSheet.vehicleId} />
-        ) : previewSheet && previewType === 'out' ? (
-          <OutCheckSheetPreview sheet={previewSheet} employees={employees} vehicleId={previewSheet.vehicleId} />
+        {previewSheet ? (
+          <CheckSheetPreview sheet={previewSheet} mode={previewType} employees={employees} vehicleId={previewSheet.vehicleId} />
         ) : (
           <div className="text-center text-slate-400">
             Chưa có dữ liệu CheckSheet.
@@ -292,9 +292,9 @@ export default function VehicleList() {
   )
 }
 
-// ====== INPUT CHECKSHEET PREVIEW ======
+// ====== UNIFIED CHECKSHEET PREVIEW ======
 
-function InCheckSheetPreview({ sheet, employees, vehicleId }: { sheet: CheckSheet; employees: { id: string; name: string }[]; vehicleId: string }) {
+function CheckSheetPreview({ sheet, mode, employees, vehicleId }: { sheet: CheckSheet; mode: 'in' | 'out'; employees: { id: string; name: string }[]; vehicleId: string }) {
   const navigate = useNavigate()
 
   const seatLabels: Record<string, string> = { driverSeat: 'Ghế lái', passengerSeat: 'Ghế phụ', rearSeat: 'Hàng ghế sau' }
@@ -303,156 +303,53 @@ function InCheckSheetPreview({ sheet, employees, vehicleId }: { sheet: CheckShee
     driverDoor: 'Cửa lái', passengerDoor: 'Cửa phụ', rearLeftDoor: 'Cửa sau trái', rearRightDoor: 'Cửa sau phải',
   }
 
-  const items: { label: string; status: string | null | undefined }[] = [
-    { label: 'Nhiên liệu', status: sheet.fuelLevel },
-    { label: 'Màn hình', status: sheet.screen },
-    { label: 'Camera lùi', status: sheet.rearCamera },
-    { label: 'Hi-Pass', status: sheet.hipass },
-    { label: 'Cảm biến lùi', status: sheet.rearSensor },
-    { label: 'Camera hành trình', status: sheet.dashcam },
-    { label: 'Điều hòa', status: sheet.inputDieuHoa?.status },
-    { label: 'Sưởi ghế', status: sheet.inputSuoiGhe?.status },
-    { label: 'Tình trạng lốp', status: sheet.inputTireState?.status },
-    { label: 'Song nưng', status: sheet.songNungResultStatus },
-    // Interior
-    ...Object.entries(sheet.interior || {}).map(([key, val]) => ({
-      label: seatLabels[key] || key,
-      status: (val as { condition?: string })?.condition,
-    })),
-    // Exterior
-    ...Object.entries(sheet.exterior || {}).map(([key, val]) => ({
-      label: spotLabels[key] || key,
-      status: (val as { condition?: string })?.condition,
-    })),
-    // Battery
-    { label: 'Ắc quy SOH', status: sheet.inputAcquySOH != null ? String(sheet.inputAcquySOH) : null },
-    { label: 'Ắc quy SOC', status: sheet.inputAcquySOC != null ? String(sheet.inputAcquySOC) : null },
-    // Key
-    { label: 'Chìa khóa', status: sheet.keyType },
-    { label: 'Số lượng chìa', status: sheet.smartkeyStatus },
-  ]
+  const items: { label: string; status: string | null | undefined }[] = mode === 'in'
+    ? [
+        { label: 'Nhiên liệu', status: sheet.fuelLevel },
+        { label: 'Màn hình', status: sheet.screen },
+        { label: 'Camera lùi', status: sheet.rearCamera },
+        { label: 'Hi-Pass', status: sheet.hipass },
+        { label: 'Cảm biến lùi', status: sheet.rearSensor },
+        { label: 'Camera hành trình', status: sheet.dashcam },
+        { label: 'Điều hòa', status: sheet.inputDieuHoa?.status },
+        { label: 'Sưởi ghế', status: sheet.inputSuoiGhe?.status },
+        { label: 'Tình trạng lốp', status: sheet.inputTireState?.status },
+        { label: 'Song nưng', status: sheet.songNungResultStatus },
+        ...Object.entries(sheet.interior || {}).map(([key, val]) => ({ label: seatLabels[key] || key, status: (val as any)?.condition })),
+        ...Object.entries(sheet.exterior || {}).map(([key, val]) => ({ label: spotLabels[key] || key, status: (val as any)?.condition })),
+        { label: 'Ắc quy SOH', status: sheet.inputAcquySOH != null ? String(sheet.inputAcquySOH) : null },
+        { label: 'Ắc quy SOC', status: sheet.inputAcquySOC != null ? String(sheet.inputAcquySOC) : null },
+        { label: 'Chìa khóa', status: sheet.keyType },
+        { label: 'Số lượng chìa', status: sheet.smartkeyStatus },
+      ]
+    : (() => {
+        const oc = sheet.outCheck
+        return [
+          { label: 'Còn Song nưng không?', status: oc?.conSeongnyeong?.status },
+          { label: 'Dầu máy', status: oc?.dauMay?.status },
+          { label: 'Nước làm mát', status: oc?.nuocLamMat?.status },
+          { label: 'Cam hành trình', status: oc?.camHanhTrinh?.status },
+          { label: 'Màn hình, Bluetooth', status: oc?.manHinhBluetooth?.status },
+          { label: 'Camera lùi', status: oc?.cameraLui?.status },
+          { label: 'Đèn (Pha, Cốt, Cảnh báo, Phanh)', status: oc?.denPhaCot?.status },
+          { label: 'Motor gương, nút bấm', status: oc?.motorGuongNutBam?.status },
+          { label: 'Điều hòa', status: oc?.dieuHoa?.status },
+          { label: 'Sưởi ghế', status: oc?.suoiGhe?.status },
+          { label: 'Cửa sổ', status: oc?.cuaSo?.status },
+          { label: 'Ghế chỉnh điện', status: oc?.gheChinhDien?.status },
+          { label: 'Tình trạng lốp', status: oc?.tinhTrangLop?.status },
+          { label: 'Lốp xe', status: sheet.outTireState?.status },
+          { label: 'Ắc quy SOH', status: sheet.acquySOH != null ? String(sheet.acquySOH) : null },
+          { label: 'Ắc quy SOC', status: sheet.acquySOC != null ? String(sheet.acquySOC) : null },
+          { label: 'Chìa khóa', status: sheet.outKeyType },
+          { label: 'Số lượng chìa', status: sheet.outSmartkeyStatus },
+        ]
+      })()
 
   // Summary — Hi-Pass is informational only, never counted
   let ok = 0, bad = 0, install = 0, unchecked = 0
   for (const item of items) {
     if (item.label === 'Hi-Pass') continue
-    // Smartkey status logic: one/two → ok, damaged → bad
-    if (item.label === 'Số lượng chìa') {
-      if (item.status === 'one' || item.status === 'two') ok++
-      else if (item.status === 'damaged') bad++
-      else if (!item.status) unchecked++
-      continue
-    }
-    if (!item.status) { unchecked++; continue }
-    if (!isNaN(Number(item.status))) {
-      // numeric battery value — count as ok
-      ok++
-      continue
-    }
-    const c = classifyStatus(item.status)
-    if (c === 'ok') ok++
-    else if (c === 'bad') bad++
-    else if (c === 'install') { bad++; install++ }
-  }
-
-  // Abnormal items — Hi-Pass is informational only, never a warning
-  const abnormal = items.filter((i) => {
-    if (i.label === 'Hi-Pass') return false
-    // Smartkey damaged counts as abnormal
-    if (i.label === 'Số lượng chìa') return i.status === 'damaged'
-    if (!i.status) return false
-    if (!isNaN(Number(i.status))) return false
-    const c = classifyStatus(i.status)
-    return c === 'bad' || c === 'install'
-  })
-
-  return (
-    <div className="space-y-5">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-4 gap-2">
-        <SummaryPill value={ok} label="OK" color="#34c759" />
-        <SummaryPill value={bad} label="Hỏng" color="#ff3b30" />
-        <SummaryPill value={install} label="Cần lắp" color="#ff9500" />
-        <SummaryPill value={unchecked} label="Chưa check" color="#94a3b8" />
-      </div>
-
-      {/* All Inspection Items */}
-      <div className="divide-y divide-slate-100 rounded-xl border border-slate-200">
-        {items.map((item) => {
-          const isBatteryNum = !!(item.status && !isNaN(Number(item.status)))
-          const c = item.status && !isBatteryNum ? classifyStatus(item.status) : null
-          const isUnchecked = !item.status
-          const dotColor = isUnchecked ? '#cbd5e1' : c === 'ok' || isBatteryNum ? '#34c759' : c === 'bad' ? '#ff3b30' : c === 'install' ? '#ff9500' : '#cbd5e1'
-          const textColor = isUnchecked ? '#94a3b8' : c === 'ok' || isBatteryNum ? '#34c759' : c === 'bad' ? '#ff3b30' : c === 'install' ? '#ff9500' : '#334155'
-          const display = isBatteryNum ? `${item.status}%` : statusLabel(item.status)
-          return (
-            <div key={item.label} className="flex items-center justify-between px-4 py-2.5">
-              <div className="flex items-center gap-2.5">
-                <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: dotColor }} />
-                <span className="text-sm text-slate-700">{item.label}</span>
-              </div>
-              <span className="text-sm font-medium" style={{ color: textColor }}>{display}</span>
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Abnormal items summary */}
-      {abnormal.length > 0 ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-          <div className="text-sm font-semibold text-red-700">{abnormal.length} hạng mục cần xử lý</div>
-          <ul className="mt-1 space-y-0.5">
-            {abnormal.map((item) => (
-              <li key={item.label} className="text-xs text-red-600">• {item.label}: {statusLabel(item.status)}</li>
-            ))}
-          </ul>
-        </div>
-      ) : (
-        <div className="rounded-xl bg-emerald-50 px-4 py-3 text-center text-sm font-medium text-emerald-700">
-          ✅ Không phát hiện hạng mục bất thường
-        </div>
-      )}
-
-      {/* Action button */}
-      <div className="flex justify-end">
-        <button type="button" onClick={() => { navigate(`/xe/${vehicleId}?tab=checksheet`) }} className="btn-primary">
-          <ExternalLink size={15} /> Xem chi tiết
-        </button>
-      </div>
-    </div>
-  )
-}
-
-// ====== OUTPUT CHECKSHEET PREVIEW ======
-
-function OutCheckSheetPreview({ sheet, employees, vehicleId }: { sheet: CheckSheet; employees: { id: string; name: string }[]; vehicleId: string }) {
-  const navigate = useNavigate()
-  const oc = sheet.outCheck
-
-  const items: { label: string; status: string | null | undefined }[] = [
-    { label: 'Còn Song nưng không?', status: oc?.conSeongnyeong?.status },
-    { label: 'Dầu máy', status: oc?.dauMay?.status },
-    { label: 'Nước làm mát', status: oc?.nuocLamMat?.status },
-    { label: 'Cam hành trình', status: oc?.camHanhTrinh?.status },
-    { label: 'Màn hình, Bluetooth', status: oc?.manHinhBluetooth?.status },
-    { label: 'Camera lùi', status: oc?.cameraLui?.status },
-    { label: 'Đèn (Pha, Cốt, Cảnh báo, Phanh)', status: oc?.denPhaCot?.status },
-    { label: 'Motor gương, nút bấm', status: oc?.motorGuongNutBam?.status },
-    { label: 'Điều hòa', status: oc?.dieuHoa?.status },
-    { label: 'Sưởi ghế', status: oc?.suoiGhe?.status },
-    { label: 'Cửa sổ', status: oc?.cuaSo?.status },
-    { label: 'Ghế chỉnh điện', status: oc?.gheChinhDien?.status },
-    { label: 'Tình trạng lốp', status: oc?.tinhTrangLop?.status },
-    { label: 'Lốp xe', status: sheet.outTireState?.status },
-    { label: 'Ắc quy SOH', status: sheet.acquySOH != null ? String(sheet.acquySOH) : null },
-    { label: 'Ắc quy SOC', status: sheet.acquySOC != null ? String(sheet.acquySOC) : null },
-    { label: 'Chìa khóa', status: sheet.outKeyType },
-    { label: 'Số lượng chìa', status: sheet.outSmartkeyStatus },
-  ]
-
-  // Summary
-  let ok = 0, bad = 0, install = 0, unchecked = 0
-  for (const item of items) {
     if (item.label === 'Số lượng chìa') {
       if (item.status === 'one' || item.status === 'two') ok++
       else if (item.status === 'damaged') bad++
@@ -468,12 +365,13 @@ function OutCheckSheetPreview({ sheet, employees, vehicleId }: { sheet: CheckShe
   }
 
   const abnormal = items.filter((i) => {
+    if (i.label === 'Hi-Pass') return false
     if (i.label === 'Số lượng chìa') return i.status === 'damaged'
     if (!i.status) return false
     if (!isNaN(Number(i.status))) return false
     const c = classifyStatus(i.status)
     return c === 'bad' || c === 'install'
-  })
+  }).slice(0, 5)
 
   return (
     <div className="space-y-5">
