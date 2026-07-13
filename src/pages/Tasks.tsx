@@ -108,22 +108,38 @@ function TaskEditDrawer({ task, vehicles, employees, onClose, onUpdate, onDelete
         </div>
         <div className="flex-1 overflow-y-auto px-5 py-4">
           <div className="space-y-4">
+            {/* Status header — light background */}
+            <div
+              className={`rounded-xl border px-4 py-3 ${
+                task.status === 'todo'
+                  ? 'border-red-200 bg-red-50 text-red-600'
+                  : task.status === 'doing'
+                  ? 'border-amber-200 bg-amber-50 text-amber-700'
+                  : 'border-green-200 bg-green-50 text-green-700'
+              }`}
+            >
+              <div className="text-xs font-medium opacity-80">Trạng thái</div>
+              <div className="mt-0.5 text-sm font-semibold">
+                {task.status === 'todo' ? 'Chưa làm' : task.status === 'doing' ? 'Đang làm' : 'Hoàn thành'}
+              </div>
+            </div>
+
             {/* Vehicle plate - model */}
             {vehicle && (
               <div className="text-sm font-semibold text-brand-600">{vehicle.plate} - {vehicle.model}</div>
             )}
 
-            {/* Quick status actions */}
+            {/* Quick status actions — show the 2 other statuses */}
             <div className="flex items-center gap-2">
               {[
-                { key: 'doing' as TaskStatus, label: 'Đang làm', show: task.status === 'todo', style: 'bg-blue-500 text-white hover:bg-blue-600' },
-                { key: 'done' as TaskStatus, label: 'Hoàn thành', show: task.status !== 'done', style: 'bg-green-500 text-white hover:bg-green-600' },
-                { key: 'todo' as TaskStatus, label: 'Chưa làm', show: task.status !== 'todo', style: 'bg-slate-100 text-slate-700 hover:bg-slate-200' },
-              ].filter((a) => a.show).map((action) => (
+                { key: 'todo' as TaskStatus, label: 'Chưa làm', style: 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100' },
+                { key: 'doing' as TaskStatus, label: 'Đang làm', style: 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100' },
+                { key: 'done' as TaskStatus, label: 'Hoàn thành', style: 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100' },
+              ].filter((a) => a.key !== task.status).map((action) => (
                 <button
                   key={action.key}
                   onClick={() => { onUpdate(task.id, { status: action.key }); onClose() }}
-                  className={`flex h-10 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold shadow-sm transition-all active:scale-[0.98] ${action.style}`}
+                  className={`flex h-10 flex-1 items-center justify-center rounded-xl border px-4 text-sm font-semibold shadow-sm transition-all active:scale-[0.98] ${action.style}`}
                 >
                   {action.label}
                 </button>
