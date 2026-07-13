@@ -153,7 +153,7 @@ export async function dispatchTaskOverdue(
   // Check priority threshold
   const rule = telegramConfig.getRuleForEvent('task_overdue')
   if (rule?.priorityThreshold) {
-    const priorityOrder = ['low', 'medium', 'high', 'urgent']
+    const priorityOrder = ['normal', 'priority', 'urgent']
     const taskPriorityIdx = priorityOrder.indexOf(task.priority)
     const thresholdIdx = priorityOrder.indexOf(rule.priorityThreshold)
     if (taskPriorityIdx < thresholdIdx) return // Task priority below threshold
@@ -267,7 +267,7 @@ export async function checkAndNotifyOverdueTasks(
   if (!shouldNotify('task_overdue')) return
 
   const rule = telegramConfig.getRuleForEvent('task_overdue')
-  const priorityOrder = ['low', 'medium', 'high', 'urgent']
+  const priorityOrder = ['normal', 'priority', 'urgent']
   const thresholdIdx = rule?.priorityThreshold
     ? priorityOrder.indexOf(rule.priorityThreshold)
     : 0

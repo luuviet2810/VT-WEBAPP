@@ -9,7 +9,7 @@
 
 export type VehicleStatus = 'available' | 'deposited' | 'sold';
 
-export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
+export type TaskPriority = 'urgent' | 'priority' | 'normal';
 
 export type TaskStatus = 'todo' | 'doing' | 'done';
 

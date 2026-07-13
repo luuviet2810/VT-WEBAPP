@@ -60,7 +60,7 @@ export interface TimelineItem {
   moveLogId?: string
 }
 
-export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent'
+export type TaskPriority = 'urgent' | 'priority' | 'normal'
 export type TaskStatus = 'todo' | 'doing' | 'done'
 
 export interface TaskChecklistItem {
@@ -326,7 +326,7 @@ export interface TaskTemplateTask {
   title: string
   description?: string
   checklist: { id: string; text: string; done: boolean }[]
-  priority: 'low' | 'medium' | 'high' | 'urgent'
+  priority: TaskPriority
   assigneeId?: string | null
   dueDate?: string | null
   dueTime?: string | null

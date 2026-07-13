@@ -18,7 +18,7 @@ import {
 import { useStore } from '../store/useStore'
 import { Modal } from './ui'
 import { useTemplatePermissions } from '../rbac/usePermissions'
-import type { TaskTemplate, TaskTemplateType } from '../types'
+import type { TaskTemplate, TaskTemplateType, TaskPriority } from '../types'
 
 // ====== HELPERS ======
 
@@ -150,7 +150,7 @@ interface TemplateFormData {
     id: string
     title: string
     description: string
-    priority: 'low' | 'medium' | 'high' | 'urgent'
+    priority: TaskPriority
     checklist: { id: string; text: string; done: boolean }[]
   }[]
 }
@@ -160,7 +160,7 @@ function buildEmptyTask(): TemplateFormData['tasks'][0] {
     id: `t_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     title: '',
     description: '',
-    priority: 'medium',
+    priority: 'normal',
     checklist: [],
   }
 }
@@ -336,7 +336,7 @@ function EditTemplateModal({ open, onClose, template, onSave }: EditTemplateModa
                   <select
                     className="input text-sm w-28"
                     value={task.priority}
-                    onChange={(e) => updateTask(ti, { priority: e.target.value as 'low' | 'medium' | 'high' | 'urgent' })}
+                    onChange={(e) => updateTask(ti, { priority: e.target.value as TaskPriority })}
                   >
                     <option value="low">Thấp</option>
                     <option value="medium">Trung bình</option>

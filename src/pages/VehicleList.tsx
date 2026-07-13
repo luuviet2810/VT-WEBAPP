@@ -211,7 +211,7 @@ export default function VehicleList() {
                           ? 'bg-slate-50 text-slate-400 hover:bg-slate-100'
                           : vehicleTasks.every((t) => t.status === 'done')
                             ? 'bg-green-50 text-green-600 hover:bg-green-100'
-                            : vehicleTasks.some((t) => t.status !== 'done' && (t.priority === 'high' || t.priority === 'urgent'))
+                            : vehicleTasks.some((t) => t.status !== 'done' && (t.priority === 'urgent' || t.priority === 'priority'))
                               ? 'bg-red-50 text-red-600 hover:bg-red-100'
                               : 'bg-amber-50 text-amber-600 hover:bg-amber-100'
                       }`}

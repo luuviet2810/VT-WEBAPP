@@ -181,7 +181,7 @@ export interface TelegramRuleEngineEvent {
 
 // ---- Task Priority (shared concept) ----
 
-export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent'
+export type TaskPriority = 'urgent' | 'priority' | 'normal'
 
 // ---- Supabase storage shape for telegram_settings ----
 

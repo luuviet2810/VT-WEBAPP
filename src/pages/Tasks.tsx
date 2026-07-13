@@ -14,8 +14,8 @@ const SECTION_CONFIG: { key: WorkSection; label: string; icon: string; tone: 'sl
   { key: 'done', label: 'Đã hoàn thành', icon: '✅', tone: 'green' },
 ]
 
-const PRIORITY_LABEL: Record<TaskPriority, string> = { low: 'Thấp', medium: 'Trung bình', high: 'Cao', urgent: 'Khẩn cấp' }
-const PRIORITY_TONE: Record<TaskPriority, 'slate' | 'blue' | 'orange' | 'red'> = { low: 'slate', medium: 'blue', high: 'orange', urgent: 'red' }
+const PRIORITY_LABEL: Record<TaskPriority, string> = { urgent: 'Làm gấp', priority: 'Ưu tiên hơn', normal: 'Cứ từ từ' }
+const PRIORITY_TONE: Record<TaskPriority, 'slate' | 'blue' | 'orange' | 'red'> = { urgent: 'red', priority: 'orange', normal: 'slate' }
 
 // ====== TASK CARD ======
 function TaskCard({ task, vehiclePlate, onEdit, onDragStart }: { task: Task; vehiclePlate: string; onEdit: () => void; onDragStart: (e: React.DragEvent) => void }) {
@@ -201,7 +201,7 @@ export default function Tasks() {
   // Add-task drawer
   const [showAddDrawer, setShowAddDrawer] = useState(false)
   const [newTitle, setNewTitle] = useState('')
-  const [newPriority, setNewPriority] = useState<TaskPriority>('medium')
+  const [newPriority, setNewPriority] = useState<TaskPriority>('normal')
   const [newStatus, setNewStatus] = useState<TaskStatus>('todo')
   const [newVehicleId, setNewVehicleId] = useState('')
   const [newChecklist, setNewChecklist] = useState<TaskChecklistItem[]>([{ id: uid('chk'), text: '', done: false }])
@@ -249,7 +249,7 @@ export default function Tasks() {
 
   function resetAddForm() {
     setNewTitle(''); setNewChecklist([{ id: uid('chk'), text: '', done: false }])
-    setNewPriority('medium'); setNewStatus('todo'); setNewVehicleId('')
+    setNewPriority('normal'); setNewStatus('todo'); setNewVehicleId('')
     setNewDueDate(''); setNewDueTime('')
   }
 

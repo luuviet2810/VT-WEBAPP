@@ -149,12 +149,12 @@ export default function StaffDashboard() {
                 </div>
                 <Badge tone={
                   task.priority === 'urgent' ? 'red' :
-                  task.priority === 'high' ? 'orange' :
+                  task.priority === 'priority' ? 'orange' :
                   'slate'
                 }>
-                  {task.priority === 'urgent' ? 'Khẩn' :
-                   task.priority === 'high' ? 'Cao' :
-                   task.priority === 'medium' ? 'TB' : 'Thấp'}
+                  {task.priority === 'urgent' ? 'Làm gấp' :
+                   task.priority === 'priority' ? 'Ưu tiên' :
+                   'Cứ từ từ'}
                 </Badge>
               </div>
             ))}
