@@ -4,6 +4,7 @@ import { useStore } from '../store/useStore'
 import { EmptyState } from '../components/ui'
 import { useIsAdminMode } from '../hooks/useAuthRole'
 import { formatDateTime } from '../utils/format'
+import * as XLSX from 'xlsx'
 
 export default function Attendance() {
   const employees = useStore((s) => s.employees)
@@ -40,21 +41,31 @@ export default function Attendance() {
   }
 
   function exportExcel() {
-    const rows = [
-      ['STT', 'Nhân viên', 'Ngày', 'Giờ vào', 'Giờ ra', 'Ghi chú'],
-      ...filtered.map((a, i) => {
-        const emp = employees.find((e) => e.id === a.employeeId)
-        return [i + 1, emp?.name || '—', a.date, a.checkIn || '', a.checkOut || '', a.note || '']
-      }),
-    ]
-    const csv = rows.map((r) => r.map((c) => `"${c}"`).join(',')).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `cham-cong-${new Date().toISOString().slice(0, 10)}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+    const header = ['STT', 'Nhân viên', 'Ngày', 'Giờ vào', 'Giờ ra', 'Ghi chú']
+    const data = filtered.map((a, i) => {
+      const emp = employees.find((e) => e.id === a.employeeId)
+      return [i + 1, emp?.name || '—', a.date, a.checkIn || '', a.checkOut || '', a.note || '']
+    })
+
+    const ws = XLSX.utils.aoa_to_sheet([header, ...data])
+
+    // Auto column width
+    const colWidths = [6, 22, 14, 12, 12, 30].map((w) => ({ wch: w }))
+    ws['!cols'] = colWidths
+
+    // Bold header row
+    for (let col = 0; col < header.length; col++) {
+      const addr = XLSX.utils.encode_cell({ r: 0, c: col })
+      if (!ws[addr]) continue
+      ws[addr].s = { font: { bold: true } }
+    }
+
+    // Freeze first row
+    ws['!freeze'] = { xSplit: 0, ySplit: 1 }
+
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Chấm công')
+    XLSX.writeFile(wb, `cham-cong-${new Date().toISOString().slice(0, 10)}.xlsx`)
   }
 
   return (
