@@ -1,6 +1,5 @@
 // ====== CHECKSHEET FORM COMPONENT ======
 
-import clsx from 'clsx'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CheckCircle2, XCircle, Minus, StickyNote, Wrench, Plus, Minus as MinusIcon } from 'lucide-react'
 import { useStore } from '../store/useStore'
@@ -38,7 +37,6 @@ import {
 import { CollapsibleCard, SegButton, WheelPicker, BatteryCheck, Badge } from './ui'
 import { emptyExteriorCheck } from '../store/useStore'
 import { uid } from '../utils/format'
-import { generateTasks, GeneratedTask } from '../utils/taskRules'
 import { classifyStatus } from '../utils/statusClassification'
 
 const DEBOUNCE_MS = 500
@@ -244,14 +242,9 @@ export default function CheckSheetForm({
   const [acquyPickerOpen, setAcquyPickerOpen] = useState<'soh' | 'soc' | null>(null)
 
   // ====== SONG NƯNG RESULT + KEY STATE ======
-  const [songNungResultStatus, setSongNungResultStatus] = useState<'none' | 'draft' | 'printed'>('none')
+  const [songNungResultStatus, setSongNungResultStatus] = useState<'draft' | 'printed' | 'none' | undefined>(undefined)
   const [keyType, setKeyType] = useState<'smartkey' | 'mechanical' | 'both' | undefined>(undefined)
   const [smartkeyStatus, setSmartkeyStatus] = useState<'one' | 'two' | 'damaged' | undefined>(undefined)
-
-  // ====== SUGGESTED TASKS ======
-  const [suggestedTasks, setSuggestedTasks] = useState<GeneratedTask[]>([])
-  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set())
-  const [suggestionSource, setSuggestionSource] = useState<string>('rules')
 
   function buildSheetForRules(): CheckSheet {
     return {
@@ -282,80 +275,6 @@ export default function CheckSheetForm({
       keyType: keyType as CheckSheet['keyType'],
       smartkeyStatus: smartkeyStatus as CheckSheet['smartkeyStatus'],
       createdAt: new Date().toISOString(),
-    }
-  }
-
-  function refreshSuggestions(source: 'rules' | 'manual') {
-    const generated = source === 'rules' ? generateTasks(buildSheetForRules(), vehicle.plate) : []
-    const manual = source === 'manual' ? suggestedTasks.filter((task) => task.ruleId?.startsWith('manual_')) : []
-    const combined = source === 'rules' ? generated : manual
-    setSuggestedTasks(combined)
-    setSelectedTaskIds(new Set(combined.map((task) => task.id)))
-    setSuggestionSource(source)
-  }
-
-  function toggleSuggestedTask(id: string) {
-    setSelectedTaskIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
-
-  function handleCreateSelectedTasks() {
-    const selected = suggestedTasks.filter((task) => selectedTaskIds.has(task.id))
-    if (selected.length === 0) return
-
-    if (type === 'in') {
-      // Mỗi suggested task được tạo thành một task riêng, không gộp vào checklist
-      for (const task of selected) {
-        const existing = tasks.find(
-          (t) => t.vehicleId === vehicle.id && t.title === task.title
-        )
-        if (existing) continue
-        addTask({
-          id: uid('task'),
-          title: task.title,
-          checklist: task.checklist || [],
-          priority: task.priority,
-          status: task.status,
-          vehicleId: vehicle.id,
-          createdAt: task.createdAt,
-          ruleId: task.ruleId,
-        })
-      }
-    }
-
-    if (type === 'out') {
-      const requiredRuleIds = new Set(selected.map((task) => task.ruleId).filter(Boolean))
-      const vehicleOutTasks = tasks.filter((task) => task.vehicleId === vehicle.id)
-      const taskRuleIds = new Set(vehicleOutTasks.map((task) => task.ruleId).filter(Boolean))
-
-      vehicleOutTasks.forEach((existingTask) => {
-        if (!existingTask.ruleId || !taskRuleIds.has(existingTask.ruleId)) return
-        if (existingTask.status === 'done') return
-        if (!requiredRuleIds.has(existingTask.ruleId)) {
-          useStore.getState().deleteTask(existingTask.id)
-        }
-      })
-
-      selected.forEach((task) => {
-        const existingTask = vehicleOutTasks.find((item) => item.ruleId === task.ruleId)
-        if (!existingTask) {
-          addTask({
-            id: task.id,
-            title: task.title,
-            description: task.description,
-            checklist: task.checklist,
-            priority: task.priority,
-            status: task.status,
-            vehicleId: vehicle.id,
-            createdAt: task.createdAt,
-            ruleId: task.ruleId,
-          })
-        }
-      })
     }
   }
 
@@ -392,7 +311,7 @@ export default function CheckSheetForm({
           setInputTireState({ status: '' as CheckOutStatus })
           setOutTireState({ status: '' as CheckOutStatus })
           setInputNotes('')
-          setSongNungResultStatus('none')
+          setSongNungResultStatus(undefined)
           setKeyType(undefined)
           setSmartkeyStatus(undefined)
         } else {
@@ -442,7 +361,6 @@ export default function CheckSheetForm({
 
   // ====== AUTO-SAVE DEBOUNCE ======
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const suggestionTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   function buildPatch(): Partial<CheckSheet> {
     const base: Partial<CheckSheet> = {
@@ -478,14 +396,6 @@ export default function CheckSheetForm({
     }, DEBOUNCE_MS)
   }
 
-  function scheduleRefreshSuggestions() {
-    if (!sheetId) return
-    if (suggestionTimer.current) clearTimeout(suggestionTimer.current)
-    suggestionTimer.current = setTimeout(() => {
-      refreshSuggestions('rules')
-    }, DEBOUNCE_MS)
-  }
-
   useEffect(() => {
     if (!sheetId || !initRef.current) return
     scheduleSave()
@@ -493,11 +403,6 @@ export default function CheckSheetForm({
       if (saveTimer.current) clearTimeout(saveTimer.current)
     }
   }, [sheetId, checkerId, checkDate, fuelLevel, screen, rearCamera, hipass, rearSensor, dashcam, interior, exterior, inputDieuHoa, inputSuoiGhe, inputTireState, inputNotes, outCheck, outNotes, inputAcquySOH, inputAcquySOC, acquySOH, acquySOC, songNungResultStatus, keyType, smartkeyStatus])
-
-  useEffect(() => {
-    if (!sheetId || !initRef.current) return
-    scheduleRefreshSuggestions()
-  }, [sheetId, type, checkerId, checkDate, fuelLevel, screen, rearCamera, hipass, rearSensor, dashcam, interior, exterior, inputDieuHoa, inputSuoiGhe, inputTireState, inputNotes, outCheck, outNotes, inputAcquySOH, inputAcquySOC, acquySOH, acquySOC, songNungResultStatus, keyType, smartkeyStatus])
 
   // ====== SUMMARY COUNTS ======
   const summaryCounts = useMemo(() => {
@@ -1057,37 +962,6 @@ export default function CheckSheetForm({
             <SummaryStat icon={<StickyNote size={18} />} label="Ghi chú" count={summaryCounts.noteCount} tone="brand" />
           </div>
         </div>
-
-        {/* Suggested tasks — flat, no card wrapper */}
-        {suggestedTasks.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="text-xs text-slate-500">Chọn nhiệm vụ cần tạo từ phiếu kiểm tra.</div>
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setSelectedTaskIds(new Set(suggestedTasks.map((task) => task.id)))} className="text-xs text-brand-600 hover:text-brand-700">Chọn tất cả</button>
-                <button type="button" onClick={() => setSelectedTaskIds(new Set())} className="text-xs text-slate-500 hover:text-slate-700">Bỏ chọn</button>
-              </div>
-            </div>
-            <div className="max-h-56 space-y-2 overflow-y-auto">
-              {suggestedTasks.map((task) => {
-                const isSelected = selectedTaskIds.has(task.id)
-                return (
-                  <label key={task.id} className={clsx('flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors', isSelected ? 'border-brand-200 bg-brand-50' : 'border-slate-200 bg-white hover:bg-slate-50')}>
-                    <input type="checkbox" className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600" checked={isSelected} onChange={() => toggleSuggestedTask(task.id)} />
-                    <div className="flex-1">
-                      <div className="text-sm font-medium text-slate-900">{task.title}</div>
-                      {task.description ? <div className="mt-1 text-xs text-slate-500">{task.description}</div> : null}
-                    </div>
-                  </label>
-                )
-              })}
-            </div>
-            <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-3">
-              <div className="text-xs text-slate-600">Đã chọn <span className="font-semibold">{selectedTaskIds.size}</span> / {suggestedTasks.length} nhiệm vụ</div>
-              <button type="button" onClick={handleCreateSelectedTasks} disabled={selectedTaskIds.size === 0} className="btn-primary">Tạo nhiệm vụ đã chọn</button>
-            </div>
-          </div>
-        )}
 
         {/* Scrollable content */}
         <div className="flex-1 space-y-5 px-1">
