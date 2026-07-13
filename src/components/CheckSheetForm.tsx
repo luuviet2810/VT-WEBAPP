@@ -1058,120 +1058,35 @@ export default function CheckSheetForm({
           </div>
         </div>
 
-        {/* Form kiểm tra - Người check, Ngày check, Mức nhiên liệu */}
-        <div className="px-1">
-          <CollapsibleCard title="Thông tin kiểm tra">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label className="label">Người check</label>
-                <select className="input" value={checkerId} onChange={(e) => setCheckerId(e.target.value)}>
-                  <option value="">-- Chọn người check --</option>
-                  {employees.map((e) => (
-                    <option key={e.id} value={e.id}>
-                      {e.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="label">Ngày check</label>
-                <input type="date" className="input" value={checkDate} onChange={(e) => setCheckDate(e.target.value)} />
-              </div>
-            </div>
-            <div className="mt-4">
-              <label className="label">Mức nhiên liệu</label>
-              <div className="grid grid-cols-3 gap-2">
-                {FUEL_LEVEL_ITEMS.map((item, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => setFuelLevelIdx(idx)}
-                    className={`rounded-lg border px-2 py-2 text-center text-xs font-medium transition-colors ${
-                      fuelLevelIdx === idx
-                        ? 'border-brand-400 bg-brand-500 text-white'
-                        : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </CollapsibleCard>
-        </div>
-
-        {/* Suggested tasks assistant */}
+        {/* Suggested tasks — flat, no card wrapper */}
         {suggestedTasks.length > 0 && (
-          <CollapsibleCard
-            title="Nhiệm vụ gợi ý"
-            badge={<Badge tone="blue">{selectedTaskIds.size}/{suggestedTasks.length}</Badge>}
-            defaultOpen={false}
-          >
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="text-xs text-slate-500">Chọn nhiệm vụ cần tạo từ phiếu kiểm tra.</div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedTaskIds(new Set(suggestedTasks.map((task) => task.id)))}
-                    className="text-xs text-brand-600 hover:text-brand-700"
-                  >
-                    Chọn tất cả
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedTaskIds(new Set())}
-                    className="text-xs text-slate-500 hover:text-slate-700"
-                  >
-                    Bỏ chọn
-                  </button>
-                </div>
-              </div>
-
-              <div className="max-h-56 space-y-2 overflow-y-auto">
-                {suggestedTasks.map((task) => {
-                  const isSelected = selectedTaskIds.has(task.id)
-                  return (
-                    <label
-                      key={task.id}
-                      className={clsx(
-                        'flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors',
-                        isSelected ? 'border-brand-200 bg-brand-50' : 'border-slate-200 bg-white hover:bg-slate-50'
-                      )}
-                    >
-                      <input
-                        type="checkbox"
-                        className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600"
-                        checked={isSelected}
-                        onChange={() => toggleSuggestedTask(task.id)}
-                      />
-                      <div className="flex-1">
-                        <div className="text-sm font-medium text-slate-900">{task.title}</div>
-                        {task.description ? (
-                          <div className="mt-1 text-xs text-slate-500">{task.description}</div>
-                        ) : null}
-                      </div>
-                    </label>
-                  )
-                })}
-              </div>
-
-              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <div className="text-xs text-slate-600">
-                  Đã chọn <span className="font-semibold">{selectedTaskIds.size}</span> /
-                  {suggestedTasks.length} nhiệm vụ
-                </div>
-                <button
-                  type="button"
-                  onClick={handleCreateSelectedTasks}
-                  disabled={selectedTaskIds.size === 0}
-                  className="btn-primary"
-                >
-                  Tạo nhiệm vụ đã chọn
-                </button>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="text-xs text-slate-500">Chọn nhiệm vụ cần tạo từ phiếu kiểm tra.</div>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setSelectedTaskIds(new Set(suggestedTasks.map((task) => task.id)))} className="text-xs text-brand-600 hover:text-brand-700">Chọn tất cả</button>
+                <button type="button" onClick={() => setSelectedTaskIds(new Set())} className="text-xs text-slate-500 hover:text-slate-700">Bỏ chọn</button>
               </div>
             </div>
-          </CollapsibleCard>
+            <div className="max-h-56 space-y-2 overflow-y-auto">
+              {suggestedTasks.map((task) => {
+                const isSelected = selectedTaskIds.has(task.id)
+                return (
+                  <label key={task.id} className={clsx('flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors', isSelected ? 'border-brand-200 bg-brand-50' : 'border-slate-200 bg-white hover:bg-slate-50')}>
+                    <input type="checkbox" className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600" checked={isSelected} onChange={() => toggleSuggestedTask(task.id)} />
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-slate-900">{task.title}</div>
+                      {task.description ? <div className="mt-1 text-xs text-slate-500">{task.description}</div> : null}
+                    </div>
+                  </label>
+                )
+              })}
+            </div>
+            <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <div className="text-xs text-slate-600">Đã chọn <span className="font-semibold">{selectedTaskIds.size}</span> / {suggestedTasks.length} nhiệm vụ</div>
+              <button type="button" onClick={handleCreateSelectedTasks} disabled={selectedTaskIds.size === 0} className="btn-primary">Tạo nhiệm vụ đã chọn</button>
+            </div>
+          </div>
         )}
 
         {/* Scrollable content */}
