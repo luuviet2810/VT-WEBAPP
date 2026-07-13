@@ -70,9 +70,7 @@ function TaskEditDrawer({ task, vehicles, employees, onClose, onUpdate, onDelete
 }) {
   const [title, setTitle] = useState(task.title)
   const [priority, setPriority] = useState<TaskPriority>(task.priority)
-  const [status, setStatus] = useState<TaskStatus>(task.status)
   const [assigneeId, setAssigneeId] = useState(task.assigneeId ?? '')
-  const [checklist, setChecklist] = useState<TaskChecklistItem[]>(task.checklist ?? [])
   const [dueDate, setDueDate] = useState(task.dueDate ?? '')
   const [dueTime, setDueTime] = useState(task.dueTime ?? '')
   const [saving, setSaving] = useState(false)
@@ -88,10 +86,9 @@ function TaskEditDrawer({ task, vehicles, employees, onClose, onUpdate, onDelete
     if (!title.trim()) return
     setSaving(true)
     onUpdate(task.id, {
-      title: title.trim(), priority, status,
+      title: title.trim(), priority,
       assigneeId: assigneeId || null,
       dueDate: dueDate || null, dueTime: dueTime || null,
-      checklist: checklist.filter((i) => i.text.trim()),
     })
     setSaving(false)
     onClose()
@@ -111,59 +108,51 @@ function TaskEditDrawer({ task, vehicles, employees, onClose, onUpdate, onDelete
         </div>
         <div className="flex-1 overflow-y-auto px-5 py-4">
           <div className="space-y-4">
-            {/* Vehicle — read-only */}
-            <div className="rounded-2xl px-4 py-3" style={{ background: 'rgba(0,0,0,0.02)' }}>
-              <div className="text-xs font-medium text-slate-400">Xe</div>
-              <div className="mt-0.5 text-sm font-semibold text-slate-700">{vehicle ? `${vehicle.plate} ${vehicle.model}` : 'Không có xe'}</div>
+            {/* Vehicle plate - model */}
+            {vehicle && (
+              <div className="text-sm font-semibold text-brand-600">{vehicle.plate} - {vehicle.model}</div>
+            )}
+
+            {/* Quick status actions */}
+            <div className="flex items-center gap-2">
+              {[
+                { key: 'doing' as TaskStatus, label: 'Đang làm', show: task.status === 'todo', style: 'bg-blue-500 text-white hover:bg-blue-600' },
+                { key: 'done' as TaskStatus, label: 'Hoàn thành', show: task.status !== 'done', style: 'bg-green-500 text-white hover:bg-green-600' },
+                { key: 'todo' as TaskStatus, label: 'Chưa làm', show: task.status !== 'todo', style: 'bg-slate-100 text-slate-700 hover:bg-slate-200' },
+              ].filter((a) => a.show).map((action) => (
+                <button
+                  key={action.key}
+                  onClick={() => { onUpdate(task.id, { status: action.key }); onClose() }}
+                  className={`flex h-10 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold shadow-sm transition-all active:scale-[0.98] ${action.style}`}
+                >
+                  {action.label}
+                </button>
+              ))}
             </div>
 
             {/* Title */}
             <div>
-              <label className="label">Tên công việc *</label>
+              <label className="label">Tên công việc</label>
               <input className="input w-full" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
             </div>
 
-            {/* Priority + Status */}
+            {/* Priority + Assignee */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label">Mức ưu tiên</label>
+                <label className="label">Mức độ ưu tiên</label>
                 <select className="input w-full" value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority)}>
-                  <option value="low">Thấp</option><option value="medium">Trung bình</option><option value="high">Cao</option><option value="urgent">Khẩn cấp</option>
+                  <option value="urgent">Làm gấp / Giao ngay 5★</option>
+                  <option value="priority">Ưu tiên hơn 4★</option>
+                  <option value="normal">Cứ từ từ 3★</option>
                 </select>
               </div>
               <div>
-                <label className="label">Trạng thái</label>
-                <select className="input w-full" value={status} onChange={(e) => setStatus(e.target.value as TaskStatus)}>
-                  <option value="todo">Chưa làm</option><option value="doing">Đang làm</option><option value="done">Đã hoàn thành</option>
+                <label className="label">Ai đang làm</label>
+                <select className="input w-full" value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}>
+                  <option value="">Chọn người phụ trách</option>
+                  {employees.map((e) => (<option key={e.id} value={e.id}>{e.name}</option>))}
                 </select>
               </div>
-            </div>
-
-            {/* Assignee */}
-            <div>
-              <label className="label">Người phụ trách</label>
-              <select className="input w-full" value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}>
-                <option value="">Không phân công</option>
-                {employees.map((e) => (<option key={e.id} value={e.id}>{e.name}</option>))}
-              </select>
-            </div>
-
-            {/* Checklist */}
-            <div>
-              <label className="label">Các bước kiểm tra</label>
-              <div className="space-y-2">
-                {checklist.map((item, idx) => (
-                  <div key={item.id} className="flex gap-2">
-                    <input type="checkbox" checked={item.done} onChange={() => setChecklist((rows) => rows.map((r, i) => (i === idx ? { ...r, done: !r.done } : r)))}
-                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-brand-600" />
-                    <input className="input flex-1" placeholder="Bước kiểm tra" value={item.text}
-                      onChange={(e) => setChecklist((rows) => rows.map((r, i) => (i === idx ? { ...r, text: e.target.value } : r)))} />
-                    <button type="button" className="btn-icon shrink-0" onClick={() => setChecklist((rows) => rows.filter((_, i) => i !== idx))}><Trash2 size={15} /></button>
-                  </div>
-                ))}
-              </div>
-              <button type="button" className="mt-2 flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
-                onClick={() => setChecklist((rows) => [...rows, { id: uid('chk'), text: '', done: false }])}><Plus size={14} /> Thêm bước</button>
             </div>
 
             {/* Due Date / Time */}
