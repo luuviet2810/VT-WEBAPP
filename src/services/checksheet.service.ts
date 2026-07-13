@@ -75,6 +75,9 @@ function mapRow(row: Record<string, unknown>): CheckSheet {
     inputAcquySOC: row.input_acquy_soc as number | undefined,
     acquySOH: row.acquy_soh as number | undefined,
     acquySOC: row.acquy_soc as number | undefined,
+    songNungResultStatus: row.song_nung_result_status as CheckSheet['songNungResultStatus'],
+    keyType: row.key_type as CheckSheet['keyType'],
+    smartkeyStatus: row.smartkey_status as CheckSheet['smartkeyStatus'],
     createdAt: row.created_at as string,
   }
 }
@@ -141,6 +144,9 @@ export async function createCheckSheet(
     input_acquy_soc: sheet.inputAcquySOC,
     acquy_soh: sheet.acquySOH,
     acquy_soc: sheet.acquySOC,
+    song_nung_result_status: sheet.songNungResultStatus,
+    key_type: sheet.keyType,
+    smartkey_status: sheet.smartkeyStatus,
   }
 
   const { data, error } = await supabase
@@ -184,6 +190,9 @@ export async function updateCheckSheet(
   if (patch.inputAcquySOC !== undefined) updateData.input_acquy_soc = patch.inputAcquySOC
   if (patch.acquySOH !== undefined) updateData.acquy_soh = patch.acquySOH
   if (patch.acquySOC !== undefined) updateData.acquy_soc = patch.acquySOC
+  if (patch.songNungResultStatus !== undefined) updateData.song_nung_result_status = patch.songNungResultStatus
+  if (patch.keyType !== undefined) updateData.key_type = patch.keyType
+  if (patch.smartkeyStatus !== undefined) updateData.smartkey_status = patch.smartkeyStatus
 
   // Drop empty-string UUIDs to avoid Postgres 22P02
   Object.keys(updateData).forEach((key) => {
@@ -270,6 +279,9 @@ export async function getOrCreateCheckSheet(
     inputAcquySOC: undefined,
     acquySOH: undefined,
     acquySOC: undefined,
+    songNungResultStatus: undefined,
+    keyType: undefined,
+    smartkeyStatus: undefined,
   })
 
   return { sheet: created, isNew: true }

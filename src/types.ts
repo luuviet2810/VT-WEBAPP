@@ -270,6 +270,10 @@ export interface CheckSheet {
   outTireState?: CheckOutItem
   // Ghi chú đầu vào
   inputNotes?: string
+  // Song nưng result + key info
+  songNungResultStatus?: 'draft' | 'printed' | 'none'
+  keyType?: 'smartkey' | 'mechanical' | 'both'
+  smartkeyStatus?: 'one' | 'two' | 'damaged'
   createdAt: string
 }
 

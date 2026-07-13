@@ -243,6 +243,11 @@ export default function CheckSheetForm({
   const [acquySOC, setAcquySOC] = useState(100)
   const [acquyPickerOpen, setAcquyPickerOpen] = useState<'soh' | 'soc' | null>(null)
 
+  // ====== SONG NƯNG RESULT + KEY STATE ======
+  const [songNungResultStatus, setSongNungResultStatus] = useState<'none' | 'draft' | 'printed'>('none')
+  const [keyType, setKeyType] = useState<'smartkey' | 'mechanical' | 'both' | undefined>(undefined)
+  const [smartkeyStatus, setSmartkeyStatus] = useState<'one' | 'two' | 'damaged' | undefined>(undefined)
+
   // ====== SUGGESTED TASKS ======
   const [suggestedTasks, setSuggestedTasks] = useState<GeneratedTask[]>([])
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set())
@@ -273,6 +278,9 @@ export default function CheckSheetForm({
       inputAcquySOC,
       acquySOH,
       acquySOC,
+      songNungResultStatus: songNungResultStatus as CheckSheet['songNungResultStatus'],
+      keyType: keyType as CheckSheet['keyType'],
+      smartkeyStatus: smartkeyStatus as CheckSheet['smartkeyStatus'],
       createdAt: new Date().toISOString(),
     }
   }
@@ -384,6 +392,9 @@ export default function CheckSheetForm({
           setInputTireState({ status: '' as CheckOutStatus })
           setOutTireState({ status: '' as CheckOutStatus })
           setInputNotes('')
+          setSongNungResultStatus('none')
+          setKeyType(undefined)
+          setSmartkeyStatus(undefined)
         } else {
           // Existing sheet — load saved values as-is.
           setFuelLevelIdx(() => {
@@ -408,6 +419,9 @@ export default function CheckSheetForm({
           setInputTireState(sheet.inputTireState ?? { status: '' as CheckOutStatus })
           setOutTireState(sheet.outTireState ?? { status: '' as CheckOutStatus })
           setInputNotes(sheet.inputNotes ?? '')
+          setSongNungResultStatus(sheet.songNungResultStatus ?? 'none')
+          setKeyType(sheet.keyType ?? undefined)
+          setSmartkeyStatus(sheet.smartkeyStatus ?? undefined)
         }
         // Mark init complete so auto-save can start
         initRef.current = true
@@ -450,7 +464,7 @@ export default function CheckSheetForm({
     if (type === 'out') {
       return { ...base, outCheck, outNotes, acquySOH, acquySOC, outTireState }
     }
-    return { ...base, inputAcquySOH, inputAcquySOC }
+    return { ...base, inputAcquySOH, inputAcquySOC, songNungResultStatus, keyType, smartkeyStatus }
   }
 
   function scheduleSave() {
@@ -478,12 +492,12 @@ export default function CheckSheetForm({
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current)
     }
-  }, [sheetId, checkerId, checkDate, fuelLevel, screen, rearCamera, hipass, rearSensor, dashcam, interior, exterior, inputDieuHoa, inputSuoiGhe, inputTireState, inputNotes, outCheck, outNotes, inputAcquySOH, inputAcquySOC, acquySOH, acquySOC])
+  }, [sheetId, checkerId, checkDate, fuelLevel, screen, rearCamera, hipass, rearSensor, dashcam, interior, exterior, inputDieuHoa, inputSuoiGhe, inputTireState, inputNotes, outCheck, outNotes, inputAcquySOH, inputAcquySOC, acquySOH, acquySOC, songNungResultStatus, keyType, smartkeyStatus])
 
   useEffect(() => {
     if (!sheetId || !initRef.current) return
     scheduleRefreshSuggestions()
-  }, [sheetId, type, checkerId, checkDate, fuelLevel, screen, rearCamera, hipass, rearSensor, dashcam, interior, exterior, inputDieuHoa, inputSuoiGhe, inputTireState, inputNotes, outCheck, outNotes, inputAcquySOH, inputAcquySOC, acquySOH, acquySOC])
+  }, [sheetId, type, checkerId, checkDate, fuelLevel, screen, rearCamera, hipass, rearSensor, dashcam, interior, exterior, inputDieuHoa, inputSuoiGhe, inputTireState, inputNotes, outCheck, outNotes, inputAcquySOH, inputAcquySOC, acquySOH, acquySOC, songNungResultStatus, keyType, smartkeyStatus])
 
   // ====== SUMMARY COUNTS ======
   const summaryCounts = useMemo(() => {
@@ -1161,100 +1175,143 @@ export default function CheckSheetForm({
         )}
 
         {/* Scrollable content */}
-        <div className="flex-1 space-y-4 px-1">
+        <div className="flex-1 space-y-5 px-1">
 
-          {/* ĐẦU VÀO - Kiểm tra Option xe & Nội/Ngoại thất */}
+          {/* ĐẦU VÀO */}
           {type === 'in' && (
             <>
-              <CollapsibleCard title="Option xe">
-                <div className="space-y-4">
-                  <OptionRow label="Màn hình" value={screen} onChange={(v) => setScreen(v as ScreenState)} options={[
-                    { value: 'normal', label: 'Thường' },
-                    { value: 'android', label: 'Android' },
-                    { value: 'broken', label: 'Hỏng' },
-                  ]} />
-                  <OptionRow label="Camera lùi" value={rearCamera} onChange={(v) => setRearCamera(v as CameraState)} options={[
-                    { value: 'ok', label: 'OK' },
-                    { value: 'blurry', label: 'Mờ' },
-                    { value: 'broken', label: 'Hỏng' },
-                  ]} />
-                  <OptionRow label="Hi-Pass" value={hipass} onChange={(v) => setHipass(v as HipassState)} options={[
-                    { value: 'mirror', label: 'Gương' },
-                    { value: 'device', label: 'Thiết bị' },
-                    { value: 'none', label: 'Không có' },
-                  ]} />
-                  <OptionRow label="Cảm biến lùi" value={rearSensor} onChange={(v) => setRearSensor(v as SensorState)} options={[
-                    { value: 'ok', label: 'OK' },
-                    { value: 'broken', label: 'Hỏng' },
-                    { value: 'none', label: 'Không có' },
-                  ]} />
-                  <OptionRow label="Camera hành trình" value={dashcam} onChange={(v) => setDashcam(v as DashcamState)} options={[
-                    { value: 'good', label: 'Có thẻ nhớ' },
-                    { value: 'maybe', label: 'Thiếu thẻ nhớ' },
+              {/* Người check, Ngày check */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="label">Người check</label>
+                  <select className="input" value={checkerId} onChange={(e) => setCheckerId(e.target.value)}>
+                    <option value="">-- Chọn người check --</option>
+                    {employees.map((e) => (
+                      <option key={e.id} value={e.id}>{e.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Ngày check</label>
+                  <input type="date" className="input" value={checkDate} onChange={(e) => setCheckDate(e.target.value)} />
+                </div>
+              </div>
+
+              {/* Có kết quả Song nưng chưa? */}
+              <div>
+                <label className="label">Có kết quả Song nưng chưa?</label>
+                <SegButton
+                  options={[
+                    { value: 'draft', label: 'Bản nháp' },
+                    { value: 'printed', label: 'Đã in' },
                     { value: 'none', label: 'Chưa có' },
-                  ]} />
-                  {/* Điều hòa - Đầu vào */}
-                  <DieuHoaRow
-                    label="Điều hòa"
-                    entry={inputDieuHoa}
-                    onChange={(p: Partial<DieuHoaItem>) => setInputDieuHoa((prev: DieuHoaItem) => ({ ...prev, ...p }))}
-                  />
-                  {/* Sưởi ghế - Đầu vào */}
-                  <SuoiGheRow
-                    label="Sưởi ghế"
-                    entry={inputSuoiGhe}
-                    onChange={(p: Partial<SuoiGheItem>) => setInputSuoiGhe((prev: SuoiGheItem) => ({ ...prev, ...p }))}
-                  />
-                  {/* Tình trạng lốp - Đầu vào */}
-                  <TireCheckRow
-                    label="Tình trạng lốp"
-                    entry={inputTireState}
-                    onChange={(p) => setInputTireState((prev) => ({ ...prev, ...p }))}
+                  ]}
+                  value={songNungResultStatus}
+                  onChange={(v) => setSongNungResultStatus(v as 'none' | 'draft' | 'printed')}
+                />
+              </div>
+
+              {/* Chìa khóa */}
+              <div>
+                <label className="label">Chìa khóa</label>
+                <SegButton
+                  options={[
+                    { value: 'smartkey', label: 'Smartkey' },
+                    { value: 'mechanical', label: 'Khóa cơ' },
+                    { value: 'both', label: 'Cả 2' },
+                  ]}
+                  value={keyType ?? ''}
+                  onChange={(v) => setKeyType(v as 'smartkey' | 'mechanical' | 'both')}
+                />
+              </div>
+
+              {/* Số lượng chìa (chỉ khi smartkey hoặc both) */}
+              {(keyType === 'smartkey' || keyType === 'both') && (
+                <div>
+                  <label className="label">Số lượng chìa</label>
+                  <SegButton
+                    options={[
+                      { value: 'one', label: '1 chìa' },
+                      { value: 'two', label: '2 chìa' },
+                      { value: 'damaged', label: 'Có chìa hỏng' },
+                    ]}
+                    value={smartkeyStatus ?? ''}
+                    onChange={(v) => setSmartkeyStatus(v as 'one' | 'two' | 'damaged')}
                   />
                 </div>
-              </CollapsibleCard>
+              )}
+
+              {/* Mức nhiên liệu */}
+              <div>
+                <label className="label">Mức nhiên liệu</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {FUEL_LEVEL_ITEMS.map((item, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setFuelLevelIdx(idx)}
+                      className={`rounded-lg border px-2 py-2 text-center text-xs font-medium transition-colors ${
+                        fuelLevelIdx === idx
+                          ? 'border-brand-400 bg-brand-500 text-white'
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Option xe */}
+              <div className="space-y-4">
+                <OptionRow label="Màn hình" value={screen} onChange={(v) => setScreen(v as ScreenState)} options={[
+                  { value: 'normal', label: 'Thường' }, { value: 'android', label: 'Android' }, { value: 'broken', label: 'Hỏng' },
+                ]} />
+                <OptionRow label="Camera lùi" value={rearCamera} onChange={(v) => setRearCamera(v as CameraState)} options={[
+                  { value: 'ok', label: 'OK' }, { value: 'blurry', label: 'Mờ' }, { value: 'broken', label: 'Hỏng' },
+                ]} />
+                <OptionRow label="Hi-Pass" value={hipass} onChange={(v) => setHipass(v as HipassState)} options={[
+                  { value: 'mirror', label: 'Gương' }, { value: 'device', label: 'Thiết bị' }, { value: 'none', label: 'Không có' },
+                ]} />
+                <OptionRow label="Cảm biến lùi" value={rearSensor} onChange={(v) => setRearSensor(v as SensorState)} options={[
+                  { value: 'ok', label: 'OK' }, { value: 'broken', label: 'Hỏng' }, { value: 'none', label: 'Không có' },
+                ]} />
+                <OptionRow label="Camera hành trình" value={dashcam} onChange={(v) => setDashcam(v as DashcamState)} options={[
+                  { value: 'good', label: 'Có thẻ nhớ' }, { value: 'maybe', label: 'Thiếu thẻ nhớ' }, { value: 'none', label: 'Chưa có' },
+                ]} />
+                <DieuHoaRow label="Điều hòa" entry={inputDieuHoa} onChange={(p) => setInputDieuHoa((prev) => ({ ...prev, ...p }))} />
+                <SuoiGheRow label="Sưởi ghế" entry={inputSuoiGhe} onChange={(p) => setInputSuoiGhe((prev) => ({ ...prev, ...p }))} />
+                <TireCheckRow label="Tình trạng lốp" entry={inputTireState} onChange={(p) => setInputTireState((prev) => ({ ...prev, ...p }))} />
+              </div>
 
               {/* Battery Check - Đầu vào */}
-              <BatteryCheck
-                soh={inputAcquySOH}
-                soc={inputAcquySOC}
-                pickerOpen={inputAcquyPickerOpen}
-                onSOHChange={setInputAcquySOH}
-                onSOCChange={setInputAcquySOC}
-                onPickerOpen={setInputAcquyPickerOpen}
-              />
+              <BatteryCheck soh={inputAcquySOH} soc={inputAcquySOC} pickerOpen={inputAcquyPickerOpen} onSOHChange={setInputAcquySOH} onSOCChange={setInputAcquySOC} onPickerOpen={setInputAcquyPickerOpen} />
 
-              <CollapsibleCard title="Kiểm tra nội thất & ngoại thất">
-                <div className="space-y-5">
-                  <div>
-                    <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Nội thất</div>
-                    <InteriorRow label="Ghế lái" entry={interior.driverSeat} onChange={(p) => updateInterior('driverSeat', p)} />
-                    <InteriorRow label="Ghế phụ" entry={interior.passengerSeat} onChange={(p) => updateInterior('passengerSeat', p)} />
-                    <InteriorRow label="Hàng ghế sau" entry={interior.rearSeat} onChange={(p) => updateInterior('rearSeat', p)} />
-                  </div>
+              {/* Nội thất */}
+              <div className="mb-1 mt-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Nội thất</div>
+              <InteriorRow label="Ghế lái" entry={interior.driverSeat} onChange={(p) => updateInterior('driverSeat', p)} />
+              <InteriorRow label="Ghế phụ" entry={interior.passengerSeat} onChange={(p) => updateInterior('passengerSeat', p)} />
+              <InteriorRow label="Hàng ghế sau" entry={interior.rearSeat} onChange={(p) => updateInterior('rearSeat', p)} />
 
-                  {paintCount > 0 && (
-                    <button
-                      onClick={scrollToExterior}
-                      className="w-full rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-3 text-left text-sm font-semibold text-amber-700 transition-all hover:border-amber-400 hover:bg-amber-100 active:scale-98"
-                    >
-                      {paintCount} tấm cần sơn - Click để xem chi tiết
-                    </button>
-                  )}
+              <div className="mb-1 mt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Ngoại thất</div>
 
-                  <div ref={exteriorRef}>
-                    <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Ngoại thất</div>
-                    {EXTERIOR_SPOTS.map(([key, spotLabel]) => (
-                      <ExteriorRow
-                        key={key}
-                        label={spotLabel}
-                        entry={exterior[key]}
-                        onChange={(p) => updateExterior(key, p)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </CollapsibleCard>
+              {paintCount > 0 && (
+                <button onClick={scrollToExterior} className="w-full rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-3 text-left text-sm font-semibold text-amber-700 transition-all hover:border-amber-400 hover:bg-amber-100 active:scale-98">
+                  {paintCount} tấm cần sơn - Click để xem chi tiết
+                </button>
+              )}
+
+              <div ref={exteriorRef}>
+                {EXTERIOR_SPOTS.map(([key, spotLabel]) => (
+                  <ExteriorRow key={key} label={spotLabel} entry={exterior[key]} onChange={(p) => updateExterior(key, p)} />
+                ))}
+              </div>
+
+              {/* Ghi chú đầu vào */}
+              <div>
+                <label className="label">Ghi chú</label>
+                <textarea className="input min-h-[60px] w-full resize-none" placeholder="Ghi chú thêm..." value={inputNotes} onChange={(e) => setInputNotes(e.target.value)} />
+              </div>
 
               {issueLabels.length > 0 && (
                 <div className="rounded-xl border-2 border-blue-200 bg-blue-50 p-4">
