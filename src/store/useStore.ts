@@ -447,7 +447,7 @@ export const useStore = create<StoreState>()(
         title: t.title || '',
         description: t.description || '',
         checklist: t.checklist || [],
-        priority: t.priority || 'medium',
+        priority: t.priority || 'low',
         status: t.status || 'todo',
         assigneeId: t.assigneeId ?? null,
         vehicleId: t.vehicleId ?? null,
