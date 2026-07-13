@@ -113,6 +113,17 @@ const STATUS_LABELS: Record<string, string> = {
   touchup: 'Lấy sơn tự vá',
   worn: 'Hơi mòn',
   badd: 'Mòn lắm',
+  // Song nưng result
+  draft: 'Bản nháp',
+  printed: 'Đã in',
+  // Key type
+  smartkey: 'Smartkey',
+  mechanical: 'Khóa cơ',
+  both: 'Cả 2',
+  // Smartkey status
+  one: '1 chìa',
+  two: '2 chìa',
+  damaged: 'Có chìa hỏng',
 }
 
 export function statusLabel(status: string | null | undefined): string {
