@@ -466,6 +466,12 @@ export default function CheckSheetForm({
       else if (tl === 'bad') error++
       else if (tl === 'install') { error++; none++ }
 
+      // Số lượng chìa (Đầu vào) — chỉ smartkey/both mới có
+      if (keyType === 'smartkey' || keyType === 'both') {
+        if (smartkeyStatus === 'one' || smartkeyStatus === 'two') ok++
+        else if (smartkeyStatus === 'damaged') error++
+      }
+
       // Nhiên liệu
       if (fuelLevel) {
         const fl = classifyStatus(fuelLevel)
@@ -510,9 +516,15 @@ export default function CheckSheetForm({
         else if (c === 'install') { error++; none++ }
       })
 
+      // Số lượng chìa (Đầu ra)
+      if (outKeyType === 'smartkey' || outKeyType === 'both') {
+        if (outSmartkeyStatus === 'one' || outSmartkeyStatus === 'two') ok++
+        else if (outSmartkeyStatus === 'damaged') error++
+      }
+
       return { ok, error, none, noteCount: outNotes ? 1 : 0 }
     }
-  }, [type, screen, rearCamera, rearSensor, dashcam, interior, exterior, outCheck, outNotes, inputDieuHoa, inputSuoiGhe, inputTireState, fuelLevel, inputAcquySOC])
+  }, [type, screen, rearCamera, rearSensor, dashcam, interior, exterior, outCheck, outNotes, inputDieuHoa, inputSuoiGhe, inputTireState, fuelLevel, inputAcquySOC, keyType, smartkeyStatus, outKeyType, outSmartkeyStatus])
 
   // Paint count
   const paintCount = useMemo(() => {
