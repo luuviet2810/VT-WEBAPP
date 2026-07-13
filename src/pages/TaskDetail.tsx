@@ -7,15 +7,15 @@ import { TaskPriority, TaskStatus } from '../types'
 import { formatDateTime } from '../utils/format'
 
 const PRIORITY_LABEL: Record<TaskPriority, string> = {
-  urgent: 'Làm gấp',
-  high: 'Ưu tiên hơn',
-  medium: 'Cứ từ từ',
+  high: 'Làm gấp / Giao ngay',
+  medium: 'Ưu tiên hơn',
   low: 'Cứ từ từ',
+  urgent: 'Làm gấp / Giao ngay',
 }
 const PRIORITY_OPTIONS: { value: TaskPriority; label: string }[] = [
-  { value: 'urgent', label: 'Làm gấp / Giao ngay 5★' },
-  { value: 'high', label: 'Ưu tiên hơn 4★' },
-  { value: 'medium', label: 'Cứ từ từ 3★' },
+  { value: 'high', label: '⭐⭐⭐⭐⭐ Làm gấp / Giao ngay' },
+  { value: 'medium', label: '⭐⭐⭐⭐ Ưu tiên hơn' },
+  { value: 'low', label: '⭐⭐⭐ Cứ từ từ' },
 ]
 
 export default function TaskDetail() {

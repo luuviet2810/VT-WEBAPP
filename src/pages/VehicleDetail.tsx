@@ -18,10 +18,10 @@ const STATUS_LABEL: Record<VehicleStatus, string> = {
   sold: 'Đã bán',
 }
 const PRIORITY_LABEL: Record<TaskPriority, string> = {
-  low: 'Thấp',
-  medium: 'Trung bình',
-  high: 'Cao',
-  urgent: 'Khẩn cấp',
+  high: 'Làm gấp / Giao ngay',
+  medium: 'Ưu tiên hơn',
+  low: 'Cứ từ từ',
+  urgent: 'Làm gấp / Giao ngay',
 }
 
 const TABS = [
@@ -305,7 +305,7 @@ export default function VehicleDetail() {
                         <Badge tone={task.status === 'done' ? 'green' : task.status === 'doing' ? 'blue' : 'slate'}>
                           {task.status === 'todo' ? 'Chưa làm' : task.status === 'doing' ? 'Đang làm' : 'Hoàn thành'}
                         </Badge>
-                        <Badge tone={task.priority === 'urgent' ? 'red' : task.priority === 'high' ? 'orange' : task.priority === 'medium' ? 'blue' : 'slate'}>
+                        <Badge tone={task.priority === 'high' || task.priority === 'urgent' ? 'red' : task.priority === 'medium' ? 'orange' : 'blue'}>
                           {PRIORITY_LABEL[task.priority]}
                         </Badge>
                         <span className="text-xs text-slate-500">

@@ -17,10 +17,10 @@ import type {
 // ---- Vietnamese labels ----
 
 const PRIORITY_LABELS: Record<TaskPriority, string> = {
-  urgent: 'Khẩn cấp',
-  high: 'Cao',
-  medium: 'Trung bình',
-  low: 'Thấp',
+  high: 'Làm gấp',
+  medium: 'Ưu tiên hơn',
+  low: 'Cứ từ từ',
+  urgent: 'Làm gấp',
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -68,10 +68,10 @@ function escapeText(text: string | undefined | null): string {
 
 function priorityEmoji(priority: TaskPriority): string {
   const map: Record<TaskPriority, string> = {
+    high: '🔴',
+    medium: '🟠',
+    low: '🔵',
     urgent: '🔴',
-    high: '🟠',
-    medium: '🟡',
-    low: '🟢',
   }
   return map[priority]
 }

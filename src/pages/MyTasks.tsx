@@ -8,16 +8,16 @@ import { formatDateTime } from '../utils/format'
 import { TaskStatus, TaskPriority } from '../types'
 
 const PRIORITY_LABEL: Record<TaskPriority, string> = {
-  low: 'Thấp',
-  medium: 'TB',
-  high: 'Cao',
-  urgent: 'Khẩn',
+  high: 'Làm gấp / Giao ngay',
+  medium: 'Ưu tiên hơn',
+  low: 'Cứ từ từ',
+  urgent: 'Làm gấp / Giao ngay',
 }
 
 const PRIORITY_TONE: Record<TaskPriority, 'slate' | 'blue' | 'orange' | 'red'> = {
-  low: 'slate',
-  medium: 'blue',
-  high: 'orange',
+  high: 'red',
+  medium: 'orange',
+  low: 'blue',
   urgent: 'red',
 }
 

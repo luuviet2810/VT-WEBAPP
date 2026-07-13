@@ -14,8 +14,8 @@ const SECTION_CONFIG: { key: WorkSection; label: string; icon: string; tone: 'sl
   { key: 'done', label: 'Đã hoàn thành', icon: '✅', tone: 'green' },
 ]
 
-const PRIORITY_LABEL: Record<TaskPriority, string> = { low: 'Thấp', medium: 'Trung bình', high: 'Cao', urgent: 'Khẩn cấp' }
-const PRIORITY_TONE: Record<TaskPriority, 'slate' | 'blue' | 'orange' | 'red'> = { low: 'slate', medium: 'blue', high: 'orange', urgent: 'red' }
+const PRIORITY_LABEL: Record<TaskPriority, string> = { high: 'Làm gấp / Giao ngay', medium: 'Ưu tiên hơn', low: 'Cứ từ từ', urgent: 'Làm gấp / Giao ngay' }
+const PRIORITY_TONE: Record<TaskPriority, 'slate' | 'blue' | 'orange' | 'red'> = { high: 'red', medium: 'orange', low: 'blue', urgent: 'red' }
 
 // ====== TASK CARD ======
 function TaskCard({ task, vehiclePlate, onEdit, onDragStart }: { task: Task; vehiclePlate: string; onEdit: () => void; onDragStart: (e: React.DragEvent) => void }) {
@@ -128,7 +128,7 @@ function TaskEditDrawer({ task, vehicles, employees, onClose, onUpdate, onDelete
               <div>
                 <label className="label">Mức ưu tiên</label>
                 <select className="input w-full" value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority)}>
-                  <option value="low">Thấp</option><option value="medium">Trung bình</option><option value="high">Cao</option><option value="urgent">Khẩn cấp</option>
+                  <option value="high">⭐⭐⭐⭐⭐ Làm gấp / Giao ngay</option><option value="medium">⭐⭐⭐⭐ Ưu tiên hơn</option><option value="low">⭐⭐⭐ Cứ từ từ</option>
                 </select>
               </div>
               <div>
@@ -327,7 +327,7 @@ export default function Tasks() {
                 <div><label className="label">Tên công việc *</label><input className="input w-full" placeholder="VD: Kiểm tra xe..." value={newTitle} onChange={(e) => setNewTitle(e.target.value)} autoFocus /></div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div><label className="label">Mức ưu tiên</label><select className="input w-full" value={newPriority} onChange={(e) => setNewPriority(e.target.value as TaskPriority)}>
-                    <option value="low">Thấp</option><option value="medium">Trung bình</option><option value="high">Cao</option><option value="urgent">Khẩn cấp</option>
+                    <option value="high">⭐⭐⭐⭐⭐ Làm gấp / Giao ngay</option><option value="medium">⭐⭐⭐⭐ Ưu tiên hơn</option><option value="low">⭐⭐⭐ Cứ từ từ</option>
                   </select></div>
                   <div><label className="label">Trạng thái</label><select className="input w-full" value={newStatus} onChange={(e) => setNewStatus(e.target.value as TaskStatus)}>
                     <option value="todo">Chưa làm</option><option value="doing">Đang làm</option><option value="done">Đã hoàn thành</option>
