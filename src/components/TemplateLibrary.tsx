@@ -160,7 +160,7 @@ function buildEmptyTask(): TemplateFormData['tasks'][0] {
     id: `t_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     title: '',
     description: '',
-    priority: 'normal',
+    priority: 'medium',
     checklist: [],
   }
 }

@@ -8,14 +8,14 @@ import { uid } from '../utils/format'
 
 type WorkSection = 'todo' | 'doing' | 'done'
 
-const SECTION_CONFIG: { key: WorkSection; label: string; icon: string; bg: string; border: string; headerText: string; badgeBg: string; badgeText: string }[] = [
-  { key: 'todo', label: 'Chưa làm', icon: '🚗', bg: '#FEF2F2', border: '#FECACA', headerText: 'text-red-700', badgeBg: 'bg-red-100', badgeText: 'text-red-700' },
-  { key: 'doing', label: 'Đang làm', icon: '🟡', bg: '#FFF8E6', border: '#FDE68A', headerText: 'text-amber-700', badgeBg: 'bg-amber-100', badgeText: 'text-amber-700' },
-  { key: 'done', label: 'Hoàn thành', icon: '✅', bg: '#F0FDF4', border: '#BBF7D0', headerText: 'text-green-700', badgeBg: 'bg-green-100', badgeText: 'text-green-700' },
+const SECTION_CONFIG: { key: WorkSection; label: string; icon: string; tone: 'slate' | 'orange' | 'green' }[] = [
+  { key: 'todo', label: 'Chưa làm', icon: '🚗', tone: 'slate' },
+  { key: 'doing', label: 'Đang làm', icon: '🟡', tone: 'orange' },
+  { key: 'done', label: 'Đã hoàn thành', icon: '✅', tone: 'green' },
 ]
 
-const PRIORITY_LABEL: Record<TaskPriority, string> = { urgent: 'Làm gấp', priority: 'Ưu tiên hơn', normal: 'Cứ từ từ' }
-const PRIORITY_TONE: Record<TaskPriority, 'slate' | 'blue' | 'orange' | 'red'> = { urgent: 'red', priority: 'orange', normal: 'slate' }
+const PRIORITY_LABEL: Record<TaskPriority, string> = { low: 'Thấp', medium: 'Trung bình', high: 'Cao', urgent: 'Khẩn cấp' }
+const PRIORITY_TONE: Record<TaskPriority, 'slate' | 'blue' | 'orange' | 'red'> = { low: 'slate', medium: 'blue', high: 'orange', urgent: 'red' }
 
 // ====== TASK CARD ======
 function TaskCard({ task, vehiclePlate, onEdit, onDragStart }: { task: Task; vehiclePlate: string; onEdit: () => void; onDragStart: (e: React.DragEvent) => void }) {
@@ -25,13 +25,8 @@ function TaskCard({ task, vehiclePlate, onEdit, onDragStart }: { task: Task; veh
 
   return (
     <div draggable onDragStart={onDragStart} onClick={onEdit}
-      className="cursor-pointer rounded-xl border bg-white p-3 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]"
-      style={{
-        borderLeft: task.status === 'todo' ? '4px solid #EF4444' : task.status === 'doing' ? '4px solid #F59E0B' : '4px solid #22C55E',
-        borderColor: task.status === 'todo' ? '#EF4444' : task.status === 'doing' ? '#F59E0B' : '#22C55E',
-        borderLeftWidth: '4px',
-        borderTopColor: 'rgba(0,0,0,0.06)', borderRightColor: 'rgba(0,0,0,0.06)', borderBottomColor: 'rgba(0,0,0,0.06)',
-      }}
+      className="cursor-pointer rounded-xl border bg-white p-3 shadow-sm transition-all duration-200 hover:shadow-md hover:border-blue-200 active:scale-[0.98]"
+      style={{ borderColor: 'rgba(0,0,0,0.06)' }}
     >
       <div className="flex items-start gap-2">
         <div className="flex h-5 w-5 shrink-0 cursor-grab items-center justify-center rounded text-slate-300 opacity-0 transition-opacity hover:opacity-100 active:cursor-grabbing">
@@ -75,7 +70,9 @@ function TaskEditDrawer({ task, vehicles, employees, onClose, onUpdate, onDelete
 }) {
   const [title, setTitle] = useState(task.title)
   const [priority, setPriority] = useState<TaskPriority>(task.priority)
+  const [status, setStatus] = useState<TaskStatus>(task.status)
   const [assigneeId, setAssigneeId] = useState(task.assigneeId ?? '')
+  const [checklist, setChecklist] = useState<TaskChecklistItem[]>(task.checklist ?? [])
   const [dueDate, setDueDate] = useState(task.dueDate ?? '')
   const [dueTime, setDueTime] = useState(task.dueTime ?? '')
   const [saving, setSaving] = useState(false)
@@ -91,9 +88,10 @@ function TaskEditDrawer({ task, vehicles, employees, onClose, onUpdate, onDelete
     if (!title.trim()) return
     setSaving(true)
     onUpdate(task.id, {
-      title: title.trim(), priority,
+      title: title.trim(), priority, status,
       assigneeId: assigneeId || null,
       dueDate: dueDate || null, dueTime: dueTime || null,
+      checklist: checklist.filter((i) => i.text.trim()),
     })
     setSaving(false)
     onClose()
@@ -113,66 +111,59 @@ function TaskEditDrawer({ task, vehicles, employees, onClose, onUpdate, onDelete
         </div>
         <div className="flex-1 overflow-y-auto px-5 py-4">
           <div className="space-y-4">
-            {/* Vehicle + Status inline */}
-            <div className="flex items-center justify-between gap-3">
-              {vehicle ? (
-                <div className="text-sm font-semibold text-brand-600">{vehicle.plate} - {vehicle.model}</div>
-              ) : (
-                <div />
-              )}
-              <span
-                className={`inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-xs font-semibold ${
-                  task.status === 'todo'
-                    ? 'border-red-200 bg-red-50 text-red-600'
-                    : task.status === 'doing'
-                    ? 'border-amber-200 bg-amber-50 text-amber-700'
-                    : 'border-green-200 bg-green-50 text-green-700'
-                }`}
-              >
-                {task.status === 'todo' ? 'Chưa làm' : task.status === 'doing' ? 'Đang làm' : 'Hoàn thành'}
-              </span>
-            </div>
-
-            {/* Quick status actions — show the 2 other statuses */}
-            <div className="flex items-center gap-2">
-              {[
-                { key: 'todo' as TaskStatus, label: 'Chưa làm', style: 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100' },
-                { key: 'doing' as TaskStatus, label: 'Đang làm', style: 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100' },
-                { key: 'done' as TaskStatus, label: 'Hoàn thành', style: 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100' },
-              ].filter((a) => a.key !== task.status).map((action) => (
-                <button
-                  key={action.key}
-                  onClick={() => { onUpdate(task.id, { status: action.key }); onClose() }}
-                  className={`flex h-10 flex-1 items-center justify-center rounded-xl border px-4 text-sm font-semibold shadow-sm transition-all active:scale-[0.98] ${action.style}`}
-                >
-                  {action.label}
-                </button>
-              ))}
+            {/* Vehicle — read-only */}
+            <div className="rounded-2xl px-4 py-3" style={{ background: 'rgba(0,0,0,0.02)' }}>
+              <div className="text-xs font-medium text-slate-400">Xe</div>
+              <div className="mt-0.5 text-sm font-semibold text-slate-700">{vehicle ? `${vehicle.plate} ${vehicle.model}` : 'Không có xe'}</div>
             </div>
 
             {/* Title */}
             <div>
-              <label className="label">Tên công việc</label>
+              <label className="label">Tên công việc *</label>
               <input className="input w-full" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
             </div>
 
-            {/* Priority + Assignee */}
+            {/* Priority + Status */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label">Mức độ ưu tiên</label>
+                <label className="label">Mức ưu tiên</label>
                 <select className="input w-full" value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority)}>
-                  <option value="urgent">Làm gấp / Giao ngay 5★</option>
-                  <option value="priority">Ưu tiên hơn 4★</option>
-                  <option value="normal">Cứ từ từ 3★</option>
+                  <option value="low">Thấp</option><option value="medium">Trung bình</option><option value="high">Cao</option><option value="urgent">Khẩn cấp</option>
                 </select>
               </div>
               <div>
-                <label className="label">Ai đang làm</label>
-                <select className="input w-full" value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}>
-                  <option value="">Chọn người phụ trách</option>
-                  {employees.map((e) => (<option key={e.id} value={e.id}>{e.name}</option>))}
+                <label className="label">Trạng thái</label>
+                <select className="input w-full" value={status} onChange={(e) => setStatus(e.target.value as TaskStatus)}>
+                  <option value="todo">Chưa làm</option><option value="doing">Đang làm</option><option value="done">Đã hoàn thành</option>
                 </select>
               </div>
+            </div>
+
+            {/* Assignee */}
+            <div>
+              <label className="label">Người phụ trách</label>
+              <select className="input w-full" value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}>
+                <option value="">Không phân công</option>
+                {employees.map((e) => (<option key={e.id} value={e.id}>{e.name}</option>))}
+              </select>
+            </div>
+
+            {/* Checklist */}
+            <div>
+              <label className="label">Các bước kiểm tra</label>
+              <div className="space-y-2">
+                {checklist.map((item, idx) => (
+                  <div key={item.id} className="flex gap-2">
+                    <input type="checkbox" checked={item.done} onChange={() => setChecklist((rows) => rows.map((r, i) => (i === idx ? { ...r, done: !r.done } : r)))}
+                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-brand-600" />
+                    <input className="input flex-1" placeholder="Bước kiểm tra" value={item.text}
+                      onChange={(e) => setChecklist((rows) => rows.map((r, i) => (i === idx ? { ...r, text: e.target.value } : r)))} />
+                    <button type="button" className="btn-icon shrink-0" onClick={() => setChecklist((rows) => rows.filter((_, i) => i !== idx))}><Trash2 size={15} /></button>
+                  </div>
+                ))}
+              </div>
+              <button type="button" className="mt-2 flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                onClick={() => setChecklist((rows) => [...rows, { id: uid('chk'), text: '', done: false }])}><Plus size={14} /> Thêm bước</button>
             </div>
 
             {/* Due Date / Time */}
@@ -210,7 +201,7 @@ export default function Tasks() {
   // Add-task drawer
   const [showAddDrawer, setShowAddDrawer] = useState(false)
   const [newTitle, setNewTitle] = useState('')
-  const [newPriority, setNewPriority] = useState<TaskPriority>('normal')
+  const [newPriority, setNewPriority] = useState<TaskPriority>('medium')
   const [newStatus, setNewStatus] = useState<TaskStatus>('todo')
   const [newVehicleId, setNewVehicleId] = useState('')
   const [newChecklist, setNewChecklist] = useState<TaskChecklistItem[]>([{ id: uid('chk'), text: '', done: false }])
@@ -258,7 +249,7 @@ export default function Tasks() {
 
   function resetAddForm() {
     setNewTitle(''); setNewChecklist([{ id: uid('chk'), text: '', done: false }])
-    setNewPriority('normal'); setNewStatus('todo'); setNewVehicleId('')
+    setNewPriority('medium'); setNewStatus('todo'); setNewVehicleId('')
     setNewDueDate(''); setNewDueTime('')
   }
 
@@ -299,15 +290,15 @@ export default function Tasks() {
               onDragOver={(e) => e.preventDefault()}
               onDrop={handleDrop(section.key)}
               className="flex w-80 shrink-0 flex-col rounded-2xl p-4 transition-all duration-200"
-              style={{ background: section.bg, border: `1px solid ${section.border}` }}
+              style={{ background: 'rgba(255,255,255,0.5)', border: '1px solid rgba(0,0,0,0.06)' }}
             >
-              <div className="mb-4 flex items-center gap-2">
-                <span className={`text-sm font-semibold ${section.headerText}`}>{section.icon} {section.label}</span>
-                <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${section.badgeBg} ${section.badgeText}`}>{tasksInSection.length}</span>
+              <div className="mb-3 flex items-center gap-2">
+                <span className="text-sm font-semibold text-slate-700">{section.icon} {section.label}</span>
+                <Badge tone={section.tone}>{tasksInSection.length}</Badge>
               </div>
-              <div className="flex-1 space-y-4 min-h-[120px]">
+              <div className="flex-1 space-y-2 min-h-[120px]">
                 {tasksInSection.length === 0 && (
-                  <div className="flex items-center justify-center rounded-xl border-2 border-dashed py-8 text-xs text-slate-400" style={{ borderColor: 'rgba(0,0,0,0.12)' }}>
+                  <div className="flex items-center justify-center rounded-xl border-2 border-dashed py-8 text-xs text-slate-400" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
                     Kéo task vào đây
                   </div>
                 )}

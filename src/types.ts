@@ -60,7 +60,7 @@ export interface TimelineItem {
   moveLogId?: string
 }
 
-export type TaskPriority = 'urgent' | 'priority' | 'normal'
+export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent'
 export type TaskStatus = 'todo' | 'doing' | 'done'
 
 export interface TaskChecklistItem {

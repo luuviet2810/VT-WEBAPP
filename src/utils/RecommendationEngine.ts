@@ -212,7 +212,7 @@ function recommendTasks(
       taskTitle: task.title,
       vehicleId: task.vehicleId!,
       vehiclePlate: vehicle?.plate ?? '',
-      priority: task.priority === 'urgent' || task.priority === 'priority' ? 'high' : 'medium',
+      priority: task.priority === 'urgent' || task.priority === 'high' ? 'high' : 'medium',
       reason: 'Nhiệm vụ chưa được giao — cần phân công nhân viên',
     })
   }
@@ -236,7 +236,7 @@ function recommendTasks(
   const urgentTodo = tasks.filter(
     (t) =>
       t.status === 'todo' &&
-      (t.priority === 'urgent' || t.priority === 'priority') &&
+      (t.priority === 'urgent' || t.priority === 'high') &&
       t.vehicleId
   )
   for (const task of urgentTodo) {

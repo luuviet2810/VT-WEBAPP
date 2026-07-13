@@ -27,7 +27,7 @@ const DEFAULT_RETRY_POLICY: TelegramRetryPolicy = {
 const DEFAULT_NOTIFICATION_RULES: TelegramNotificationRule[] = [
   { eventType: 'task_created', enabled: true, targetRole: 'assignee' },
   { eventType: 'task_assigned', enabled: true, targetRole: 'assignee' },
-  { eventType: 'task_overdue', enabled: true, targetRole: 'assignee', priorityThreshold: 'normal' },
+  { eventType: 'task_overdue', enabled: true, targetRole: 'assignee', priorityThreshold: 'medium' },
   { eventType: 'vehicle_ready', enabled: true, targetRole: 'manager' },
   { eventType: 'vehicle_sold', enabled: true, targetRole: 'manager' },
   { eventType: 'workflow_changed', enabled: true, targetRole: 'all' },

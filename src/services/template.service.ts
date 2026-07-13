@@ -41,7 +41,7 @@ function buildSeedTemplates(): TaskTemplate[] {
           id: uid('t'),
           title: 'Kiểm tra ngoại thất',
           description: 'Quan sát và ghi nhận tình trạng sơn, kính, đèn, gương',
-          priority: 'normal' as const,
+          priority: 'medium' as const,
           checklist: [
             makeChecklistItem('Kiểm tra sơn xe (trầy, móp)'),
             makeChecklistItem('Kiểm tra kính chắn gió'),
@@ -53,7 +53,7 @@ function buildSeedTemplates(): TaskTemplate[] {
           id: uid('t'),
           title: 'Kiểm tra nội thất',
           description: 'Kiểm tra tình trạng ghế, vô lăng, taplo',
-          priority: 'normal' as const,
+          priority: 'medium' as const,
           checklist: [
             makeChecklistItem('Kiểm tra ghế lái và ghế phụ'),
             makeChecklistItem('Kiểm tra vô lăng'),
@@ -65,7 +65,7 @@ function buildSeedTemplates(): TaskTemplate[] {
           id: uid('t'),
           title: 'Kiểm tra máy móc',
           description: 'Kiểm tra dầu, nước làm mát, acquy',
-          priority: 'priority' as const,
+          priority: 'high' as const,
           checklist: [
             makeChecklistItem('Kiểm tra mức dầu máy'),
             makeChecklistItem('Kiểm tra nước làm mát'),
@@ -92,7 +92,7 @@ function buildSeedTemplates(): TaskTemplate[] {
           id: uid('t'),
           title: 'Chuẩn bị và nâng xe',
           description: 'Lắp đặt thiết bị và nâng xe an toàn',
-          priority: 'priority' as const,
+          priority: 'high' as const,
           checklist: [
             makeChecklistItem('Lắp cầu xiết bánh'),
             makeChecklistItem('Nâng xe bằng kích'),
@@ -103,7 +103,7 @@ function buildSeedTemplates(): TaskTemplate[] {
           id: uid('t'),
           title: 'Xả và thay dầu cũ',
           description: 'Xả dầu cũ, thay lọc dầu, đổ dầu mới',
-          priority: 'priority' as const,
+          priority: 'high' as const,
           checklist: [
             makeChecklistItem('Đặt chậu hứng dầu'),
             makeChecklistItem('Mở nắp cống xả dầu'),
@@ -117,7 +117,7 @@ function buildSeedTemplates(): TaskTemplate[] {
           id: uid('t'),
           title: 'Kiểm tra sau thay dầu',
           description: 'Khởi động xe và kiểm tra rò rỉ',
-          priority: 'normal' as const,
+          priority: 'medium' as const,
           checklist: [
             makeChecklistItem('Khởi động máy, để chạy 2-3 phút'),
             makeChecklistItem('Kiểm tra không rò rỉ dầu'),
@@ -144,7 +144,7 @@ function buildSeedTemplates(): TaskTemplate[] {
           id: uid('t'),
           title: 'Dọn dẹp và hút bụi',
           description: 'Loại bỏ rác và hút bụi toàn bộ nội thất',
-          priority: 'normal' as const,
+          priority: 'medium' as const,
           checklist: [
             makeChecklistItem('Lấy hết rác trong xe'),
             makeChecklistItem('Hút bụi ghế trước và sau'),
@@ -156,7 +156,7 @@ function buildSeedTemplates(): TaskTemplate[] {
           id: uid('t'),
           title: 'Lau chùi bề mặt',
           description: 'Lau nội thất bằng dung dịch chuyên dụng',
-          priority: 'normal' as const,
+          priority: 'medium' as const,
           checklist: [
             makeChecklistItem('Lau taplo và màn hình'),
             makeChecklistItem('Lau vô lăng và cần số'),
@@ -168,7 +168,7 @@ function buildSeedTemplates(): TaskTemplate[] {
           id: uid('t'),
           title: 'Làm sạch ghế và thảm',
           description: 'Xịt hóa chất và vệ sinh ghế, thảm',
-          priority: 'normal' as const,
+          priority: 'medium' as const,
           checklist: [
             makeChecklistItem('Xịt dung dịch lên ghế'),
             makeChecklistItem('Chải và lau sạch ghế'),
@@ -195,7 +195,7 @@ function buildSeedTemplates(): TaskTemplate[] {
           id: uid('t'),
           title: 'Rửa xe sơ bộ',
           description: 'Xịt nước và rửa bùn đất toàn thân xe',
-          priority: 'normal' as const,
+          priority: 'medium' as const,
           checklist: [
             makeChecklistItem('Xịt nước toàn thân'),
             makeChecklistItem('Phun dung dịch rửa xe'),
@@ -208,7 +208,7 @@ function buildSeedTemplates(): TaskTemplate[] {
           id: uid('t'),
           title: 'Đánh bóng sơn',
           description: 'Đánh bóng và phủ bảo vệ lớp sơn xe',
-          priority: 'normal' as const,
+          priority: 'medium' as const,
           checklist: [
             makeChecklistItem('Xịt clay bar toàn thân'),
             makeChecklistItem('Đánh bóng bằng máy đánh'),
@@ -220,7 +220,7 @@ function buildSeedTemplates(): TaskTemplate[] {
           id: uid('t'),
           title: 'Làm sạch và phủ lốp',
           description: 'Làm sạch lốp và phủ bóng lốp',
-          priority: 'normal' as const,
+          priority: 'low' as const,
           checklist: [
             makeChecklistItem('Xịt dung dịch làm sạch lốp'),
             makeChecklistItem('Chải sạch lốp'),
@@ -231,7 +231,7 @@ function buildSeedTemplates(): TaskTemplate[] {
           id: uid('t'),
           title: 'Làm sạch kính và lazang',
           description: 'Lau kính và làm sạch lazang',
-          priority: 'normal' as const,
+          priority: 'medium' as const,
           checklist: [
             makeChecklistItem('Lau kính trước và sau'),
             makeChecklistItem('Lau kính chiếu hậu'),
@@ -243,7 +243,7 @@ function buildSeedTemplates(): TaskTemplate[] {
           id: uid('t'),
           title: 'Làm sạch khoang máy',
           description: 'Xịt rửa và làm khô khoang máy',
-          priority: 'normal' as const,
+          priority: 'low' as const,
           checklist: [
             makeChecklistItem('Xịt nước khoang máy'),
             makeChecklistItem('Chải sạch bụi bẩn'),
@@ -270,7 +270,7 @@ function buildSeedTemplates(): TaskTemplate[] {
           id: uid('t'),
           title: 'Kiểm tra và đánh dấu',
           description: 'Xác định các vị trí cần sửa sơn',
-          priority: 'priority' as const,
+          priority: 'high' as const,
           checklist: [
             makeChecklistItem('Rửa xe sạch'),
             makeChecklistItem('Kiểm tra toàn thân dưới ánh sáng'),
@@ -282,7 +282,7 @@ function buildSeedTemplates(): TaskTemplate[] {
           id: uid('t'),
           title: 'Mài và sửa bề mặt',
           description: 'Mài phẳng, sửa móp và tạo lớp nền',
-          priority: 'priority' as const,
+          priority: 'high' as const,
           checklist: [
             makeChecklistItem('Mài giấy #800 vùng hỏng'),
             makeChecklistItem('Đắp putty nếu cần'),
@@ -294,7 +294,7 @@ function buildSeedTemplates(): TaskTemplate[] {
           id: uid('t'),
           title: 'Sơn lót và sơn màu',
           description: 'Phun sơn lót, sơn màu đúng mã màu',
-          priority: 'priority' as const,
+          priority: 'high' as const,
           checklist: [
             makeChecklistItem('Che chắn kỹ vùng không sơn'),
             makeChecklistItem('Xịt sơn lót 2 lớp'),
@@ -306,7 +306,7 @@ function buildSeedTemplates(): TaskTemplate[] {
           id: uid('t'),
           title: 'Đánh bóng hoàn thiện',
           description: 'Mài mờ, đánh bóng và kiểm tra cuối',
-          priority: 'normal' as const,
+          priority: 'medium' as const,
           checklist: [
             makeChecklistItem('Mài mờ bề mặt sơn'),
             makeChecklistItem('Đánh bóng hoàn thiện'),
@@ -333,7 +333,7 @@ function buildSeedTemplates(): TaskTemplate[] {
           id: uid('t'),
           title: 'Kiểm tra tổng quát',
           description: 'Đánh giá tổng thể tình trạng xe',
-          priority: 'priority' as const,
+          priority: 'high' as const,
           checklist: [
             makeChecklistItem('Kiểm tra ngoại thất'),
             makeChecklistItem('Kiểm tra nội thất'),
@@ -346,7 +346,7 @@ function buildSeedTemplates(): TaskTemplate[] {
           id: uid('t'),
           title: 'Bảo dưỡng cơ bản',
           description: 'Thay dầu, kiểm tra ắc quy, nước làm mát',
-          priority: 'priority' as const,
+          priority: 'high' as const,
           checklist: [
             makeChecklistItem('Thay dầu máy nếu cần'),
             makeChecklistItem('Kiểm tra acquy'),
@@ -359,7 +359,7 @@ function buildSeedTemplates(): TaskTemplate[] {
           id: uid('t'),
           title: 'Vệ sinh và đánh bóng',
           description: 'Làm sạch toàn diện cả nội và ngoại thất',
-          priority: 'normal' as const,
+          priority: 'medium' as const,
           checklist: [
             makeChecklistItem('Hút bụi và vệ sinh nội thất'),
             makeChecklistItem('Rửa xe ngoại thất'),
@@ -372,7 +372,7 @@ function buildSeedTemplates(): TaskTemplate[] {
           id: uid('t'),
           title: 'Kiểm tra pháp lý',
           description: 'Kiểm tra giấy tờ và tài liệu xe',
-          priority: 'priority' as const,
+          priority: 'high' as const,
           checklist: [
             makeChecklistItem('Kiểm tra đăng ký xe'),
             makeChecklistItem('Kiểm tra bảo hiểm'),
@@ -399,7 +399,7 @@ function buildSeedTemplates(): TaskTemplate[] {
           id: uid('t'),
           title: 'Công việc 1',
           description: 'Mô tả công việc cần thực hiện',
-          priority: 'normal' as const,
+          priority: 'medium' as const,
           checklist: [
             makeChecklistItem('Bước 1'),
             makeChecklistItem('Bước 2'),

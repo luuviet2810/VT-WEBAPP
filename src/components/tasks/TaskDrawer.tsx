@@ -22,7 +22,7 @@ type Props = {
 export default function TaskDrawer({ open, onClose, selectedVehicleId, groups, onToggleChecklist, onUpdateTask, onDeleteTask, onAddTask, employees, vehicles, positionName }: Props) {
   const [title, setTitle] = useState('')
   const [checklist, setChecklist] = useState<TaskChecklistItem[]>([{ id: uid('chk'), text: '', done: false }])
-  const [priority, setPriority] = useState<TaskPriority>('normal')
+  const [priority, setPriority] = useState<TaskPriority>('medium')
   const [status, setStatus] = useState<TaskStatus>('todo')
   const [saving, setSaving] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -47,7 +47,7 @@ export default function TaskDrawer({ open, onClose, selectedVehicleId, groups, o
     if (open) {
       setTitle('')
       setChecklist([{ id: uid('chk'), text: '', done: false }])
-      setPriority('normal')
+      setPriority('medium')
       setStatus('todo')
       setSaving(false)
     }
@@ -77,7 +77,7 @@ export default function TaskDrawer({ open, onClose, selectedVehicleId, groups, o
     })
     setTitle('')
     setChecklist([{ id: uid('chk'), text: '', done: false }])
-    setPriority('normal')
+    setPriority('medium')
     setStatus('todo')
     setSaving(false)
   }
