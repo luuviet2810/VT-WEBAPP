@@ -8,7 +8,7 @@
 
 import type { CheckSheet } from '../types'
 
-export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent'
+export type TaskPriority = 'low' | 'medium' | 'medium' | 'urgent'
 export type TaskStatus = 'todo' | 'doing' | 'done'
 
 export interface GeneratedTask {
@@ -72,7 +72,7 @@ const ruleInteriorTorn: Rule = {
   id: 'in_interior_torn',
   title: 'Bọc lại ghế',
   description: 'Ghế xe bị rách cần được bọc lại',
-  priority: 'high',
+  priority: 'medium',
   evaluate(ctx: RuleContext) {
     return countTornSeats(ctx) > 0
   },
@@ -88,7 +88,7 @@ const ruleDieuHoaNeedGas: Rule = {
   id: 'in_dieuhoa_need_gas',
   title: 'Đổ ga điều hòa',
   description: 'Điều hòa hết gas cần được nạp ga',
-  priority: 'high',
+  priority: 'medium',
   evaluate(ctx: RuleContext) {
     if (ctx.sheet.type !== 'in') return false
     return ctx.sheet.inputDieuHoa?.status === 'need_gas'
@@ -99,7 +99,7 @@ const ruleDieuHoaBroken: Rule = {
   id: 'in_dieuhoa_broken',
   title: 'Kiểm tra điều hòa',
   description: 'Điều hòa không hoạt động bình thường',
-  priority: 'high',
+  priority: 'medium',
   evaluate(ctx: RuleContext) {
     if (ctx.sheet.type !== 'in') return false
     return ctx.sheet.inputDieuHoa?.status !== 'good'
@@ -125,7 +125,7 @@ const ruleRearCameraBroken: Rule = {
   id: 'in_rear_camera_broken',
   title: 'Kiểm tra camera',
   description: 'Camera lùi bị hỏng cần được kiểm tra/sửa',
-  priority: 'high',
+  priority: 'medium',
   evaluate(ctx: RuleContext) {
     if (ctx.sheet.type !== 'in') return false
     return ctx.sheet.rearCamera === 'broken'
@@ -136,7 +136,7 @@ const ruleRearSensorBroken: Rule = {
   id: 'in_rear_sensor_broken',
   title: 'Sửa cảm biến lùi',
   description: 'Cảm biến lùi bị hỏng cần được sửa',
-  priority: 'high',
+  priority: 'medium',
   evaluate(ctx: RuleContext) {
     if (ctx.sheet.type !== 'in') return false
     return ctx.sheet.rearSensor === 'broken'
@@ -184,7 +184,7 @@ const ruleAcquySOCLow: Rule = {
   id: 'in_battery_soc_low',
   title: 'Sạc pin',
   description: 'SOC acquy đầu vào dưới 20%, cần sạc pin',
-  priority: 'high',
+  priority: 'medium',
   evaluate(ctx: RuleContext) {
     if (ctx.sheet.type !== 'in') return false
     return (ctx.sheet.inputAcquySOC ?? 100) < 20
@@ -197,7 +197,7 @@ const ruleTireBad: Rule = {
   id: 'in_tire_bad',
   title: 'Kiểm tra lốp',
   description: 'Lốp xe mòn hoặc hỏng cần được kiểm tra',
-  priority: 'high',
+  priority: 'medium',
   evaluate(ctx: RuleContext) {
     if (ctx.sheet.type !== 'in') return false
     return ctx.sheet.inputTireState?.status === 'none'
@@ -210,7 +210,7 @@ const ruleScreenBroken: Rule = {
   id: 'in_screen_broken',
   title: 'Sửa màn hình',
   description: 'Màn hình xe bị hỏng cần được sửa',
-  priority: 'high',
+  priority: 'medium',
   evaluate(ctx: RuleContext) {
     if (ctx.sheet.type !== 'in') return false
     return ctx.sheet.screen === 'broken'
@@ -246,7 +246,7 @@ const ruleFuelEmpty: Rule = {
   id: 'in_fuel_empty',
   title: 'Đổ nhiên liệu',
   description: 'Mức nhiên liệu thấp cần được đổ thêm',
-  priority: 'high',
+  priority: 'medium',
   evaluate(ctx: RuleContext) {
     if (ctx.sheet.type !== 'in') return false
     return ctx.sheet.fuelLevel === 'empty'
@@ -259,7 +259,7 @@ const ruleOutDauMayEmpty: Rule = {
   id: 'out_dau_may_empty',
   title: 'Bổ sung dầu máy',
   description: 'Dầu máy hết cần được bổ sung',
-  priority: 'high',
+  priority: 'medium',
   evaluate(ctx: RuleContext) {
     if (ctx.sheet.type !== 'out') return false
     return ctx.sheet.outCheck?.dauMay?.status === 'empty'
@@ -281,7 +281,7 @@ const ruleOutDieuHoaNeedGas: Rule = {
   id: 'out_dieuhoa_need_gas',
   title: 'Đổ ga điều hòa',
   description: 'Điều hòa đầu ra hết gas cần được nạp ga',
-  priority: 'high',
+  priority: 'medium',
   evaluate(ctx: RuleContext) {
     if (ctx.sheet.type !== 'out') return false
     return ctx.sheet.outCheck?.dieuHoa?.status === 'need_gas'
@@ -303,7 +303,7 @@ const ruleOutConSeongnyeongCanRepair: Rule = {
   id: 'out_con_seongnyeong_can_repair',
   title: 'Song nưng xe',
   description: 'Cần sửa song nưng xe',
-  priority: 'high',
+  priority: 'medium',
   evaluate(ctx: RuleContext) {
     if (ctx.sheet.type !== 'out') return false
     return ctx.sheet.outCheck?.conSeongnyeong?.status === 'can_repair'
@@ -314,7 +314,7 @@ const ruleOutTireBad: Rule = {
   id: 'out_tire_bad',
   title: 'Kiểm tra lốp',
   description: 'Lốp xe đầu ra mòn hoặc hỏng cần được kiểm tra',
-  priority: 'high',
+  priority: 'medium',
   evaluate(ctx: RuleContext) {
     if (ctx.sheet.type !== 'out') return false
     const tire = ctx.sheet.outCheck?.tinhTrangLop
@@ -326,10 +326,10 @@ const ruleOutTireBad: Rule = {
 
 function buildOutCheckGenericRules(): Rule[] {
   const items: { key: keyof NonNullable<CheckSheet['outCheck']>; label: string; priority: TaskPriority }[] = [
-    { key: 'camHanhTrinh', label: 'Kiểm tra camera hành trình', priority: 'high' },
-    { key: 'manHinhBluetooth', label: 'Kiểm tra màn hình & Bluetooth', priority: 'high' },
-    { key: 'cameraLui', label: 'Kiểm tra camera lùi', priority: 'high' },
-    { key: 'denPhaCot', label: 'Kiểm tra đèn pha cốt', priority: 'high' },
+    { key: 'camHanhTrinh', label: 'Kiểm tra camera hành trình', priority: 'medium' },
+    { key: 'manHinhBluetooth', label: 'Kiểm tra màn hình & Bluetooth', priority: 'medium' },
+    { key: 'cameraLui', label: 'Kiểm tra camera lùi', priority: 'medium' },
+    { key: 'denPhaCot', label: 'Kiểm tra đèn pha cốt', priority: 'medium' },
     { key: 'motorGuongNutBam', label: 'Kiểm tra motor gương & nút bấm', priority: 'medium' },
     { key: 'cuaSo', label: 'Kiểm tra cửa sổ', priority: 'medium' },
     { key: 'gheChinhDien', label: 'Kiểm tra ghế chỉnh điện', priority: 'medium' },

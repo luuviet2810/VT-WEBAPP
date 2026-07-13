@@ -38,10 +38,14 @@ export default function MyTasks() {
   const generalTasks = allTasks.filter((t) => !t.assigneeId)
   
   // Sort: incomplete first, then by due date
+  const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2, urgent: 0 }
   const sortTasks = (taskList: typeof tasks) => [...taskList].sort((a, b) => {
     if (a.status !== b.status) {
       return a.status === 'done' ? 1 : -1
     }
+    const pa = PRIORITY_ORDER[a.priority] ?? 2
+    const pb = PRIORITY_ORDER[b.priority] ?? 2
+    if (pa !== pb) return pa - pb
     if (a.dueDate && b.dueDate) {
       return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
     }
