@@ -338,7 +338,7 @@ export default function CheckSheetForm({
           setInputTireState(sheet.inputTireState ?? { status: '' as CheckOutStatus })
           setOutTireState(sheet.outTireState ?? { status: '' as CheckOutStatus })
           setInputNotes(sheet.inputNotes ?? '')
-          setSongNungResultStatus(sheet.songNungResultStatus ?? 'none')
+          setSongNungResultStatus(sheet.songNungResultStatus ?? undefined)
           setKeyType(sheet.keyType ?? undefined)
           setSmartkeyStatus(sheet.smartkeyStatus ?? undefined)
         }
