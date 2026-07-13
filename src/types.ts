@@ -268,6 +268,8 @@ export interface CheckSheet {
   outCheck?: CheckOutCheck
   outNotes?: string
   outTireState?: CheckOutItem
+  outKeyType?: 'smartkey' | 'mechanical' | 'both'
+  outSmartkeyStatus?: 'one' | 'two' | 'damaged'
   // Ghi chú đầu vào
   inputNotes?: string
   // Song nưng result + key info

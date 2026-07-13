@@ -236,6 +236,10 @@ export default function CheckSheetForm({
   // ====== TIRE STATE (Đầu ra) ======
   const [outTireState, setOutTireState] = useState<CheckOutItem>({ status: '' as CheckOutStatus })
 
+  // ====== KEY STATE (Đầu ra) ======
+  const [outKeyType, setOutKeyType] = useState<'smartkey' | 'mechanical' | 'both' | undefined>(undefined)
+  const [outSmartkeyStatus, setOutSmartkeyStatus] = useState<'one' | 'two' | 'damaged' | undefined>(undefined)
+
   // ====== BATTERY STATE (Đầu ra) ======
   const [acquySOH, setAcquySOH] = useState(100)
   const [acquySOC, setAcquySOC] = useState(100)
@@ -274,6 +278,8 @@ export default function CheckSheetForm({
       songNungResultStatus: songNungResultStatus as CheckSheet['songNungResultStatus'],
       keyType: keyType as CheckSheet['keyType'],
       smartkeyStatus: smartkeyStatus as CheckSheet['smartkeyStatus'],
+      outKeyType: outKeyType as CheckSheet['outKeyType'],
+      outSmartkeyStatus: outSmartkeyStatus as CheckSheet['outSmartkeyStatus'],
       createdAt: new Date().toISOString(),
     }
   }
@@ -314,6 +320,8 @@ export default function CheckSheetForm({
           setSongNungResultStatus(undefined)
           setKeyType(undefined)
           setSmartkeyStatus(undefined)
+          setOutKeyType(undefined)
+          setOutSmartkeyStatus(undefined)
         } else {
           // Existing sheet — load saved values as-is.
           setFuelLevelIdx(() => {
@@ -341,6 +349,8 @@ export default function CheckSheetForm({
           setSongNungResultStatus(sheet.songNungResultStatus ?? undefined)
           setKeyType(sheet.keyType ?? undefined)
           setSmartkeyStatus(sheet.smartkeyStatus ?? undefined)
+          setOutKeyType(sheet.outKeyType ?? undefined)
+          setOutSmartkeyStatus(sheet.outSmartkeyStatus ?? undefined)
         }
         // Mark init complete so auto-save can start
         initRef.current = true
@@ -380,7 +390,7 @@ export default function CheckSheetForm({
       inputNotes,
     }
     if (type === 'out') {
-      return { ...base, outCheck, outNotes, acquySOH, acquySOC, outTireState }
+      return { ...base, outCheck, outNotes, acquySOH, acquySOC, outTireState, outKeyType, outSmartkeyStatus }
     }
     return { ...base, inputAcquySOH, inputAcquySOC, songNungResultStatus, keyType, smartkeyStatus }
   }
@@ -402,7 +412,7 @@ export default function CheckSheetForm({
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current)
     }
-  }, [sheetId, checkerId, checkDate, fuelLevel, screen, rearCamera, hipass, rearSensor, dashcam, interior, exterior, inputDieuHoa, inputSuoiGhe, inputTireState, inputNotes, outCheck, outNotes, inputAcquySOH, inputAcquySOC, acquySOH, acquySOC, songNungResultStatus, keyType, smartkeyStatus])
+  }, [sheetId, checkerId, checkDate, fuelLevel, screen, rearCamera, hipass, rearSensor, dashcam, interior, exterior, inputDieuHoa, inputSuoiGhe, inputTireState, inputNotes, outCheck, outNotes, inputAcquySOH, inputAcquySOC, acquySOH, acquySOC, songNungResultStatus, keyType, smartkeyStatus, outKeyType, outSmartkeyStatus])
 
   // ====== SUMMARY COUNTS ======
   const summaryCounts = useMemo(() => {
@@ -1146,6 +1156,35 @@ export default function CheckSheetForm({
                     entry={outCheck.nuocLamMat}
                     onChange={(p) => updateNuocLamMat(p)}
                   />
+
+                  {/* Chìa khóa - Đầu ra */}
+                  <div>
+                    <label className="label">Chìa khóa</label>
+                    <SegButton
+                      options={[
+                        { value: 'smartkey', label: 'Smartkey' },
+                        { value: 'mechanical', label: 'Khóa cơ' },
+                        { value: 'both', label: 'Cả 2' },
+                      ]}
+                      value={outKeyType ?? ''}
+                      onChange={(v) => setOutKeyType(v as 'smartkey' | 'mechanical' | 'both')}
+                    />
+                  </div>
+
+                  {(outKeyType === 'smartkey' || outKeyType === 'both') && (
+                    <div>
+                      <label className="label">Số lượng chìa</label>
+                      <SegButton
+                        options={[
+                          { value: 'one', label: '1 chìa' },
+                          { value: 'two', label: '2 chìa' },
+                          { value: 'damaged', label: 'Có chìa hỏng' },
+                        ]}
+                        value={outSmartkeyStatus ?? ''}
+                        onChange={(v) => setOutSmartkeyStatus(v as 'one' | 'two' | 'damaged')}
+                      />
+                    </div>
+                  )}
 
                   {/* Các item generic */}
                   {OUT_CHECK_ITEMS.map(({ key, label }) => (

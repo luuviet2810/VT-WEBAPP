@@ -78,6 +78,8 @@ function mapRow(row: Record<string, unknown>): CheckSheet {
     songNungResultStatus: row.song_nung_result_status as CheckSheet['songNungResultStatus'],
     keyType: row.key_type as CheckSheet['keyType'],
     smartkeyStatus: row.smartkey_status as CheckSheet['smartkeyStatus'],
+    outKeyType: row.out_key_type as CheckSheet['outKeyType'],
+    outSmartkeyStatus: row.out_smartkey_status as CheckSheet['outSmartkeyStatus'],
     createdAt: row.created_at as string,
   }
 }
@@ -147,6 +149,8 @@ export async function createCheckSheet(
     song_nung_result_status: sheet.songNungResultStatus,
     key_type: sheet.keyType,
     smartkey_status: sheet.smartkeyStatus,
+    out_key_type: sheet.outKeyType,
+    out_smartkey_status: sheet.outSmartkeyStatus,
   }
 
   const { data, error } = await supabase
@@ -193,6 +197,8 @@ export async function updateCheckSheet(
   if (patch.songNungResultStatus !== undefined) updateData.song_nung_result_status = patch.songNungResultStatus
   if (patch.keyType !== undefined) updateData.key_type = patch.keyType
   if (patch.smartkeyStatus !== undefined) updateData.smartkey_status = patch.smartkeyStatus
+  if (patch.outKeyType !== undefined) updateData.out_key_type = patch.outKeyType
+  if (patch.outSmartkeyStatus !== undefined) updateData.out_smartkey_status = patch.outSmartkeyStatus
 
   // Drop empty-string UUIDs to avoid Postgres 22P02
   Object.keys(updateData).forEach((key) => {
@@ -282,6 +288,8 @@ export async function getOrCreateCheckSheet(
     songNungResultStatus: undefined,
     keyType: undefined,
     smartkeyStatus: undefined,
+    outKeyType: undefined,
+    outSmartkeyStatus: undefined,
   })
 
   return { sheet: created, isNew: true }
