@@ -128,7 +128,7 @@ function TaskEditDrawer({ task, vehicles, employees, onClose, onUpdate, onDelete
               <div>
                 <label className="label">Mức ưu tiên</label>
                 <select className="input w-full" value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority)}>
-                  <option value="high">⭐⭐⭐⭐⭐ Làm gấp / Giao ngay</option><option value="medium">⭐⭐⭐⭐ Ưu tiên hơn</option><option value="low">⭐⭐⭐ Cứ từ từ</option>
+                  <option value="high">Làm gấp / Giao ngay _ 5⭐</option><option value="medium">Ưu tiên hơn 4⭐</option><option value="low">Cứ từ từ 3⭐</option>
                 </select>
               </div>
               <div>
@@ -327,7 +327,7 @@ export default function Tasks() {
                 <div><label className="label">Tên công việc *</label><input className="input w-full" placeholder="VD: Kiểm tra xe..." value={newTitle} onChange={(e) => setNewTitle(e.target.value)} autoFocus /></div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div><label className="label">Mức ưu tiên</label><select className="input w-full" value={newPriority} onChange={(e) => setNewPriority(e.target.value as TaskPriority)}>
-                    <option value="high">⭐⭐⭐⭐⭐ Làm gấp / Giao ngay</option><option value="medium">⭐⭐⭐⭐ Ưu tiên hơn</option><option value="low">⭐⭐⭐ Cứ từ từ</option>
+                    <option value="high">Làm gấp / Giao ngay _ 5⭐</option><option value="medium">Ưu tiên hơn 4⭐</option><option value="low">Cứ từ từ 3⭐</option>
                   </select></div>
                   <div><label className="label">Trạng thái</label><select className="input w-full" value={newStatus} onChange={(e) => setNewStatus(e.target.value as TaskStatus)}>
                     <option value="todo">Chưa làm</option><option value="doing">Đang làm</option><option value="done">Đã hoàn thành</option>

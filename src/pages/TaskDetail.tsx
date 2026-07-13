@@ -13,9 +13,9 @@ const PRIORITY_LABEL: Record<TaskPriority, string> = {
   urgent: 'Làm gấp / Giao ngay',
 }
 const PRIORITY_OPTIONS: { value: TaskPriority; label: string }[] = [
-  { value: 'high', label: '⭐⭐⭐⭐⭐ Làm gấp / Giao ngay' },
-  { value: 'medium', label: '⭐⭐⭐⭐ Ưu tiên hơn' },
-  { value: 'low', label: '⭐⭐⭐ Cứ từ từ' },
+  { value: 'high', label: 'Làm gấp / Giao ngay _ 5⭐' },
+  { value: 'medium', label: 'Ưu tiên hơn 4⭐' },
+  { value: 'low', label: 'Cứ từ từ 3⭐' },
 ]
 
 export default function TaskDetail() {
