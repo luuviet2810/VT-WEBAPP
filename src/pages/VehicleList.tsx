@@ -313,6 +313,7 @@ function InCheckSheetPreview({ sheet, employees, vehicleId }: { sheet: CheckShee
     { label: 'Điều hòa', status: sheet.inputDieuHoa?.status },
     { label: 'Sưởi ghế', status: sheet.inputSuoiGhe?.status },
     { label: 'Tình trạng lốp', status: sheet.inputTireState?.status },
+    { label: 'Song nưng', status: sheet.songNungResultStatus },
     // Interior
     ...Object.entries(sheet.interior || {}).map(([key, val]) => ({
       label: seatLabels[key] || key,
@@ -326,12 +327,22 @@ function InCheckSheetPreview({ sheet, employees, vehicleId }: { sheet: CheckShee
     // Battery
     { label: 'Ắc quy SOH', status: sheet.inputAcquySOH != null ? String(sheet.inputAcquySOH) : null },
     { label: 'Ắc quy SOC', status: sheet.inputAcquySOC != null ? String(sheet.inputAcquySOC) : null },
+    // Key
+    { label: 'Chìa khóa', status: sheet.keyType },
+    { label: 'Số lượng chìa', status: sheet.smartkeyStatus },
   ]
 
   // Summary — Hi-Pass is informational only, never counted
   let ok = 0, bad = 0, install = 0, unchecked = 0
   for (const item of items) {
     if (item.label === 'Hi-Pass') continue
+    // Smartkey status logic: one/two → ok, damaged → bad
+    if (item.label === 'Số lượng chìa') {
+      if (item.status === 'one' || item.status === 'two') ok++
+      else if (item.status === 'damaged') bad++
+      else if (!item.status) unchecked++
+      continue
+    }
     if (!item.status) { unchecked++; continue }
     if (!isNaN(Number(item.status))) {
       // numeric battery value — count as ok
@@ -347,6 +358,8 @@ function InCheckSheetPreview({ sheet, employees, vehicleId }: { sheet: CheckShee
   // Abnormal items — Hi-Pass is informational only, never a warning
   const abnormal = items.filter((i) => {
     if (i.label === 'Hi-Pass') return false
+    // Smartkey damaged counts as abnormal
+    if (i.label === 'Số lượng chìa') return i.status === 'damaged'
     if (!i.status) return false
     if (!isNaN(Number(i.status))) return false
     const c = classifyStatus(i.status)
@@ -433,11 +446,19 @@ function OutCheckSheetPreview({ sheet, employees, vehicleId }: { sheet: CheckShe
     { label: 'Lốp xe', status: sheet.outTireState?.status },
     { label: 'Ắc quy SOH', status: sheet.acquySOH != null ? String(sheet.acquySOH) : null },
     { label: 'Ắc quy SOC', status: sheet.acquySOC != null ? String(sheet.acquySOC) : null },
+    { label: 'Chìa khóa', status: sheet.outKeyType },
+    { label: 'Số lượng chìa', status: sheet.outSmartkeyStatus },
   ]
 
   // Summary
   let ok = 0, bad = 0, install = 0, unchecked = 0
   for (const item of items) {
+    if (item.label === 'Số lượng chìa') {
+      if (item.status === 'one' || item.status === 'two') ok++
+      else if (item.status === 'damaged') bad++
+      else if (!item.status) unchecked++
+      continue
+    }
     if (!item.status) { unchecked++; continue }
     if (!isNaN(Number(item.status))) { ok++; continue }
     const c = classifyStatus(item.status)
@@ -447,6 +468,7 @@ function OutCheckSheetPreview({ sheet, employees, vehicleId }: { sheet: CheckShe
   }
 
   const abnormal = items.filter((i) => {
+    if (i.label === 'Số lượng chìa') return i.status === 'damaged'
     if (!i.status) return false
     if (!isNaN(Number(i.status))) return false
     const c = classifyStatus(i.status)
