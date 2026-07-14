@@ -4,6 +4,7 @@ import { ArrowUpDown, Car, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import { formatCurrency } from '../utils/format'
 import { Badge, EmptyState } from '../components/ui'
+import VehicleFilterBar from '../components/VehicleFilterBar'
 import VehicleFormModal from './VehicleFormModal'
 import { useIsAdminMode, useIsStaffMode } from '../hooks/useAuthRole'
 import { Vehicle, VehicleStatus } from '../types'
@@ -19,26 +20,54 @@ const STATUS_TONE: Record<VehicleStatus, 'slate' | 'orange' | 'green'> = {
   sold: 'green',
 }
 
+type Filters = {
+  query: string
+  status: string
+  positionId: string
+  assigneeId: string
+  sortBy: 'default' | 'price_asc' | 'price_desc'
+  priceMin: number
+  priceMax: number
+}
+
 type SortKey = 'model' | 'plate' | 'sellPrice'
 
 export default function PriceList() {
   const vehicles = useStore((s) => s.vehicles)
+  const positions = useStore((s) => s.positions)
+  const employees = useStore((s) => s.employees)
   const updateVehicle = useStore((s) => s.updateVehicle)
   const deleteVehicle = useStore((s) => s.deleteVehicle)
-  
+
   // Use auth-based role check (respects viewMode for UI)
   const isAdminMode = useIsAdminMode()
   const isStaffMode = useIsStaffMode()
   const canEdit = isAdminMode && !isStaffMode // Only actual admin can edit (not previewing staff)
-  
+
   const [modalOpen, setModalOpen] = useState(false)
   const [editVehicleId, setEditVehicleId] = useState<string | null>(null)
-  const [sortKey, setSortKey] = useState<SortKey | null>(null)
+  const [sortKey, setSortKey] = useState<SortKey>('plate')
   const [sortAsc, setSortAsc] = useState(true)
+  const [filters, setFilters] = useState<Filters>({
+    query: '', status: 'all', positionId: 'all', assigneeId: 'all',
+    sortBy: 'default', priceMin: 0, priceMax: 110000000,
+  })
+
+  const filtered = useMemo(() => {
+    const q = filters.query.trim().toLowerCase()
+    return vehicles.filter((v) => {
+      const matchesQuery = !q || v.plate.toLowerCase().includes(q) || v.model.toLowerCase().includes(q)
+      const matchesStatus = filters.status === 'all' || v.status === filters.status
+      const matchesPosition = filters.positionId === 'all' || v.positionId === filters.positionId
+      const matchesAssignee = filters.assigneeId === 'all' || v.assigneeId === filters.assigneeId
+      const price = v.sellPrice ?? 0
+      const matchesPrice = price >= filters.priceMin && price <= filters.priceMax
+      return matchesQuery && matchesStatus && matchesPosition && matchesAssignee && matchesPrice
+    })
+  }, [vehicles, filters])
 
   const sorted = useMemo(() => {
-    if (!sortKey) return vehicles
-    const copy = [...vehicles]
+    const copy = [...filtered]
     copy.sort((a, b) => {
       const av = a[sortKey] ?? ''
       const bv = b[sortKey] ?? ''
@@ -46,7 +75,7 @@ export default function PriceList() {
       return sortAsc ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av))
     })
     return copy
-  }, [vehicles, sortKey, sortAsc])
+  }, [filtered, sortKey, sortAsc])
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) setSortAsc((a) => !a)
@@ -82,7 +111,7 @@ export default function PriceList() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Bảng giá xe</h1>
           <p className="mt-1 text-sm text-slate-500">
-            {vehicles.length} xe
+            {filtered.length}/{vehicles.length} xe
             {isStaffMode && !isAdminMode && ' — chỉ xem thông tin'}
           </p>
         </div>
@@ -94,27 +123,30 @@ export default function PriceList() {
         )}
       </div>
 
-      {vehicles.length === 0 ? (
+      {/* Reuse VehicleFilterBar */}
+      <VehicleFilterBar onFilterChange={setFilters} />
+
+      {filtered.length === 0 ? (
         <div className="card">
-          <EmptyState icon={<Car size={36} />} title="Chưa có xe nào" subtitle='"Thêm xe" để bắt đầu' />
+          <EmptyState icon={<Car size={36} />} title="Không tìm thấy xe nào" subtitle="Thử thay đổi bộ lọc" />
         </div>
       ) : (
         <div className="card overflow-x-auto">
-          <table className="w-full min-w-[900px] text-sm">
+          <table className="w-full text-sm" style={{ minWidth: 800 }}>
             <thead>
               <tr className="border-b border-slate-100 text-left text-xs font-medium uppercase tracking-wide text-slate-400">
-                <th className="px-4 py-3">Ảnh</th>
-                <th className="px-4 py-3">Tình trạng</th>
-                <Th label="Dòng xe" onClick={() => toggleSort('model')} />
-                <Th label="Biển số" onClick={() => toggleSort('plate')} />
-                <th className="px-4 py-3">Năm</th>
-                <th className="px-4 py-3">Nhiên liệu</th>
-                <th className="px-4 py-3">Dung tích</th>
-                <th className="px-4 py-3">Đã chạy</th>
-                <th className="px-4 py-3">Màu</th>
-                {canEdit && <th className="px-4 py-3">Giá nhập</th>}
-                <Th label="Giá bán" onClick={() => toggleSort('sellPrice')} />
-                {canEdit && <th className="px-4 py-3" />}
+                <Th label="Dòng xe" onClick={() => toggleSort('model')} sortKey={sortKey} sortAsc={sortAsc} current="model" />
+                <Th label="Biển số" onClick={() => toggleSort('plate')} sortKey={sortKey} sortAsc={sortAsc} current="plate" />
+                <th className="px-3 py-3 whitespace-nowrap">Năm</th>
+                <Th label="Giá xe" onClick={() => toggleSort('sellPrice')} sortKey={sortKey} sortAsc={sortAsc} current="sellPrice" />
+                <th className="px-3 py-3 whitespace-nowrap">Đã chạy</th>
+                <th className="px-3 py-3 whitespace-nowrap">Nhiên liệu</th>
+                <th className="px-3 py-3 whitespace-nowrap">Màu</th>
+                <th className="px-3 py-3 whitespace-nowrap">Dung tích</th>
+                {canEdit && <th className="px-3 py-3 whitespace-nowrap">Giá nhập</th>}
+                <th className="px-3 py-3 whitespace-nowrap">Tình trạng</th>
+                <th className="px-3 py-3 whitespace-nowrap">Ảnh</th>
+                {canEdit && <th className="px-3 py-3" />}
               </tr>
             </thead>
             <tbody>
@@ -133,7 +165,7 @@ export default function PriceList() {
         </div>
       )}
 
-      {/* Mobile FAB - Floating Action Button */}
+      {/* Mobile FAB */}
       {canEdit && (
         <button
           className="fixed bottom-5 right-5 flex h-14 w-14 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-brand-700 hover:shadow-xl active:scale-95 md:hidden animate-fade-in"
@@ -149,12 +181,13 @@ export default function PriceList() {
   )
 }
 
-function Th({ label, onClick }: { label: string; onClick: () => void }) {
+function Th({ label, onClick, sortKey, sortAsc, current }: { label: string; onClick: () => void; sortKey: string; sortAsc: boolean; current: string }) {
+  const isActive = sortKey === current
   return (
-    <th className="px-4 py-3">
-      <button onClick={onClick} className="flex items-center gap-1 hover:text-slate-600">
+    <th className="px-3 py-3 whitespace-nowrap">
+      <button onClick={onClick} className={`flex items-center gap-1 hover:text-slate-600 ${isActive ? 'text-brand-600' : ''}`}>
         {label}
-        <ArrowUpDown size={12} />
+        <ArrowUpDown size={11} />
       </button>
     </th>
   )
@@ -180,18 +213,16 @@ function PriceRow({
       }`}
       onClick={canEdit ? onEdit : undefined}
     >
-      <td className="px-4 py-2.5">
-        <div className="h-10 w-14 overflow-hidden rounded-lg bg-slate-100">
-          {vehicle.images[0] ? (
-            <img src={vehicle.images[0]} className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-slate-300">
-              <Car size={16} />
-            </div>
-          )}
-        </div>
-      </td>
-      <td className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
+      <td className="px-3 py-2.5 font-medium text-slate-800 whitespace-nowrap">{vehicle.model}</td>
+      <td className="px-3 py-2.5 font-medium text-brand-600 whitespace-nowrap">{vehicle.plate || '—'}</td>
+      <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap">{vehicle.year || '—'}</td>
+      <td className="px-3 py-2.5 font-semibold text-slate-800 whitespace-nowrap">{formatCurrency(vehicle.sellPrice)}</td>
+      <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap">{vehicle.mileage || '—'}</td>
+      <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap">{vehicle.fuelType || '—'}</td>
+      <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap">{vehicle.color || '—'}</td>
+      <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap">{vehicle.displacement || '—'}</td>
+      {canEdit && <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap">{formatCurrency(vehicle.costPrice)}</td>}
+      <td className="px-3 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
         {canEdit ? (
           <select
             className="cursor-pointer rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs transition-colors hover:border-brand-400 focus:border-brand-500 focus:outline-none"
@@ -212,17 +243,19 @@ function PriceRow({
           </span>
         )}
       </td>
-      <td className="px-4 py-2.5 font-medium text-slate-800">{vehicle.model}</td>
-      <td className="px-4 py-2.5 font-medium text-brand-600">{vehicle.plate || '—'}</td>
-      <td className="px-4 py-2.5 text-slate-500">{vehicle.year || '—'}</td>
-      <td className="px-4 py-2.5 text-slate-500">{vehicle.fuelType || '—'}</td>
-      <td className="px-4 py-2.5 text-slate-500">{vehicle.displacement || '—'}</td>
-      <td className="px-4 py-2.5 text-slate-500">{vehicle.mileage || '—'}</td>
-      <td className="px-4 py-2.5 text-slate-500">{vehicle.color || '—'}</td>
-      {canEdit && <td className="px-4 py-2.5 text-slate-500">{formatCurrency(vehicle.costPrice)}</td>}
-      <td className="px-4 py-2.5 font-semibold text-slate-800">{formatCurrency(vehicle.sellPrice)}</td>
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        <div className="h-10 w-14 overflow-hidden rounded-lg bg-slate-100">
+          {vehicle.images[0] ? (
+            <img src={vehicle.images[0]} className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-slate-300">
+              <Car size={16} />
+            </div>
+          )}
+        </div>
+      </td>
       {canEdit && (
-        <td className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
+        <td className="px-3 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center gap-1">
             <button
               className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-brand-600 active:scale-95"
