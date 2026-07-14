@@ -40,7 +40,7 @@ const KPI_CARDS = [
 
 function TodayKPICards({ kpi }: { kpi: KpiData }) {
   return (
-    <div className="grid w-full grid-cols-4 gap-5">
+    <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5">
       {KPI_CARDS.map((card) => {
         const value = kpi[card.key as keyof typeof kpi] as number
         return (

@@ -282,14 +282,14 @@ export default function Tasks() {
       </div>
 
       {/* Kanban Board */}
-      <div className="flex gap-4 overflow-x-auto pb-4">
+      <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory md:snap-none">
         {SECTION_CONFIG.map((section) => {
           const tasksInSection = sectionTasks[section.key]
           return (
             <div key={section.key}
               onDragOver={(e) => e.preventDefault()}
               onDrop={handleDrop(section.key)}
-              className="flex w-80 shrink-0 flex-col rounded-2xl p-4 transition-all duration-200"
+              className="flex w-full shrink-0 snap-start flex-col rounded-2xl p-4 transition-all duration-200 md:w-80 md:snap-none"
               style={{ background: 'rgba(255,255,255,0.5)', border: '1px solid rgba(0,0,0,0.06)' }}
             >
               <div className="mb-3 flex items-center gap-2">

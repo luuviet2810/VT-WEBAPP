@@ -132,7 +132,7 @@ export default function VehicleList() {
           <EmptyState icon={<Car size={36} />} title="Không tìm thấy xe nào" subtitle="Thử thay đổi bộ lọc hoặc từ khoá tìm kiếm" />
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-5 lg:grid-cols-4 2xl:grid-cols-5">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-5">
           {filtered.map((v) => {
             const position = positions.find((p) => p.id === v.positionId)
             const assignee = employees.find((e) => e.id === v.assigneeId)
@@ -208,7 +208,7 @@ export default function VehicleList() {
                     {/* Nhiệm vụ */}
                     <button
                       onClick={(e) => { e.preventDefault(); setSelectedTaskVehicleId(v.id) }}
-                      className={`flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors ${
+                      className={`flex flex-1 min-h-[44px] items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-medium transition-colors ${
                         vehicleTasks.length === 0
                           ? 'bg-slate-50 text-slate-400 hover:bg-slate-100'
                           : vehicleTasks.every((t) => t.status === 'done')
@@ -227,7 +227,7 @@ export default function VehicleList() {
                     {/* Đầu vào */}
                     <button
                       onClick={(e) => { e.preventDefault(); handleOpenPreview(v.id, 'in') }}
-                      className={`flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors ${
+                      className={`flex flex-1 min-h-[44px] items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-medium transition-colors ${
                         latestIn ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
                       }`}
                     >
@@ -237,7 +237,7 @@ export default function VehicleList() {
                     {/* Đầu ra */}
                     <button
                       onClick={(e) => { e.preventDefault(); handleOpenPreview(v.id, 'out') }}
-                      className={`flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors ${
+                      className={`flex flex-1 min-h-[44px] items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-medium transition-colors ${
                         latestOut ? 'bg-purple-50 text-purple-600 hover:bg-purple-100' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
                       }`}
                     >
