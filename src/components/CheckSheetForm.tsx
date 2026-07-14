@@ -400,7 +400,7 @@ export default function CheckSheetForm({
     if (saveTimer.current) clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(() => {
       updateCheckSheet(sheetId!, buildPatch()).catch((err) => {
-        console.error('[CheckSheetForm] SAVE FAILED:', err)
+        console.error('[CheckSheetForm] SAVE FAILED:', JSON.stringify(err?.message || err, null, 2))
         addNotification({ type: 'error', title: 'Lỗi lưu', body: 'Không thể lưu phiếu kiểm tra. Dữ liệu vẫn còn trên màn hình.' })
       })
     }, DEBOUNCE_MS)

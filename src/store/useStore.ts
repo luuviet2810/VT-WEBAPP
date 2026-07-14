@@ -830,7 +830,7 @@ export const useStore = create<StoreState>()(
       } catch (err) {
         // Revert optimistic update
         if (prev) set((s) => ({ checkSheets: s.checkSheets.map((c) => (c.id === id ? prev : c)) }))
-        console.error('\uD83D\uDD34 [STORE] Failed to update checkSheet in Supabase:', err)
+        console.error('\uD83D\uDD34 [STORE] Failed to update checkSheet in Supabase:', JSON.stringify({ message: (err as any)?.message, details: (err as any)?.details, hint: (err as any)?.hint, code: (err as any)?.code, status: (err as any)?.status }, null, 2))
         throw err
       }
     },
