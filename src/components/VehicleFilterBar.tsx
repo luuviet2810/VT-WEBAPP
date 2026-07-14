@@ -123,7 +123,7 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
           />
         </div>
 
-        {/* Bộ lọc button */}
+          {/* Bộ lọc button */}
         <div className="relative" ref={filterRef}>
           <button
             type="button"
@@ -149,9 +149,9 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
             )}
           </button>
 
-          {/* Popover */}
+          {/* Desktop popover (hidden on mobile) */}
           {filterOpen && (
-            <>
+            <div className="hidden md:block">
               <div className="fixed inset-0 z-30" onClick={() => setFilterOpen(false)} />
               <div className="absolute right-0 z-40 mt-2 w-[360px] rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
                 <div className="mb-4 flex items-center justify-between">
@@ -160,105 +160,62 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
                     <X size={16} />
                   </button>
                 </div>
-                <div className="space-y-5">
-                  {/* Sort */}
-                  <div>
-                    <label className="mb-1.5 block text-xs font-medium text-slate-500">Sắp xếp</label>
-                    <select className="input h-11 w-full text-sm" value={filters.sortBy} onChange={(e) => updateFilter('sortBy', e.target.value as Filters['sortBy'])}>
-                      {SORT_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                      ))}
-                    </select>
+                <FilterContent
+                  filters={filters}
+                  updateFilter={updateFilter}
+                  toggleExtendedRange={toggleExtendedRange}
+                  extendedRange={extendedRange}
+                  steps={steps}
+                  maxIdx={maxIdx}
+                  nearestStep={nearestStep}
+                  fmt={fmt}
+                  positionOptions={positionOptions}
+                  assigneeOptions={assigneeOptions}
+                  SORT_OPTIONS={SORT_OPTIONS}
+                  STATUS_OPTIONS={STATUS_OPTIONS}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Mobile full-screen drawer (hidden on desktop) */}
+          {filterOpen && (
+            <div className="md:hidden">
+              <div className="fixed inset-0 z-50 animate-fade-in">
+                <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setFilterOpen(false)} />
+                <div className="absolute right-0 top-0 flex h-full w-full flex-col bg-white shadow-2xl animate-slide-in-right" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+                  {/* Header */}
+                  <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-4">
+                    <h2 className="text-base font-semibold text-slate-800">Bộ lọc</h2>
+                    <button type="button" className="btn-icon" onClick={() => setFilterOpen(false)}><X size={18} /></button>
                   </div>
 
-                  {/* Status */}
-                  <div>
-                    <label className="mb-1.5 block text-xs font-medium text-slate-500">Tình trạng</label>
-                    <select className="input h-11 w-full text-sm" value={filters.status} onChange={(e) => updateFilter('status', e.target.value)}>
-                      {STATUS_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                      ))}
-                    </select>
+                  {/* Scrollable content */}
+                  <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+                    <FilterContent
+                      filters={filters}
+                      updateFilter={updateFilter}
+                      toggleExtendedRange={toggleExtendedRange}
+                      extendedRange={extendedRange}
+                      steps={steps}
+                      maxIdx={maxIdx}
+                      nearestStep={nearestStep}
+                      fmt={fmt}
+                      positionOptions={positionOptions}
+                      assigneeOptions={assigneeOptions}
+                      SORT_OPTIONS={SORT_OPTIONS}
+                      STATUS_OPTIONS={STATUS_OPTIONS}
+                    />
                   </div>
 
-                  {/* Location */}
-                  <div>
-                    <label className="mb-1.5 block text-xs font-medium text-slate-500">Vị trí</label>
-                    <select className="input h-11 w-full text-sm" value={filters.positionId} onChange={(e) => updateFilter('positionId', e.target.value)}>
-                      {positionOptions.map((o) => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Staff */}
-                  <div>
-                    <label className="mb-1.5 block text-xs font-medium text-slate-500">Người phụ trách</label>
-                    <select className="input h-11 w-full text-sm" value={filters.assigneeId} onChange={(e) => updateFilter('assigneeId', e.target.value)}>
-                      {assigneeOptions.map((o) => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Price Range */}
-                  <div>
-                    <div className="mb-2 flex items-center justify-between">
-                      <label className="text-xs font-medium text-slate-500">Khoảng giá</label>
-                      <button
-                        type="button"
-                        onClick={toggleExtendedRange}
-                        className={`flex h-7 items-center gap-1 rounded-full border px-2.5 text-[10px] font-medium transition-colors ${
-                          extendedRange
-                            ? 'border-brand-400 bg-brand-50 text-brand-700'
-                            : 'border-slate-200 text-slate-500 hover:border-slate-300'
-                        }`}
-                      >
-                        &gt;20.000.000₩
-                      </button>
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-slate-500">
-                      <span>{fmt(filters.priceMin)}₩</span>
-                      <span>{fmt(filters.priceMax)}₩</span>
-                    </div>
-                    <div className="relative mt-2 h-6">
-                      <div className="absolute top-1/2 h-1 w-full -translate-y-1/2 rounded-full bg-slate-200" />
-                      <div
-                        className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-brand-400"
-                        style={{
-                          left: `${(steps.indexOf(nearestStep(filters.priceMin)) / maxIdx) * 100}%`,
-                          width: `${((steps.indexOf(nearestStep(filters.priceMax)) - steps.indexOf(nearestStep(filters.priceMin))) / maxIdx) * 100}%`,
-                        }}
-                      />
-                      <input
-                        type="range"
-                        min={0}
-                        max={maxIdx}
-                        step={1}
-                        value={steps.indexOf(nearestStep(filters.priceMin))}
-                        onChange={(e) => {
-                          const val = steps[Number(e.target.value)]
-                          if (val <= filters.priceMax) updateFilter('priceMin', val)
-                        }}
-                        className="pointer-events-none absolute inset-0 z-10 h-full w-full appearance-none bg-transparent [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-brand-500 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer"
-                      />
-                      <input
-                        type="range"
-                        min={0}
-                        max={maxIdx}
-                        step={1}
-                        value={steps.indexOf(nearestStep(filters.priceMax))}
-                        onChange={(e) => {
-                          const val = steps[Number(e.target.value)]
-                          if (val >= filters.priceMin) updateFilter('priceMax', val)
-                        }}
-                        className="pointer-events-none absolute inset-0 z-20 h-full w-full appearance-none bg-transparent [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-brand-500 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer"
-                      />
-                    </div>
+                  {/* Footer */}
+                  <div className="flex shrink-0 items-center gap-3 border-t border-slate-200 px-5 py-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}>
+                    <button type="button" onClick={() => { resetFilters(); setFilterOpen(false) }} className="btn-secondary flex-1 text-base">Đặt lại</button>
+                    <button type="button" onClick={() => setFilterOpen(false)} className="btn-primary flex-1 text-base">Áp dụng</button>
                   </div>
                 </div>
               </div>
-            </>
+            </div>
           )}
         </div>
 
@@ -267,6 +224,80 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
           <RotateCcw size={16} />
           Đặt lại
         </button>
+      </div>
+    </div>
+  )
+}
+
+// ====== FILTER CONTENT (shared between desktop popover + mobile drawer) ======
+
+function FilterContent({
+  filters, updateFilter, toggleExtendedRange, extendedRange, steps, maxIdx, nearestStep, fmt, positionOptions, assigneeOptions, SORT_OPTIONS, STATUS_OPTIONS,
+}: {
+  filters: Filters
+  updateFilter: <K extends keyof Filters>(key: K, value: Filters[K]) => void
+  toggleExtendedRange: () => void
+  extendedRange: boolean
+  steps: number[]
+  maxIdx: number
+  nearestStep: (price: number) => number
+  fmt: (v: number) => string
+  positionOptions: { value: string; label: string }[]
+  assigneeOptions: { value: string; label: string }[]
+  SORT_OPTIONS: { value: Filters['sortBy']; label: string }[]
+  STATUS_OPTIONS: { value: string; label: string }[]
+}) {
+  return (
+    <div className="space-y-5">
+      <div>
+        <label className="mb-1.5 block text-xs font-medium text-slate-500">Sắp xếp</label>
+        <select className="input h-11 w-full text-sm" value={filters.sortBy} onChange={(e) => updateFilter('sortBy', e.target.value as Filters['sortBy'])}>
+          {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      </div>
+      <div>
+        <label className="mb-1.5 block text-xs font-medium text-slate-500">Tình trạng</label>
+        <select className="input h-11 w-full text-sm" value={filters.status} onChange={(e) => updateFilter('status', e.target.value)}>
+          {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      </div>
+      <div>
+        <label className="mb-1.5 block text-xs font-medium text-slate-500">Vị trí</label>
+        <select className="input h-11 w-full text-sm" value={filters.positionId} onChange={(e) => updateFilter('positionId', e.target.value)}>
+          {positionOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      </div>
+      <div>
+        <label className="mb-1.5 block text-xs font-medium text-slate-500">Người phụ trách</label>
+        <select className="input h-11 w-full text-sm" value={filters.assigneeId} onChange={(e) => updateFilter('assigneeId', e.target.value)}>
+          {assigneeOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      </div>
+      <div>
+        <div className="mb-2 flex items-center justify-between">
+          <label className="text-xs font-medium text-slate-500">Khoảng giá</label>
+          <button type="button" onClick={toggleExtendedRange}
+            className={`flex h-7 items-center gap-1 rounded-full border px-2.5 text-[10px] font-medium transition-colors ${
+              extendedRange ? 'border-brand-400 bg-brand-50 text-brand-700' : 'border-slate-200 text-slate-500 hover:border-slate-300'
+            }`}>
+            &gt;20.000.000₩
+          </button>
+        </div>
+        <div className="flex items-center justify-between text-xs text-slate-500">
+          <span>{fmt(filters.priceMin)}₩</span>
+          <span>{fmt(filters.priceMax)}₩</span>
+        </div>
+        <div className="relative mt-2 h-6">
+          <div className="absolute top-1/2 h-1 w-full -translate-y-1/2 rounded-full bg-slate-200" />
+          <div className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-brand-400"
+            style={{ left: `${(steps.indexOf(nearestStep(filters.priceMin)) / maxIdx) * 100}%`, width: `${((steps.indexOf(nearestStep(filters.priceMax)) - steps.indexOf(nearestStep(filters.priceMin))) / maxIdx) * 100}%` }} />
+          <input type="range" min={0} max={maxIdx} step={1} value={steps.indexOf(nearestStep(filters.priceMin))}
+            onChange={(e) => { const v = steps[Number(e.target.value)]; if (v <= filters.priceMax) updateFilter('priceMin', v) }}
+            className="pointer-events-none absolute inset-0 z-10 h-full w-full appearance-none bg-transparent [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-brand-500 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer" />
+          <input type="range" min={0} max={maxIdx} step={1} value={steps.indexOf(nearestStep(filters.priceMax))}
+            onChange={(e) => { const v = steps[Number(e.target.value)]; if (v >= filters.priceMin) updateFilter('priceMax', v) }}
+            className="pointer-events-none absolute inset-0 z-20 h-full w-full appearance-none bg-transparent [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-brand-500 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer" />
+        </div>
       </div>
     </div>
   )
