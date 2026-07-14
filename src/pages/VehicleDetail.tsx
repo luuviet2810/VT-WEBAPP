@@ -324,14 +324,11 @@ export default function VehicleDetail() {
           <div>
             {checksheetPerms.canCreate && (
               <div className="mb-4 flex gap-3">
-                <button className="btn-secondary" onClick={() => setCheckModal('in')}>
+                <button className="btn-secondary flex-1" onClick={() => setCheckModal('in')}>
                   + Phiếu đầu vào
                 </button>
-                <button className="btn-secondary" onClick={() => setCheckModal('out')}>
+                <button className="btn-secondary flex-1" onClick={() => setCheckModal('out')}>
                   + Phiếu đầu ra
-                </button>
-                <button className="btn-primary" onClick={() => setApplyTemplateOpen(true)}>
-                  + Áp dụng mẫu
                 </button>
               </div>
             )}
