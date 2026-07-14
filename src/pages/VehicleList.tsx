@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Car, User, ListChecks, ClipboardList, Fuel, Monitor, Camera, AlertCircle, Wrench, CheckCircle2, XCircle, Minus, StickyNote, ExternalLink } from 'lucide-react'
+import { Car, ListChecks, ClipboardList, Fuel, Monitor, Camera, AlertCircle, Wrench, CheckCircle2, XCircle, Minus, StickyNote, ExternalLink } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import { Badge, EmptyState, Modal } from '../components/ui'
 import VehicleFilterBar from '../components/VehicleFilterBar'
@@ -132,7 +132,7 @@ export default function VehicleList() {
           <EmptyState icon={<Car size={36} />} title="Không tìm thấy xe nào" subtitle="Thử thay đổi bộ lọc hoặc từ khoá tìm kiếm" />
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 max-[390px]:grid-cols-2 min-[391px]:grid-cols-3 md:grid-cols-4 2xl:grid-cols-5">
           {filtered.map((v) => {
             const position = positions.find((p) => p.id === v.positionId)
             const assignee = employees.find((e) => e.id === v.assigneeId)
@@ -148,67 +148,51 @@ export default function VehicleList() {
                 to={`/xe/${v.id}`}
                 className="card group overflow-hidden transition hover:shadow-md hover:-translate-y-0.5 text-sm"
               >
-                {/* Vehicle Image — ~40% height */}
+                {/* Vehicle Image */}
                 <div className="aspect-[4/3] w-full overflow-hidden bg-slate-100">
                   {v.images[0] ? (
                     <img src={v.images[0]} alt={v.model} className="h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-slate-300">
-                      <Car size={36} />
+                      <Car size={24} />
                     </div>
                   )}
                 </div>
 
-                {/* Vehicle Info — ~60% height */}
-                <div className="p-3 pb-2.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="text-base font-bold text-slate-900">{v.plate || '—'}</span>
-                    <div className="flex flex-col items-end gap-0.5">
-                      <Badge tone={WORKFLOW_STATUS_TONE[workflowStatus]}>{WORKFLOW_STATUS_LABEL[workflowStatus]}</Badge>
-                      <Badge tone={STATUS_TONE[v.status]}>{STATUS_LABEL[v.status]}</Badge>
-                      {hasCheckSheet && (
-                        <div className="flex items-center gap-1 text-[10px] text-brand-600">
-                          <ListChecks size={10} />
-                          <span>Đã kiểm tra</span>
-                        </div>
-                      )}
-                    </div>
+                {/* Vehicle Info */}
+                <div className="p-2.5 pb-2 sm:p-3 sm:pb-2.5">
+                  <div className="flex items-start justify-between gap-1">
+                    <span className="text-sm font-bold text-slate-900 sm:text-base">{v.plate || '—'}</span>
+                    <Badge tone={WORKFLOW_STATUS_TONE[workflowStatus]}>{WORKFLOW_STATUS_LABEL[workflowStatus]}</Badge>
                   </div>
-                  <div className="mt-0.5 text-sm text-slate-500">{v.model}</div>
+                  <div className="mt-0.5 text-xs text-slate-500 sm:text-sm">{v.model}</div>
 
-                  {/* Position */}
-                  {position && (
-                    <div className="mt-1.5">
-                      <span className="text-xs font-medium text-brand-600">{position.name}</span>
-                    </div>
+                  {/* Price */}
+                  {v.sellPrice != null && (
+                    <div className="mt-0.5 text-xs font-bold text-slate-700 sm:text-sm">{formatCurrency(v.sellPrice)} đ</div>
                   )}
 
-                  {/* Assignee */}
-                  <div className="mt-1 flex items-center gap-1 text-xs">
-                    {assignee ? (
-                      <span className="flex items-center gap-1 font-medium text-amber-600">
-                        <User size={11} />
-                        {assignee.name}
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1 text-slate-400">
-                        <User size={11} />
-                        Chưa phân công
+                  {/* Badges row — hidden on very small screens */}
+                  <div className="mt-1 hidden flex-wrap items-center gap-1 sm:flex">
+                    <Badge tone={STATUS_TONE[v.status]}>{STATUS_LABEL[v.status]}</Badge>
+                    {hasCheckSheet && (
+                      <span className="flex items-center gap-0.5 text-[10px] text-brand-600">
+                        <ListChecks size={9} />
+                        Đã kiểm tra
                       </span>
                     )}
                   </div>
 
-                  {/* Price */}
-                  {v.sellPrice != null && (
-                    <div className="mt-0.5 text-sm font-bold text-slate-700">{formatCurrency(v.sellPrice)} đ</div>
-                  )}
-
-                  {/* Quick Actions */}
-                  <div className="mt-2.5 flex gap-1.5 border-t border-slate-100 pt-2.5">
+                  {/* Quick Actions — icon only on mobile, text on desktop */}
+                  <div className="mt-2 flex gap-1.5 border-t border-slate-100 pt-2 sm:mt-2.5 sm:pt-2.5">
+                    {/*
+                      Desktop: text buttons with min-h-[44px]
+                      Mobile:  icon-only 44×44 circular buttons
+                    */}
                     {/* Nhiệm vụ */}
                     <button
                       onClick={(e) => { e.preventDefault(); setSelectedTaskVehicleId(v.id) }}
-                      className={`flex flex-1 min-h-[44px] items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-medium transition-colors ${
+                      className={`flex flex-1 items-center justify-center rounded-lg text-xs font-medium transition-colors sm:min-h-[44px] sm:gap-1.5 sm:px-3 ${
                         vehicleTasks.length === 0
                           ? 'bg-slate-50 text-slate-400 hover:bg-slate-100'
                           : vehicleTasks.every((t) => t.status === 'done')
@@ -217,32 +201,36 @@ export default function VehicleList() {
                               ? 'bg-red-50 text-red-600 hover:bg-red-100'
                               : 'bg-amber-50 text-amber-600 hover:bg-amber-100'
                       }`}
+                      style={{ minHeight: 44, minWidth: 44 }}
+                      aria-label="Nhiệm vụ"
                     >
-                      <Wrench size={12} />
-                      Nhiệm vụ
-                      {vehicleTasks.filter((t) => t.status !== 'done').length > 0 && (
-                        <span>({vehicleTasks.filter((t) => t.status !== 'done').length})</span>
-                      )}
+                      <Wrench size={14} />
+                      <span className="hidden sm:inline">Nhiệm vụ</span>
+                      <span className="hidden sm:inline">{vehicleTasks.filter((t) => t.status !== 'done').length > 0 && `(${vehicleTasks.filter((t) => t.status !== 'done').length})`}</span>
                     </button>
                     {/* Đầu vào */}
                     <button
                       onClick={(e) => { e.preventDefault(); handleOpenPreview(v.id, 'in') }}
-                      className={`flex flex-1 min-h-[44px] items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-medium transition-colors ${
+                      className={`flex flex-1 items-center justify-center rounded-lg text-xs font-medium transition-colors sm:min-h-[44px] sm:gap-1.5 sm:px-3 ${
                         latestIn ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
                       }`}
+                      style={{ minHeight: 44, minWidth: 44 }}
+                      aria-label="Đầu vào"
                     >
-                      <ClipboardList size={12} />
-                      Đầu vào
+                      <ClipboardList size={14} />
+                      <span className="hidden sm:inline">Đầu vào</span>
                     </button>
                     {/* Đầu ra */}
                     <button
                       onClick={(e) => { e.preventDefault(); handleOpenPreview(v.id, 'out') }}
-                      className={`flex flex-1 min-h-[44px] items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-medium transition-colors ${
+                      className={`flex flex-1 items-center justify-center rounded-lg text-xs font-medium transition-colors sm:min-h-[44px] sm:gap-1.5 sm:px-3 ${
                         latestOut ? 'bg-purple-50 text-purple-600 hover:bg-purple-100' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
                       }`}
+                      style={{ minHeight: 44, minWidth: 44 }}
+                      aria-label="Đầu ra"
                     >
-                      <ClipboardList size={12} />
-                      Đầu ra
+                      <ClipboardList size={14} />
+                      <span className="hidden sm:inline">Đầu ra</span>
                     </button>
                   </div>
                 </div>
