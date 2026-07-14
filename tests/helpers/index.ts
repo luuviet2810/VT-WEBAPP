@@ -1,38 +1,57 @@
 import { Page } from '@playwright/test'
+import path from 'path'
 
-/** Navigate to the app and wait for initial load */
-export async function gotoApp(page: Page, path = '/') {
-  await page.goto(path)
+/** Navigate to a path and wait for stable load */
+export async function goto(page: Page, url = '/') {
+  await page.goto(url)
   await page.waitForLoadState('networkidle')
 }
 
-/** Click a sidebar navigation link by its label text */
+/** Click a sidebar navigation link by label text */
 export async function sidebarClick(page: Page, label: string) {
   await page.getByRole('link', { name: label, exact: true }).first().click()
   await page.waitForLoadState('networkidle')
 }
 
-/** Fill a text input by its label */
-export async function fillByLabel(page: Page, label: string, value: string) {
-  await page.getByLabel(label, { exact: true }).fill(value)
+/** Open a drawer if a toggle/button is present */
+export async function openDrawer(page: Page, toggleLabel?: string) {
+  if (toggleLabel) {
+    await page.getByRole('button', { name: toggleLabel }).click()
+  }
+  await page.waitForTimeout(300)
 }
 
-/** Select an option from a select by its label */
-export async function selectByLabel(page: Page, label: string, value: string) {
-  await page.getByLabel(label, { exact: true }).selectOption(value)
+/** Open a filter popover/modal */
+export async function openFilter(page: Page, filterLabel?: string) {
+  const btn = filterLabel
+    ? page.getByRole('button', { name: filterLabel })
+    : page.getByRole('button', { name: /Bộ lọc|Filter/i })
+  await btn.click()
+  await page.waitForTimeout(200)
 }
 
-/** Click a button by its text */
-export async function clickButton(page: Page, text: string) {
-  await page.getByRole('button', { name: text, exact: true }).click()
+/** Open a modal (generic) */
+export async function openModal(page: Page, triggerLabel: string) {
+  await page.getByRole('button', { name: triggerLabel }).click()
+  await page.waitForTimeout(300)
 }
 
-/** Wait for a specific text to appear on the page */
-export async function waitForText(page: Page, text: string) {
-  await page.getByText(text, { exact: true }).waitFor({ state: 'visible', timeout: 10000 })
+/** Close any open overlay (drawer, modal, popover) by pressing Escape */
+export async function closeOverlay(page: Page) {
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(200)
 }
 
-/** Take a full-page screenshot */
-export async function screenshot(page: Page, name: string) {
-  await page.screenshot({ path: `screenshots/${name}.png`, fullPage: true })
+/** Wait for network idle + small settle time for animations to finish */
+export async function waitForStableUI(page: Page) {
+  await page.waitForLoadState('networkidle')
+  await page.waitForTimeout(500)
+}
+
+/** Take a responsive screenshot for the current device */
+export async function captureResponsive(page: Page, name: string) {
+  const viewport = page.viewportSize()
+  const device = viewport ? `${viewport.width}x${viewport.height}` : 'unknown'
+  const dir = path.join('screenshots', device)
+  await page.screenshot({ path: path.join(dir, `${name}.png`), fullPage: true })
 }
