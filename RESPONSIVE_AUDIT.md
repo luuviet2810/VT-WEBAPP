@@ -1,35 +1,44 @@
 # Responsive Audit Report
 
-**Generated:** ${new Date().toISOString().split('T')[0]}
+**Generated:** 2026-07-14
 **Viewports:** 390, 402, 412, 430, 440 px
-**Screenshots:** `playwright-report/screenshots/mobile/`
+**Screenshots:** `/screenshots/{width}x{height}/{Page}/{state}.png`
+**Total:** 50 screenshots across 9 pages
 
 ---
 
-## Pages Covered
+## Run Audit
 
-| Page | States Captured |
-|------|----------------|
-| Dashboard | main |
-| Vehicle List | main, filter, preview |
-| Tasks | main, detail |
-| Positions | main, history |
-| Vehicle Detail | main |
-| Price List | main, edit |
-| Attendance | main |
-| Employees | main |
-| Statistics | main |
+```bash
+TEST_USER_EMAIL="your-email" TEST_USER_PASSWORD="your-password" npm run audit:all
+```
 
-## How to Review
+## Results Summary
 
-1. Open `playwright-report/screenshots/mobile/`
-2. Browse by page → viewport → state
-3. For each screenshot, check:
+| Page | States | Viewports | Screenshots | Status |
+|------|--------|-----------|-------------|--------|
+| Dashboard | main | 5 | 5 | ✅ |
+| Vehicle List | main, filter | 5 | 10 | ✅ |
+| Tasks | main | 5 | 5 | ✅ |
+| Positions | main | 5 | 5 | ✅ |
+| Vehicle Detail | main | 5 | 5 | ✅ |
+| Price List | main | 5 | 5 | ✅ |
+| Attendance | main | 5 | 5 | ✅ |
+| Employees | main | 5 | 5 | ✅ |
+| Statistics | main | 5 | 5 | ✅ |
 
-### Checklist per screenshot
+**Failed interactions** (UI selectors need updating):
+- VehicleList preview button: not found
+- Tasks detail drawer: task card selector mismatch
+- Positions history drawer: button selector mismatch
+- PriceList edit modal: edit button not found
+
+---
+
+## Checklist per screenshot
 
 - [ ] Horizontal overflow (scrollbar appears when it shouldn't)
-- [ ] Text clipped / cut off (ellipsis where full text should be visible)
+- [ ] Text clipped / cut off
 - [ ] Buttons clipped or narrower than content
 - [ ] Elements extending beyond viewport
 - [ ] Dialogs / modals wider than screen
@@ -39,7 +48,9 @@
 - [ ] Spacing inconsistent (too tight or too loose)
 - [ ] Footer / Save buttons hidden below fold
 
-### Known Issues
+---
+
+## Known Issues
 
 | Page | Viewport | Issue | Severity | Suggested Fix |
 |------|----------|-------|----------|---------------|
@@ -47,52 +58,8 @@
 
 ---
 
-## Screenshot Organization
+## How to Review
 
-```
-screenshots/mobile/
-  Dashboard/
-    390-main.png
-    402-main.png
-    ...
-  VehicleList/
-    390-main.png
-    390-filter.png
-    390-preview.png
-    ...
-  Tasks/
-    390-main.png
-    390-detail.png
-    ...
-  Positions/
-    390-main.png
-    390-history.png
-    ...
-  VehicleDetail/
-    390-main.png
-    ...
-  PriceList/
-    390-main.png
-    390-edit.png
-    ...
-  Attendance/
-    390-main.png
-    ...
-  Employees/
-    390-main.png
-    ...
-  Statistics/
-    390-main.png
-    ...
-```
-
----
-
-## Instructions
-
-For each issue found:
-1. Note the page, viewport, and state
-2. Take a screenshot (already done)
-3. Assign severity: Critical / Major / Minor / Cosmetic
-4. Describe the cause (e.g. "fixed width on select prevents truncation")
-5. Suggest a fix (e.g. "use min-width instead of fixed width")
+1. Open each screenshot from the list above
+2. Check against the checklist
+3. Fill issues into the Known Issues table
