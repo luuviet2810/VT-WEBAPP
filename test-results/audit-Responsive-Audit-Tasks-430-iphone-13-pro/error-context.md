@@ -35,7 +35,7 @@ Call log:
       - element is outside of the viewport
     - retrying click action
       - waiting 100ms
-    33 × waiting for element to be visible, enabled and stable
+    32 × waiting for element to be visible, enabled and stable
        - element is visible, enabled and stable
        - scrolling into view if needed
        - done scrolling
@@ -120,7 +120,7 @@ Call log:
           - generic [ref=e92]:
             - generic [ref=e93]:
               - generic [ref=e94]: 🚗 Chưa làm
-              - generic [ref=e95]: "8"
+              - generic [ref=e95]: "2"
             - generic [ref=e96]:
               - generic [ref=e99] [cursor=pointer]:
                 - img [ref=e101]
@@ -128,66 +128,24 @@ Call log:
                   - generic [ref=e109]:
                     - generic [ref=e110]: Kiểm tra điều hòa
                     - generic [ref=e111]: Cứ từ từ
-                  - generic [ref=e112]: "9125"
+                  - generic [ref=e112]: "0302"
               - generic [ref=e115] [cursor=pointer]:
                 - img [ref=e117]
                 - generic [ref=e124]:
                   - generic [ref=e125]:
-                    - generic [ref=e126]: Cần sơn 4 tấm
+                    - generic [ref=e126]: Đổ ga điều hòa
                     - generic [ref=e127]: Cứ từ từ
                   - generic [ref=e128]: "0302"
-              - generic [ref=e131] [cursor=pointer]:
-                - img [ref=e133]
-                - generic [ref=e140]:
-                  - generic [ref=e141]:
-                    - generic [ref=e142]: Lắp cảm biến lùi
-                    - generic [ref=e143]: Cứ từ từ
-                  - generic [ref=e144]: "0302"
-              - generic [ref=e147] [cursor=pointer]:
-                - img [ref=e149]
-                - generic [ref=e156]:
-                  - generic [ref=e157]:
-                    - generic [ref=e158]: Kiểm tra camera
-                    - generic [ref=e159]: Cứ từ từ
-                  - generic [ref=e160]: "0302"
-              - generic [ref=e163] [cursor=pointer]:
-                - img [ref=e165]
-                - generic [ref=e172]:
-                  - generic [ref=e173]:
-                    - generic [ref=e174]: Kiểm tra điều hòa
-                    - generic [ref=e175]: Cứ từ từ
-                  - generic [ref=e176]: "0302"
-              - generic [ref=e179] [cursor=pointer]:
-                - img [ref=e181]
-                - generic [ref=e188]:
-                  - generic [ref=e189]:
-                    - generic [ref=e190]: Đổ ga điều hòa
-                    - generic [ref=e191]: Cứ từ từ
-                  - generic [ref=e192]: "0302"
-              - generic [ref=e195] [cursor=pointer]:
-                - img [ref=e197]
-                - generic [ref=e204]:
-                  - generic [ref=e205]:
-                    - generic [ref=e206]: Bọc lại ghế
-                    - generic [ref=e207]: Cứ từ từ
-                  - generic [ref=e208]: "0302"
-              - generic [ref=e211] [cursor=pointer]:
-                - img [ref=e213]
-                - generic [ref=e220]:
-                  - generic [ref=e221]:
-                    - generic [ref=e222]: Vệ sinh nội thất
-                    - generic [ref=e223]: Cứ từ từ
-                  - generic [ref=e224]: "0302"
-          - generic [ref=e225]:
-            - generic [ref=e226]:
-              - generic [ref=e227]: 🟡 Đang làm
-              - generic [ref=e228]: "0"
-            - generic [ref=e230]: Kéo task vào đây
-          - generic [ref=e231]:
-            - generic [ref=e232]:
-              - generic [ref=e233]: ✅ Đã hoàn thành
-              - generic [ref=e234]: "0"
-            - generic [ref=e236]: Kéo task vào đây
+          - generic [ref=e129]:
+            - generic [ref=e130]:
+              - generic [ref=e131]: 🟡 Đang làm
+              - generic [ref=e132]: "0"
+            - generic [ref=e134]: Kéo task vào đây
+          - generic [ref=e135]:
+            - generic [ref=e136]:
+              - generic [ref=e137]: ✅ Đã hoàn thành
+              - generic [ref=e138]: "0"
+            - generic [ref=e140]: Kéo task vào đây
 ```
 
 # Test source

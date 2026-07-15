@@ -35,7 +35,7 @@ Call log:
       - element is outside of the viewport
     - retrying click action
       - waiting 100ms
-    33 × waiting for element to be visible, enabled and stable
+    29 × waiting for element to be visible, enabled and stable
        - element is visible, enabled and stable
        - scrolling into view if needed
        - done scrolling
@@ -43,9 +43,6 @@ Call log:
      - retrying click action
        - waiting 500ms
     - waiting for element to be visible, enabled and stable
-    - element is visible, enabled and stable
-    - scrolling into view if needed
-    - done scrolling
 
 ```
 
@@ -119,7 +116,7 @@ Call log:
         - generic [ref=e95]:
           - generic [ref=e96]:
             - generic [ref=e98]:
-              - generic [ref=e100]: "48"
+              - generic [ref=e100]: "47"
               - generic [ref=e101]: Song nưng Bãi lớn
             - generic [ref=e102]:
               - link "1613 - SM3" [ref=e103]:
@@ -398,56 +395,54 @@ Call log:
                 - generic [ref=e607]:
                   - text: "6423"
                   - generic [ref=e608]: "- SantaFe"
-              - link "2368 - SantaFe" [ref=e609]:
-                - /url: /xe/9a062dce-d9fe-45a6-9e2d-c617e5ec47ce
+              - link "3424 - Cruze" [ref=e609]:
+                - /url: /xe/c31ab049-aca0-41c9-a5a0-8629e6628c97
                 - img [ref=e611]
                 - generic [ref=e618]:
-                  - text: "2368"
-                  - generic [ref=e619]: "- SantaFe"
-              - link "3424 - Cruze" [ref=e620]:
-                - /url: /xe/c31ab049-aca0-41c9-a5a0-8629e6628c97
-                - img [ref=e622]
-                - generic [ref=e629]:
                   - text: "3424"
-                  - generic [ref=e630]: "- Cruze"
-          - generic [ref=e631]:
-            - generic [ref=e633]:
-              - generic [ref=e635]: "0"
-              - generic [ref=e636]: Rửa máy
-            - generic [ref=e638]: Kéo xe vào đây
-          - generic [ref=e639]:
-            - generic [ref=e641]:
-              - generic [ref=e643]: "0"
-              - generic [ref=e644]: Đánh bóng Wolpyong
-            - generic [ref=e646]: Kéo xe vào đây
-          - generic [ref=e647]:
-            - generic [ref=e649]:
-              - generic [ref=e651]: "0"
-              - generic [ref=e652]: Song nưng gần bãi đất
-            - generic [ref=e654]: Kéo xe vào đây
-          - generic [ref=e655]:
-            - generic [ref=e657]:
-              - generic [ref=e659]: "0"
-              - generic [ref=e660]: Trong bãi lớn
-            - generic [ref=e662]: Kéo xe vào đây
-          - generic [ref=e663]:
+                  - generic [ref=e619]: "- Cruze"
+          - generic [ref=e620]:
+            - generic [ref=e622]:
+              - generic [ref=e624]: "0"
+              - generic [ref=e625]: Rửa máy
+            - generic [ref=e627]: Kéo xe vào đây
+          - generic [ref=e628]:
+            - generic [ref=e630]:
+              - generic [ref=e632]: "0"
+              - generic [ref=e633]: Đánh bóng Wolpyong
+            - generic [ref=e635]: Kéo xe vào đây
+          - generic [ref=e636]:
+            - generic [ref=e638]:
+              - generic [ref=e640]: "0"
+              - generic [ref=e641]: Song nưng gần bãi đất
+            - generic [ref=e643]: Kéo xe vào đây
+          - generic [ref=e644]:
+            - generic [ref=e646]:
+              - generic [ref=e648]: "0"
+              - generic [ref=e649]: Trong bãi lớn
+            - generic [ref=e651]: Kéo xe vào đây
+          - generic [ref=e652]:
+            - generic [ref=e654]:
+              - generic [ref=e656]: "0"
+              - generic [ref=e657]: Ở bãi đất
+            - generic [ref=e659]: Kéo xe vào đây
+          - generic [ref=e660]:
+            - generic [ref=e661]:
+              - generic [ref=e663]: "3"
+              - generic [ref=e664]: Đã bán
             - generic [ref=e665]:
-              - generic [ref=e667]: "0"
-              - generic [ref=e668]: Ở bãi đất
-            - generic [ref=e670]: Kéo xe vào đây
-          - generic [ref=e671]:
-            - generic [ref=e672]:
-              - generic [ref=e674]: "2"
-              - generic [ref=e675]: Đã bán
-            - generic [ref=e676]:
-              - link "3337 K5" [ref=e677]:
+              - link "3337 K5" [ref=e666]:
                 - /url: /xe/45bcc9f4-1f08-4133-b5a9-da9334939492
-                - generic [ref=e678]: "3337"
-                - generic [ref=e679]: K5
-              - link "9770 Malibu" [ref=e680]:
+                - generic [ref=e667]: "3337"
+                - generic [ref=e668]: K5
+              - link "9770 Malibu" [ref=e669]:
                 - /url: /xe/ee2c6af9-d745-4b55-946d-daaf75452ecc
-                - generic [ref=e681]: "9770"
-                - generic [ref=e682]: Malibu
+                - generic [ref=e670]: "9770"
+                - generic [ref=e671]: Malibu
+              - link "2368 SantaFe" [ref=e672]:
+                - /url: /xe/9a062dce-d9fe-45a6-9e2d-c617e5ec47ce
+                - generic [ref=e673]: "2368"
+                - generic [ref=e674]: SantaFe
 ```
 
 # Test source

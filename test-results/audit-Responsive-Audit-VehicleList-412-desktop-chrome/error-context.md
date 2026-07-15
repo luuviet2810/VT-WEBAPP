@@ -19,7 +19,7 @@ Test timeout of 30000ms exceeded.
 Error: locator.click: Test timeout of 30000ms exceeded.
 Call log:
   - waiting for locator('button:has-text("Đầu vào")').first()
-    - locator resolved to <button aria-label="Đầu vào" class="flex flex-1 items-center justify-center rounded-lg text-xs font-medium transition-colors sm:min-h-[44px] sm:gap-1.5 sm:px-3 bg-blue-50 text-blue-600 hover:bg-blue-100">…</button>
+    - locator resolved to <button aria-label="Đầu vào" class="flex items-center justify-center rounded-lg text-xs font-medium transition-colors sm:min-h-[44px] sm:flex-1 sm:gap-1.5 sm:px-3 bg-blue-50 text-blue-600 hover:bg-blue-100">…</button>
   - attempting click action
     2 × waiting for element to be visible, enabled and stable
       - element is visible, enabled and stable
@@ -82,6 +82,13 @@ Call log:
     - scrolling into view if needed
     - done scrolling
     - <label class="text-xs font-medium text-slate-500">Khoảng giá</label> from <div class="card mt-8 px-6 py-5">…</div> subtree intercepts pointer events
+  - retrying click action
+    - waiting 500ms
+    - waiting for element to be visible, enabled and stable
+    - element is visible, enabled and stable
+    - scrolling into view if needed
+    - done scrolling
+    - <div class="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-4">…</div> from <div class="card mt-8 px-6 py-5">…</div> subtree intercepts pointer events
   - retrying click action
     - waiting 500ms
 
@@ -227,13 +234,13 @@ Call log:
                   - img [ref=e154]
                 - button "Đầu ra" [ref=e157]:
                   - img [ref=e158]
-          - link "0546 Mới nhập Cruze 3.800.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e161] [cursor=pointer]:
+          - link "0546 Đầu vào Cruze 3.800.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e161] [cursor=pointer]:
             - /url: /xe/aa80790d-b510-4fc9-aedc-bb398f24d9b2
             - img [ref=e164]
             - generic [ref=e168]:
               - generic [ref=e169]:
                 - generic [ref=e170]: "0546"
-                - generic [ref=e171]: Mới nhập
+                - generic [ref=e171]: Đầu vào
               - generic [ref=e172]: Cruze
               - generic [ref=e173]: 3.800.000 đ
               - generic [ref=e174]:
@@ -387,13 +394,13 @@ Call log:
                   - img [ref=e400]
                 - button "Đầu ra" [ref=e403]:
                   - img [ref=e404]
-          - link "2368 Mới nhập SantaFe 6.900.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e407] [cursor=pointer]:
+          - link "2368 Đã bán SantaFe 6.900.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e407] [cursor=pointer]:
             - /url: /xe/9a062dce-d9fe-45a6-9e2d-c617e5ec47ce
             - img [ref=e410]
             - generic [ref=e414]:
               - generic [ref=e415]:
                 - generic [ref=e416]: "2368"
-                - generic [ref=e417]: Mới nhập
+                - generic [ref=e417]: Đã bán
               - generic [ref=e418]: SantaFe
               - generic [ref=e419]: 6.900.000 đ
               - generic [ref=e420]:
@@ -851,13 +858,13 @@ Call log:
                   - img [ref=e1125]
                 - button "Đầu ra" [ref=e1128]:
                   - img [ref=e1129]
-          - link "9125 Đang sửa SM5 2.200.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e1132] [cursor=pointer]:
+          - link "9125 Đầu vào SM5 2.200.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e1132] [cursor=pointer]:
             - /url: /xe/9d5e3785-a6ba-43f6-8184-7276a02c22b5
             - img [ref=e1135]
             - generic [ref=e1139]:
               - generic [ref=e1140]:
                 - generic [ref=e1141]: "9125"
-                - generic [ref=e1142]: Đang sửa
+                - generic [ref=e1142]: Đầu vào
               - generic [ref=e1143]: SM5
               - generic [ref=e1144]: 2.200.000 đ
               - generic [ref=e1145]:
