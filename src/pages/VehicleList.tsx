@@ -183,16 +183,12 @@ export default function VehicleList() {
                     )}
                   </div>
 
-                  {/* Quick Actions — icon only on mobile, text on desktop */}
-                  <div className="mt-2 flex gap-1.5 border-t border-slate-100 pt-2 sm:mt-2.5 sm:pt-2.5">
-                    {/*
-                      Desktop: text buttons with min-h-[44px]
-                      Mobile:  icon-only 44×44 circular buttons
-                    */}
+                  {/* Quick Actions — grid on mobile (3 equal cols), flex on tablet+ */}
+                  <div className="mt-2 grid grid-cols-3 gap-1.5 border-t border-slate-100 pt-2 sm:mt-2.5 sm:flex sm:pt-2.5">
                     {/* Nhiệm vụ */}
                     <button
                       onClick={(e) => { e.preventDefault(); setSelectedTaskVehicleId(v.id) }}
-                      className={`flex flex-1 items-center justify-center rounded-lg text-xs font-medium transition-colors sm:min-h-[44px] sm:gap-1.5 sm:px-3 ${
+                      className={`flex items-center justify-center rounded-lg text-xs font-medium transition-colors sm:min-h-[44px] sm:flex-1 sm:gap-1.5 sm:px-3 ${
                         vehicleTasks.length === 0
                           ? 'bg-slate-50 text-slate-400 hover:bg-slate-100'
                           : vehicleTasks.every((t) => t.status === 'done')
@@ -211,7 +207,7 @@ export default function VehicleList() {
                     {/* Đầu vào */}
                     <button
                       onClick={(e) => { e.preventDefault(); handleOpenPreview(v.id, 'in') }}
-                      className={`flex flex-1 items-center justify-center rounded-lg text-xs font-medium transition-colors sm:min-h-[44px] sm:gap-1.5 sm:px-3 ${
+                      className={`flex items-center justify-center rounded-lg text-xs font-medium transition-colors sm:min-h-[44px] sm:flex-1 sm:gap-1.5 sm:px-3 ${
                         latestIn ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
                       }`}
                       style={{ minHeight: 44, minWidth: 44 }}
@@ -223,7 +219,7 @@ export default function VehicleList() {
                     {/* Đầu ra */}
                     <button
                       onClick={(e) => { e.preventDefault(); handleOpenPreview(v.id, 'out') }}
-                      className={`flex flex-1 items-center justify-center rounded-lg text-xs font-medium transition-colors sm:min-h-[44px] sm:gap-1.5 sm:px-3 ${
+                      className={`flex items-center justify-center rounded-lg text-xs font-medium transition-colors sm:min-h-[44px] sm:flex-1 sm:gap-1.5 sm:px-3 ${
                         latestOut ? 'bg-purple-50 text-purple-600 hover:bg-purple-100' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
                       }`}
                       style={{ minHeight: 44, minWidth: 44 }}

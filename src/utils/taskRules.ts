@@ -95,17 +95,6 @@ const ruleDieuHoaNeedGas: Rule = {
   },
 }
 
-const ruleDieuHoaBroken: Rule = {
-  id: 'in_dieuhoa_broken',
-  title: 'Kiểm tra điều hòa',
-  description: 'Điều hòa không hoạt động bình thường',
-  priority: 'low',
-  evaluate(ctx: RuleContext) {
-    if (ctx.sheet.type !== 'in') return false
-    return ctx.sheet.inputDieuHoa?.status !== 'good'
-  },
-}
-
 // ====== SƯỞI GHẾ RULES ======
 
 const ruleSuoiGheBroken: Rule = {
@@ -356,7 +345,6 @@ const ALL_RULES: Rule[] = [
   ruleInteriorDirty,
   ruleInteriorTorn,
   ruleDieuHoaNeedGas,
-  ruleDieuHoaBroken,
   ruleSuoiGheBroken,
   ruleRearCameraBroken,
   ruleRearSensorBroken,
