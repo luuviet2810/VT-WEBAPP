@@ -40,7 +40,7 @@ Call log:
       - scrolling into view if needed
       - done scrolling
       - <div class="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-4">…</div> from <div class="card mt-8 px-6 py-5">…</div> subtree intercepts pointer events
-  6 × retrying click action
+  5 × retrying click action
       - waiting 500ms
       - waiting for element to be visible, enabled and stable
       - element is visible, enabled and stable
@@ -68,6 +68,27 @@ Call log:
       - scrolling into view if needed
       - done scrolling
       - <div class="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-4">…</div> from <div class="card mt-8 px-6 py-5">…</div> subtree intercepts pointer events
+  - retrying click action
+    - waiting 500ms
+    - waiting for element to be visible, enabled and stable
+    - element is visible, enabled and stable
+    - scrolling into view if needed
+    - done scrolling
+    - <div class="flex items-center justify-between text-xs text-slate-500">…</div> from <div class="card mt-8 px-6 py-5">…</div> subtree intercepts pointer events
+  - retrying click action
+    - waiting 500ms
+    - waiting for element to be visible, enabled and stable
+    - element is visible, enabled and stable
+    - scrolling into view if needed
+    - done scrolling
+    - <label class="text-xs font-medium text-slate-500">Khoảng giá</label> from <div class="card mt-8 px-6 py-5">…</div> subtree intercepts pointer events
+  - retrying click action
+    - waiting 500ms
+    - waiting for element to be visible, enabled and stable
+    - element is visible, enabled and stable
+    - scrolling into view if needed
+    - done scrolling
+    - <div class="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-4">…</div> from <div class="card mt-8 px-6 py-5">…</div> subtree intercepts pointer events
   - retrying click action
     - waiting 500ms
     - waiting for element to be visible, enabled and stable
@@ -374,15 +395,15 @@ Call log:
                   - img [ref=e400]
                 - button "Đầu ra" [ref=e403] [cursor=pointer]:
                   - img [ref=e404]
-          - link "2368 Đã bán SantaFe 6.900.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e407]:
-            - /url: /xe/9a062dce-d9fe-45a6-9e2d-c617e5ec47ce
+          - link "2474 Mới nhập Carnival 4.500.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e407]:
+            - /url: /xe/38e9238e-8cf0-40af-90a4-195adb79cc6b
             - img [ref=e410]
             - generic [ref=e414]:
               - generic [ref=e415]:
-                - generic [ref=e416]: "2368"
-                - generic [ref=e417]: Đã bán
-              - generic [ref=e418]: SantaFe
-              - generic [ref=e419]: 6.900.000 đ
+                - generic [ref=e416]: "2474"
+                - generic [ref=e417]: Mới nhập
+              - generic [ref=e418]: Carnival
+              - generic [ref=e419]: 4.500.000 đ
               - generic [ref=e420]:
                 - button "Nhiệm vụ" [ref=e421] [cursor=pointer]:
                   - img [ref=e422]
@@ -390,15 +411,15 @@ Call log:
                   - img [ref=e425]
                 - button "Đầu ra" [ref=e428] [cursor=pointer]:
                   - img [ref=e429]
-          - link "2474 Mới nhập Carnival 4.500.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e432]:
-            - /url: /xe/38e9238e-8cf0-40af-90a4-195adb79cc6b
+          - link "2562 Mới nhập Avante 5.500.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e432]:
+            - /url: /xe/b6eaf7b1-0f31-4553-bf82-8d67635a0e5b
             - img [ref=e435]
             - generic [ref=e439]:
               - generic [ref=e440]:
-                - generic [ref=e441]: "2474"
+                - generic [ref=e441]: "2562"
                 - generic [ref=e442]: Mới nhập
-              - generic [ref=e443]: Carnival
-              - generic [ref=e444]: 4.500.000 đ
+              - generic [ref=e443]: Avante
+              - generic [ref=e444]: 5.500.000 đ
               - generic [ref=e445]:
                 - button "Nhiệm vụ" [ref=e446] [cursor=pointer]:
                   - img [ref=e447]
@@ -406,15 +427,15 @@ Call log:
                   - img [ref=e450]
                 - button "Đầu ra" [ref=e453] [cursor=pointer]:
                   - img [ref=e454]
-          - link "2562 Mới nhập Avante 5.500.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e457]:
-            - /url: /xe/b6eaf7b1-0f31-4553-bf82-8d67635a0e5b
+          - link "2929 Mới nhập SM5 2.900.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e457]:
+            - /url: /xe/747f182e-453b-4576-b3c5-47ead86083e0
             - img [ref=e460]
             - generic [ref=e464]:
               - generic [ref=e465]:
-                - generic [ref=e466]: "2562"
+                - generic [ref=e466]: "2929"
                 - generic [ref=e467]: Mới nhập
-              - generic [ref=e468]: Avante
-              - generic [ref=e469]: 5.500.000 đ
+              - generic [ref=e468]: SM5
+              - generic [ref=e469]: 2.900.000 đ
               - generic [ref=e470]:
                 - button "Nhiệm vụ" [ref=e471] [cursor=pointer]:
                   - img [ref=e472]
@@ -422,15 +443,15 @@ Call log:
                   - img [ref=e475]
                 - button "Đầu ra" [ref=e478] [cursor=pointer]:
                   - img [ref=e479]
-          - link "2929 Mới nhập SM5 2.900.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e482]:
-            - /url: /xe/747f182e-453b-4576-b3c5-47ead86083e0
+          - link "2951 Mới nhập Morning 3.700.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e482]:
+            - /url: /xe/20e9852b-9088-4044-bdad-6340c92ba11d
             - img [ref=e485]
             - generic [ref=e489]:
               - generic [ref=e490]:
-                - generic [ref=e491]: "2929"
+                - generic [ref=e491]: "2951"
                 - generic [ref=e492]: Mới nhập
-              - generic [ref=e493]: SM5
-              - generic [ref=e494]: 2.900.000 đ
+              - generic [ref=e493]: Morning
+              - generic [ref=e494]: 3.700.000 đ
               - generic [ref=e495]:
                 - button "Nhiệm vụ" [ref=e496] [cursor=pointer]:
                   - img [ref=e497]
@@ -438,15 +459,15 @@ Call log:
                   - img [ref=e500]
                 - button "Đầu ra" [ref=e503] [cursor=pointer]:
                   - img [ref=e504]
-          - link "2951 Mới nhập Morning 3.700.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e507]:
-            - /url: /xe/20e9852b-9088-4044-bdad-6340c92ba11d
+          - link "3169 Mới nhập K5 4.890.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e507]:
+            - /url: /xe/e0dcbd3f-12d5-461d-af83-b7802e006d11
             - img [ref=e510]
             - generic [ref=e514]:
               - generic [ref=e515]:
-                - generic [ref=e516]: "2951"
+                - generic [ref=e516]: "3169"
                 - generic [ref=e517]: Mới nhập
-              - generic [ref=e518]: Morning
-              - generic [ref=e519]: 3.700.000 đ
+              - generic [ref=e518]: K5
+              - generic [ref=e519]: 4.890.000 đ
               - generic [ref=e520]:
                 - button "Nhiệm vụ" [ref=e521] [cursor=pointer]:
                   - img [ref=e522]
@@ -454,15 +475,15 @@ Call log:
                   - img [ref=e525]
                 - button "Đầu ra" [ref=e528] [cursor=pointer]:
                   - img [ref=e529]
-          - link "3169 Mới nhập K5 4.890.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e532]:
-            - /url: /xe/e0dcbd3f-12d5-461d-af83-b7802e006d11
+          - link "3277 Mới nhập K5 5.300.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e532]:
+            - /url: /xe/ab2cfac8-ab8b-4127-98a9-a3f374d5d527
             - img [ref=e535]
             - generic [ref=e539]:
               - generic [ref=e540]:
-                - generic [ref=e541]: "3169"
+                - generic [ref=e541]: "3277"
                 - generic [ref=e542]: Mới nhập
               - generic [ref=e543]: K5
-              - generic [ref=e544]: 4.890.000 đ
+              - generic [ref=e544]: 5.300.000 đ
               - generic [ref=e545]:
                 - button "Nhiệm vụ" [ref=e546] [cursor=pointer]:
                   - img [ref=e547]
@@ -470,15 +491,15 @@ Call log:
                   - img [ref=e550]
                 - button "Đầu ra" [ref=e553] [cursor=pointer]:
                   - img [ref=e554]
-          - link "3277 Mới nhập K5 5.300.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e557]:
-            - /url: /xe/ab2cfac8-ab8b-4127-98a9-a3f374d5d527
+          - link "3424 Mới nhập Cruze 2.900.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e557]:
+            - /url: /xe/c31ab049-aca0-41c9-a5a0-8629e6628c97
             - img [ref=e560]
             - generic [ref=e564]:
               - generic [ref=e565]:
-                - generic [ref=e566]: "3277"
+                - generic [ref=e566]: "3424"
                 - generic [ref=e567]: Mới nhập
-              - generic [ref=e568]: K5
-              - generic [ref=e569]: 5.300.000 đ
+              - generic [ref=e568]: Cruze
+              - generic [ref=e569]: 2.900.000 đ
               - generic [ref=e570]:
                 - button "Nhiệm vụ" [ref=e571] [cursor=pointer]:
                   - img [ref=e572]
@@ -486,15 +507,15 @@ Call log:
                   - img [ref=e575]
                 - button "Đầu ra" [ref=e578] [cursor=pointer]:
                   - img [ref=e579]
-          - link "3337 Đã bán K5 5.800.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e582]:
-            - /url: /xe/45bcc9f4-1f08-4133-b5a9-da9334939492
+          - link "3656 Mới nhập K7 5.000.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e582]:
+            - /url: /xe/a326c4e3-0b10-4947-9e07-515de38ad09e
             - img [ref=e585]
             - generic [ref=e589]:
               - generic [ref=e590]:
-                - generic [ref=e591]: "3337"
-                - generic [ref=e592]: Đã bán
-              - generic [ref=e593]: K5
-              - generic [ref=e594]: 5.800.000 đ
+                - generic [ref=e591]: "3656"
+                - generic [ref=e592]: Mới nhập
+              - generic [ref=e593]: K7
+              - generic [ref=e594]: 5.000.000 đ
               - generic [ref=e595]:
                 - button "Nhiệm vụ" [ref=e596] [cursor=pointer]:
                   - img [ref=e597]
@@ -502,15 +523,15 @@ Call log:
                   - img [ref=e600]
                 - button "Đầu ra" [ref=e603] [cursor=pointer]:
                   - img [ref=e604]
-          - link "3424 Mới nhập Cruze 2.900.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e607]:
-            - /url: /xe/c31ab049-aca0-41c9-a5a0-8629e6628c97
+          - link "4423 Mới nhập K3 4.800.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e607]:
+            - /url: /xe/c6d83bf3-286d-442d-8439-65ea427eb5d1
             - img [ref=e610]
             - generic [ref=e614]:
               - generic [ref=e615]:
-                - generic [ref=e616]: "3424"
+                - generic [ref=e616]: "4423"
                 - generic [ref=e617]: Mới nhập
-              - generic [ref=e618]: Cruze
-              - generic [ref=e619]: 2.900.000 đ
+              - generic [ref=e618]: K3
+              - generic [ref=e619]: 4.800.000 đ
               - generic [ref=e620]:
                 - button "Nhiệm vụ" [ref=e621] [cursor=pointer]:
                   - img [ref=e622]
@@ -518,15 +539,15 @@ Call log:
                   - img [ref=e625]
                 - button "Đầu ra" [ref=e628] [cursor=pointer]:
                   - img [ref=e629]
-          - link "3656 Mới nhập K7 5.000.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e632]:
-            - /url: /xe/a326c4e3-0b10-4947-9e07-515de38ad09e
+          - link "4482 Mới nhập Grandeur 5.500.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e632]:
+            - /url: /xe/4adc9717-dbdf-4a11-8d1b-cca4ad08b7e0
             - img [ref=e635]
             - generic [ref=e639]:
               - generic [ref=e640]:
-                - generic [ref=e641]: "3656"
+                - generic [ref=e641]: "4482"
                 - generic [ref=e642]: Mới nhập
-              - generic [ref=e643]: K7
-              - generic [ref=e644]: 5.000.000 đ
+              - generic [ref=e643]: Grandeur
+              - generic [ref=e644]: 5.500.000 đ
               - generic [ref=e645]:
                 - button "Nhiệm vụ" [ref=e646] [cursor=pointer]:
                   - img [ref=e647]
@@ -534,15 +555,15 @@ Call log:
                   - img [ref=e650]
                 - button "Đầu ra" [ref=e653] [cursor=pointer]:
                   - img [ref=e654]
-          - link "4423 Mới nhập K3 4.800.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e657]:
-            - /url: /xe/c6d83bf3-286d-442d-8439-65ea427eb5d1
+          - link "4496 Mới nhập Canival 7.800.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e657]:
+            - /url: /xe/178ca21e-eb52-453f-bb98-946bea1fa1e2
             - img [ref=e660]
             - generic [ref=e664]:
               - generic [ref=e665]:
-                - generic [ref=e666]: "4423"
+                - generic [ref=e666]: "4496"
                 - generic [ref=e667]: Mới nhập
-              - generic [ref=e668]: K3
-              - generic [ref=e669]: 4.800.000 đ
+              - generic [ref=e668]: Canival
+              - generic [ref=e669]: 7.800.000 đ
               - generic [ref=e670]:
                 - button "Nhiệm vụ" [ref=e671] [cursor=pointer]:
                   - img [ref=e672]
@@ -550,15 +571,15 @@ Call log:
                   - img [ref=e675]
                 - button "Đầu ra" [ref=e678] [cursor=pointer]:
                   - img [ref=e679]
-          - link "4482 Mới nhập Grandeur 5.500.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e682]:
-            - /url: /xe/4adc9717-dbdf-4a11-8d1b-cca4ad08b7e0
+          - link "4765 Mới nhập Avante 4.800.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e682]:
+            - /url: /xe/93f2fb69-a9c9-4f8c-8b93-2ed5ec959d05
             - img [ref=e685]
             - generic [ref=e689]:
               - generic [ref=e690]:
-                - generic [ref=e691]: "4482"
+                - generic [ref=e691]: "4765"
                 - generic [ref=e692]: Mới nhập
-              - generic [ref=e693]: Grandeur
-              - generic [ref=e694]: 5.500.000 đ
+              - generic [ref=e693]: Avante
+              - generic [ref=e694]: 4.800.000 đ
               - generic [ref=e695]:
                 - button "Nhiệm vụ" [ref=e696] [cursor=pointer]:
                   - img [ref=e697]
@@ -566,15 +587,15 @@ Call log:
                   - img [ref=e700]
                 - button "Đầu ra" [ref=e703] [cursor=pointer]:
                   - img [ref=e704]
-          - link "4496 Mới nhập Canival 7.800.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e707]:
-            - /url: /xe/178ca21e-eb52-453f-bb98-946bea1fa1e2
+          - link "5115 Mới nhập Grandeur 4.800.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e707]:
+            - /url: /xe/8113d09b-d136-4421-ba7b-26e27759995e
             - img [ref=e710]
             - generic [ref=e714]:
               - generic [ref=e715]:
-                - generic [ref=e716]: "4496"
+                - generic [ref=e716]: "5115"
                 - generic [ref=e717]: Mới nhập
-              - generic [ref=e718]: Canival
-              - generic [ref=e719]: 7.800.000 đ
+              - generic [ref=e718]: Grandeur
+              - generic [ref=e719]: 4.800.000 đ
               - generic [ref=e720]:
                 - button "Nhiệm vụ" [ref=e721] [cursor=pointer]:
                   - img [ref=e722]
@@ -582,15 +603,15 @@ Call log:
                   - img [ref=e725]
                 - button "Đầu ra" [ref=e728] [cursor=pointer]:
                   - img [ref=e729]
-          - link "4765 Mới nhập Avante 4.800.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e732]:
-            - /url: /xe/93f2fb69-a9c9-4f8c-8b93-2ed5ec959d05
+          - link "5282 Mới nhập Sonata 4.600.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e732]:
+            - /url: /xe/83b6e406-7cf2-453f-b930-51c473684319
             - img [ref=e735]
             - generic [ref=e739]:
               - generic [ref=e740]:
-                - generic [ref=e741]: "4765"
+                - generic [ref=e741]: "5282"
                 - generic [ref=e742]: Mới nhập
-              - generic [ref=e743]: Avante
-              - generic [ref=e744]: 4.800.000 đ
+              - generic [ref=e743]: Sonata
+              - generic [ref=e744]: 4.600.000 đ
               - generic [ref=e745]:
                 - button "Nhiệm vụ" [ref=e746] [cursor=pointer]:
                   - img [ref=e747]
@@ -598,15 +619,15 @@ Call log:
                   - img [ref=e750]
                 - button "Đầu ra" [ref=e753] [cursor=pointer]:
                   - img [ref=e754]
-          - link "5115 Mới nhập Grandeur 4.800.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e757]:
-            - /url: /xe/8113d09b-d136-4421-ba7b-26e27759995e
+          - link "6059 Mới nhập Canival 3.900.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e757]:
+            - /url: /xe/14f77dd7-0eff-49c5-b0d6-8f50b999b99d
             - img [ref=e760]
             - generic [ref=e764]:
               - generic [ref=e765]:
-                - generic [ref=e766]: "5115"
+                - generic [ref=e766]: "6059"
                 - generic [ref=e767]: Mới nhập
-              - generic [ref=e768]: Grandeur
-              - generic [ref=e769]: 4.800.000 đ
+              - generic [ref=e768]: Canival
+              - generic [ref=e769]: 3.900.000 đ
               - generic [ref=e770]:
                 - button "Nhiệm vụ" [ref=e771] [cursor=pointer]:
                   - img [ref=e772]
@@ -614,15 +635,15 @@ Call log:
                   - img [ref=e775]
                 - button "Đầu ra" [ref=e778] [cursor=pointer]:
                   - img [ref=e779]
-          - link "5282 Mới nhập Sonata 4.600.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e782]:
-            - /url: /xe/83b6e406-7cf2-453f-b930-51c473684319
+          - link "6173 Mới nhập SM5 2.800.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e782]:
+            - /url: /xe/0efe85fa-3db1-40e0-b3dd-10ffec951204
             - img [ref=e785]
             - generic [ref=e789]:
               - generic [ref=e790]:
-                - generic [ref=e791]: "5282"
+                - generic [ref=e791]: "6173"
                 - generic [ref=e792]: Mới nhập
-              - generic [ref=e793]: Sonata
-              - generic [ref=e794]: 4.600.000 đ
+              - generic [ref=e793]: SM5
+              - generic [ref=e794]: 2.800.000 đ
               - generic [ref=e795]:
                 - button "Nhiệm vụ" [ref=e796] [cursor=pointer]:
                   - img [ref=e797]
@@ -630,15 +651,15 @@ Call log:
                   - img [ref=e800]
                 - button "Đầu ra" [ref=e803] [cursor=pointer]:
                   - img [ref=e804]
-          - link "6059 Mới nhập Canival 3.900.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e807]:
-            - /url: /xe/14f77dd7-0eff-49c5-b0d6-8f50b999b99d
+          - link "6362 Mới nhập Grandeur 5.600.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e807]:
+            - /url: /xe/b090be0e-f2c8-41f7-9436-6985fb641c47
             - img [ref=e810]
             - generic [ref=e814]:
               - generic [ref=e815]:
-                - generic [ref=e816]: "6059"
+                - generic [ref=e816]: "6362"
                 - generic [ref=e817]: Mới nhập
-              - generic [ref=e818]: Canival
-              - generic [ref=e819]: 3.900.000 đ
+              - generic [ref=e818]: Grandeur
+              - generic [ref=e819]: 5.600.000 đ
               - generic [ref=e820]:
                 - button "Nhiệm vụ" [ref=e821] [cursor=pointer]:
                   - img [ref=e822]
@@ -646,15 +667,15 @@ Call log:
                   - img [ref=e825]
                 - button "Đầu ra" [ref=e828] [cursor=pointer]:
                   - img [ref=e829]
-          - link "6173 Mới nhập SM5 2.800.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e832]:
-            - /url: /xe/0efe85fa-3db1-40e0-b3dd-10ffec951204
+          - link "6383 Mới nhập Tucson 11.900.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e832]:
+            - /url: /xe/e20e0896-81ae-4151-a14e-b2c26ede3d61
             - img [ref=e835]
             - generic [ref=e839]:
               - generic [ref=e840]:
-                - generic [ref=e841]: "6173"
+                - generic [ref=e841]: "6383"
                 - generic [ref=e842]: Mới nhập
-              - generic [ref=e843]: SM5
-              - generic [ref=e844]: 2.800.000 đ
+              - generic [ref=e843]: Tucson
+              - generic [ref=e844]: 11.900.000 đ
               - generic [ref=e845]:
                 - button "Nhiệm vụ" [ref=e846] [cursor=pointer]:
                   - img [ref=e847]
@@ -662,15 +683,15 @@ Call log:
                   - img [ref=e850]
                 - button "Đầu ra" [ref=e853] [cursor=pointer]:
                   - img [ref=e854]
-          - link "6362 Mới nhập Grandeur 5.600.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e857]:
-            - /url: /xe/b090be0e-f2c8-41f7-9436-6985fb641c47
+          - link "6423 Mới nhập SantaFe 8.800.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e857]:
+            - /url: /xe/de3b3772-f3b2-48ce-b3d5-546570e58864
             - img [ref=e860]
             - generic [ref=e864]:
               - generic [ref=e865]:
-                - generic [ref=e866]: "6362"
+                - generic [ref=e866]: "6423"
                 - generic [ref=e867]: Mới nhập
-              - generic [ref=e868]: Grandeur
-              - generic [ref=e869]: 5.600.000 đ
+              - generic [ref=e868]: SantaFe
+              - generic [ref=e869]: 8.800.000 đ
               - generic [ref=e870]:
                 - button "Nhiệm vụ" [ref=e871] [cursor=pointer]:
                   - img [ref=e872]
@@ -678,15 +699,15 @@ Call log:
                   - img [ref=e875]
                 - button "Đầu ra" [ref=e878] [cursor=pointer]:
                   - img [ref=e879]
-          - link "6383 Mới nhập Tucson 11.900.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e882]:
-            - /url: /xe/e20e0896-81ae-4151-a14e-b2c26ede3d61
+          - link "7194 Mới nhập Cruze 2.700.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e882]:
+            - /url: /xe/e66e3814-56a5-4d01-bb1b-a02418a67ead
             - img [ref=e885]
             - generic [ref=e889]:
               - generic [ref=e890]:
-                - generic [ref=e891]: "6383"
+                - generic [ref=e891]: "7194"
                 - generic [ref=e892]: Mới nhập
-              - generic [ref=e893]: Tucson
-              - generic [ref=e894]: 11.900.000 đ
+              - generic [ref=e893]: Cruze
+              - generic [ref=e894]: 2.700.000 đ
               - generic [ref=e895]:
                 - button "Nhiệm vụ" [ref=e896] [cursor=pointer]:
                   - img [ref=e897]
@@ -694,15 +715,15 @@ Call log:
                   - img [ref=e900]
                 - button "Đầu ra" [ref=e903] [cursor=pointer]:
                   - img [ref=e904]
-          - link "6423 Mới nhập SantaFe 8.800.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e907]:
-            - /url: /xe/de3b3772-f3b2-48ce-b3d5-546570e58864
+          - link "7265 Mới nhập SM5 2.900.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e907]:
+            - /url: /xe/fe07e3ae-1656-4b45-9feb-91c7ad7329ff
             - img [ref=e910]
             - generic [ref=e914]:
               - generic [ref=e915]:
-                - generic [ref=e916]: "6423"
+                - generic [ref=e916]: "7265"
                 - generic [ref=e917]: Mới nhập
-              - generic [ref=e918]: SantaFe
-              - generic [ref=e919]: 8.800.000 đ
+              - generic [ref=e918]: SM5
+              - generic [ref=e919]: 2.900.000 đ
               - generic [ref=e920]:
                 - button "Nhiệm vụ" [ref=e921] [cursor=pointer]:
                   - img [ref=e922]
@@ -710,15 +731,15 @@ Call log:
                   - img [ref=e925]
                 - button "Đầu ra" [ref=e928] [cursor=pointer]:
                   - img [ref=e929]
-          - link "7194 Mới nhập Cruze 2.700.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e932]:
-            - /url: /xe/e66e3814-56a5-4d01-bb1b-a02418a67ead
+          - link "7329 Mới nhập SM3 2.500.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e932]:
+            - /url: /xe/aee1be06-1e2a-4329-b153-c864ea28f33c
             - img [ref=e935]
             - generic [ref=e939]:
               - generic [ref=e940]:
-                - generic [ref=e941]: "7194"
+                - generic [ref=e941]: "7329"
                 - generic [ref=e942]: Mới nhập
-              - generic [ref=e943]: Cruze
-              - generic [ref=e944]: 2.700.000 đ
+              - generic [ref=e943]: SM3
+              - generic [ref=e944]: 2.500.000 đ
               - generic [ref=e945]:
                 - button "Nhiệm vụ" [ref=e946] [cursor=pointer]:
                   - img [ref=e947]
@@ -726,15 +747,15 @@ Call log:
                   - img [ref=e950]
                 - button "Đầu ra" [ref=e953] [cursor=pointer]:
                   - img [ref=e954]
-          - link "7265 Mới nhập SM5 2.900.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e957]:
-            - /url: /xe/fe07e3ae-1656-4b45-9feb-91c7ad7329ff
+          - link "7944 Mới nhập Avante 5.300.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e957]:
+            - /url: /xe/7b705e0d-5d0d-4946-8c25-a370cc92b4c0
             - img [ref=e960]
             - generic [ref=e964]:
               - generic [ref=e965]:
-                - generic [ref=e966]: "7265"
+                - generic [ref=e966]: "7944"
                 - generic [ref=e967]: Mới nhập
-              - generic [ref=e968]: SM5
-              - generic [ref=e969]: 2.900.000 đ
+              - generic [ref=e968]: Avante
+              - generic [ref=e969]: 5.300.000 đ
               - generic [ref=e970]:
                 - button "Nhiệm vụ" [ref=e971] [cursor=pointer]:
                   - img [ref=e972]
@@ -742,15 +763,15 @@ Call log:
                   - img [ref=e975]
                 - button "Đầu ra" [ref=e978] [cursor=pointer]:
                   - img [ref=e979]
-          - link "7329 Mới nhập SM3 2.500.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e982]:
-            - /url: /xe/aee1be06-1e2a-4329-b153-c864ea28f33c
+          - link "8731 Mới nhập K7 4.200.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e982]:
+            - /url: /xe/c30a8f9f-c451-431c-bdcd-5a2f37c3b6d5
             - img [ref=e985]
             - generic [ref=e989]:
               - generic [ref=e990]:
-                - generic [ref=e991]: "7329"
+                - generic [ref=e991]: "8731"
                 - generic [ref=e992]: Mới nhập
-              - generic [ref=e993]: SM3
-              - generic [ref=e994]: 2.500.000 đ
+              - generic [ref=e993]: K7
+              - generic [ref=e994]: 4.200.000 đ
               - generic [ref=e995]:
                 - button "Nhiệm vụ" [ref=e996] [cursor=pointer]:
                   - img [ref=e997]
@@ -758,15 +779,15 @@ Call log:
                   - img [ref=e1000]
                 - button "Đầu ra" [ref=e1003] [cursor=pointer]:
                   - img [ref=e1004]
-          - link "7944 Mới nhập Avante 5.300.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e1007]:
-            - /url: /xe/7b705e0d-5d0d-4946-8c25-a370cc92b4c0
+          - link "8910 Mới nhập Avante 5.000.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e1007]:
+            - /url: /xe/619e657e-c3e8-4d41-beab-e23ce933715e
             - img [ref=e1010]
             - generic [ref=e1014]:
               - generic [ref=e1015]:
-                - generic [ref=e1016]: "7944"
+                - generic [ref=e1016]: "8910"
                 - generic [ref=e1017]: Mới nhập
               - generic [ref=e1018]: Avante
-              - generic [ref=e1019]: 5.300.000 đ
+              - generic [ref=e1019]: 5.000.000 đ
               - generic [ref=e1020]:
                 - button "Nhiệm vụ" [ref=e1021] [cursor=pointer]:
                   - img [ref=e1022]
@@ -774,15 +795,15 @@ Call log:
                   - img [ref=e1025]
                 - button "Đầu ra" [ref=e1028] [cursor=pointer]:
                   - img [ref=e1029]
-          - link "8731 Mới nhập K7 4.200.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e1032]:
-            - /url: /xe/c30a8f9f-c451-431c-bdcd-5a2f37c3b6d5
+          - link "8925 Mới nhập Grandeur 5.800.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e1032]:
+            - /url: /xe/c353ddb9-f83e-4014-95fa-f13dee6c17d6
             - img [ref=e1035]
             - generic [ref=e1039]:
               - generic [ref=e1040]:
-                - generic [ref=e1041]: "8731"
+                - generic [ref=e1041]: "8925"
                 - generic [ref=e1042]: Mới nhập
-              - generic [ref=e1043]: K7
-              - generic [ref=e1044]: 4.200.000 đ
+              - generic [ref=e1043]: Grandeur
+              - generic [ref=e1044]: 5.800.000 đ
               - generic [ref=e1045]:
                 - button "Nhiệm vụ" [ref=e1046] [cursor=pointer]:
                   - img [ref=e1047]
@@ -790,15 +811,15 @@ Call log:
                   - img [ref=e1050]
                 - button "Đầu ra" [ref=e1053] [cursor=pointer]:
                   - img [ref=e1054]
-          - link "8910 Mới nhập Avante 5.000.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e1057]:
-            - /url: /xe/619e657e-c3e8-4d41-beab-e23ce933715e
+          - link "9028 Mới nhập Malibu 3.800.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e1057]:
+            - /url: /xe/a024fc17-e346-4ce0-9d67-42a51b71cae3
             - img [ref=e1060]
             - generic [ref=e1064]:
               - generic [ref=e1065]:
-                - generic [ref=e1066]: "8910"
+                - generic [ref=e1066]: "9028"
                 - generic [ref=e1067]: Mới nhập
-              - generic [ref=e1068]: Avante
-              - generic [ref=e1069]: 5.000.000 đ
+              - generic [ref=e1068]: Malibu
+              - generic [ref=e1069]: 3.800.000 đ
               - generic [ref=e1070]:
                 - button "Nhiệm vụ" [ref=e1071] [cursor=pointer]:
                   - img [ref=e1072]
@@ -806,15 +827,15 @@ Call log:
                   - img [ref=e1075]
                 - button "Đầu ra" [ref=e1078] [cursor=pointer]:
                   - img [ref=e1079]
-          - link "8925 Mới nhập Grandeur 5.800.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e1082]:
-            - /url: /xe/c353ddb9-f83e-4014-95fa-f13dee6c17d6
+          - link "9125 Đầu vào SM5 2.200.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e1082]:
+            - /url: /xe/9d5e3785-a6ba-43f6-8184-7276a02c22b5
             - img [ref=e1085]
             - generic [ref=e1089]:
               - generic [ref=e1090]:
-                - generic [ref=e1091]: "8925"
-                - generic [ref=e1092]: Mới nhập
-              - generic [ref=e1093]: Grandeur
-              - generic [ref=e1094]: 5.800.000 đ
+                - generic [ref=e1091]: "9125"
+                - generic [ref=e1092]: Đầu vào
+              - generic [ref=e1093]: SM5
+              - generic [ref=e1094]: 2.200.000 đ
               - generic [ref=e1095]:
                 - button "Nhiệm vụ" [ref=e1096] [cursor=pointer]:
                   - img [ref=e1097]
@@ -822,15 +843,15 @@ Call log:
                   - img [ref=e1100]
                 - button "Đầu ra" [ref=e1103] [cursor=pointer]:
                   - img [ref=e1104]
-          - link "9028 Mới nhập Malibu 3.800.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e1107]:
-            - /url: /xe/a024fc17-e346-4ce0-9d67-42a51b71cae3
+          - link "9184 Mới nhập K5 Hybrid 4.900.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e1107]:
+            - /url: /xe/ce91ef6c-2573-46a6-b5b3-84dca08c5856
             - img [ref=e1110]
             - generic [ref=e1114]:
               - generic [ref=e1115]:
-                - generic [ref=e1116]: "9028"
+                - generic [ref=e1116]: "9184"
                 - generic [ref=e1117]: Mới nhập
-              - generic [ref=e1118]: Malibu
-              - generic [ref=e1119]: 3.800.000 đ
+              - generic [ref=e1118]: K5 Hybrid
+              - generic [ref=e1119]: 4.900.000 đ
               - generic [ref=e1120]:
                 - button "Nhiệm vụ" [ref=e1121] [cursor=pointer]:
                   - img [ref=e1122]
@@ -838,15 +859,15 @@ Call log:
                   - img [ref=e1125]
                 - button "Đầu ra" [ref=e1128] [cursor=pointer]:
                   - img [ref=e1129]
-          - link "9125 Đầu vào SM5 2.200.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e1132]:
-            - /url: /xe/9d5e3785-a6ba-43f6-8184-7276a02c22b5
+          - link "9196 Mới nhập Canival 4.300.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e1132]:
+            - /url: /xe/240c3b14-9f56-4391-baee-6811484715a7
             - img [ref=e1135]
             - generic [ref=e1139]:
               - generic [ref=e1140]:
-                - generic [ref=e1141]: "9125"
-                - generic [ref=e1142]: Đầu vào
-              - generic [ref=e1143]: SM5
-              - generic [ref=e1144]: 2.200.000 đ
+                - generic [ref=e1141]: "9196"
+                - generic [ref=e1142]: Mới nhập
+              - generic [ref=e1143]: Canival
+              - generic [ref=e1144]: 4.300.000 đ
               - generic [ref=e1145]:
                 - button "Nhiệm vụ" [ref=e1146] [cursor=pointer]:
                   - img [ref=e1147]
@@ -854,15 +875,15 @@ Call log:
                   - img [ref=e1150]
                 - button "Đầu ra" [ref=e1153] [cursor=pointer]:
                   - img [ref=e1154]
-          - link "9184 Mới nhập K5 Hybrid 4.900.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e1157]:
-            - /url: /xe/ce91ef6c-2573-46a6-b5b3-84dca08c5856
+          - link "9210 Mới nhập Cayenne 105.000.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e1157]:
+            - /url: /xe/0e9b028e-685e-4f2f-be9a-e64617e4c46d
             - img [ref=e1160]
             - generic [ref=e1164]:
               - generic [ref=e1165]:
-                - generic [ref=e1166]: "9184"
+                - generic [ref=e1166]: "9210"
                 - generic [ref=e1167]: Mới nhập
-              - generic [ref=e1168]: K5 Hybrid
-              - generic [ref=e1169]: 4.900.000 đ
+              - generic [ref=e1168]: Cayenne
+              - generic [ref=e1169]: 105.000.000 đ
               - generic [ref=e1170]:
                 - button "Nhiệm vụ" [ref=e1171] [cursor=pointer]:
                   - img [ref=e1172]
@@ -870,15 +891,15 @@ Call log:
                   - img [ref=e1175]
                 - button "Đầu ra" [ref=e1178] [cursor=pointer]:
                   - img [ref=e1179]
-          - link "9196 Mới nhập Canival 4.300.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e1182]:
-            - /url: /xe/240c3b14-9f56-4391-baee-6811484715a7
+          - link "9269 Mới nhập K3 5.000.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e1182]:
+            - /url: /xe/71c8af1b-2370-4055-9465-a0e0559fdb42
             - img [ref=e1185]
             - generic [ref=e1189]:
               - generic [ref=e1190]:
-                - generic [ref=e1191]: "9196"
+                - generic [ref=e1191]: "9269"
                 - generic [ref=e1192]: Mới nhập
-              - generic [ref=e1193]: Canival
-              - generic [ref=e1194]: 4.300.000 đ
+              - generic [ref=e1193]: K3
+              - generic [ref=e1194]: 5.000.000 đ
               - generic [ref=e1195]:
                 - button "Nhiệm vụ" [ref=e1196] [cursor=pointer]:
                   - img [ref=e1197]
@@ -886,15 +907,15 @@ Call log:
                   - img [ref=e1200]
                 - button "Đầu ra" [ref=e1203] [cursor=pointer]:
                   - img [ref=e1204]
-          - link "9210 Mới nhập Cayenne 105.000.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e1207]:
-            - /url: /xe/0e9b028e-685e-4f2f-be9a-e64617e4c46d
+          - link "9323 Mới nhập Morning 3.800.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e1207]:
+            - /url: /xe/b0ff1dd5-232a-4a7b-84d5-8155c847bc7a
             - img [ref=e1210]
             - generic [ref=e1214]:
               - generic [ref=e1215]:
-                - generic [ref=e1216]: "9210"
+                - generic [ref=e1216]: "9323"
                 - generic [ref=e1217]: Mới nhập
-              - generic [ref=e1218]: Cayenne
-              - generic [ref=e1219]: 105.000.000 đ
+              - generic [ref=e1218]: Morning
+              - generic [ref=e1219]: 3.800.000 đ
               - generic [ref=e1220]:
                 - button "Nhiệm vụ" [ref=e1221] [cursor=pointer]:
                   - img [ref=e1222]
@@ -902,15 +923,15 @@ Call log:
                   - img [ref=e1225]
                 - button "Đầu ra" [ref=e1228] [cursor=pointer]:
                   - img [ref=e1229]
-          - link "9269 Mới nhập K3 5.000.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e1232]:
-            - /url: /xe/71c8af1b-2370-4055-9465-a0e0559fdb42
+          - link "9530 Mới nhập Sonata 4.800.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e1232]:
+            - /url: /xe/7acc9e71-215f-46e8-9f7a-40a5c9ac4ec3
             - img [ref=e1235]
             - generic [ref=e1239]:
               - generic [ref=e1240]:
-                - generic [ref=e1241]: "9269"
+                - generic [ref=e1241]: "9530"
                 - generic [ref=e1242]: Mới nhập
-              - generic [ref=e1243]: K3
-              - generic [ref=e1244]: 5.000.000 đ
+              - generic [ref=e1243]: Sonata
+              - generic [ref=e1244]: 4.800.000 đ
               - generic [ref=e1245]:
                 - button "Nhiệm vụ" [ref=e1246] [cursor=pointer]:
                   - img [ref=e1247]
@@ -918,15 +939,15 @@ Call log:
                   - img [ref=e1250]
                 - button "Đầu ra" [ref=e1253] [cursor=pointer]:
                   - img [ref=e1254]
-          - link "9323 Mới nhập Morning 3.800.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e1257]:
-            - /url: /xe/b0ff1dd5-232a-4a7b-84d5-8155c847bc7a
+          - link "9858 Mới nhập Canival 6.300.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e1257]:
+            - /url: /xe/cb976047-93ad-4259-a9c1-4737dfc9a143
             - img [ref=e1260]
             - generic [ref=e1264]:
               - generic [ref=e1265]:
-                - generic [ref=e1266]: "9323"
+                - generic [ref=e1266]: "9858"
                 - generic [ref=e1267]: Mới nhập
-              - generic [ref=e1268]: Morning
-              - generic [ref=e1269]: 3.800.000 đ
+              - generic [ref=e1268]: Canival
+              - generic [ref=e1269]: 6.300.000 đ
               - generic [ref=e1270]:
                 - button "Nhiệm vụ" [ref=e1271] [cursor=pointer]:
                   - img [ref=e1272]
@@ -934,14 +955,14 @@ Call log:
                   - img [ref=e1275]
                 - button "Đầu ra" [ref=e1278] [cursor=pointer]:
                   - img [ref=e1279]
-          - link "9530 Mới nhập Sonata 4.800.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e1282]:
-            - /url: /xe/7acc9e71-215f-46e8-9f7a-40a5c9ac4ec3
+          - link "9994 Mới nhập Carnival 4.800.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e1282]:
+            - /url: /xe/bb465cf2-55dc-4cbe-821d-bd68dc3e94e9
             - img [ref=e1285]
             - generic [ref=e1289]:
               - generic [ref=e1290]:
-                - generic [ref=e1291]: "9530"
+                - generic [ref=e1291]: "9994"
                 - generic [ref=e1292]: Mới nhập
-              - generic [ref=e1293]: Sonata
+              - generic [ref=e1293]: Carnival
               - generic [ref=e1294]: 4.800.000 đ
               - generic [ref=e1295]:
                 - button "Nhiệm vụ" [ref=e1296] [cursor=pointer]:
@@ -950,54 +971,6 @@ Call log:
                   - img [ref=e1300]
                 - button "Đầu ra" [ref=e1303] [cursor=pointer]:
                   - img [ref=e1304]
-          - link "9770 Đã bán Malibu 3.800.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e1307]:
-            - /url: /xe/ee2c6af9-d745-4b55-946d-daaf75452ecc
-            - img [ref=e1310]
-            - generic [ref=e1314]:
-              - generic [ref=e1315]:
-                - generic [ref=e1316]: "9770"
-                - generic [ref=e1317]: Đã bán
-              - generic [ref=e1318]: Malibu
-              - generic [ref=e1319]: 3.800.000 đ
-              - generic [ref=e1320]:
-                - button "Nhiệm vụ" [ref=e1321] [cursor=pointer]:
-                  - img [ref=e1322]
-                - button "Đầu vào" [ref=e1324] [cursor=pointer]:
-                  - img [ref=e1325]
-                - button "Đầu ra" [ref=e1328] [cursor=pointer]:
-                  - img [ref=e1329]
-          - link "9858 Mới nhập Canival 6.300.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e1332]:
-            - /url: /xe/cb976047-93ad-4259-a9c1-4737dfc9a143
-            - img [ref=e1335]
-            - generic [ref=e1339]:
-              - generic [ref=e1340]:
-                - generic [ref=e1341]: "9858"
-                - generic [ref=e1342]: Mới nhập
-              - generic [ref=e1343]: Canival
-              - generic [ref=e1344]: 6.300.000 đ
-              - generic [ref=e1345]:
-                - button "Nhiệm vụ" [ref=e1346] [cursor=pointer]:
-                  - img [ref=e1347]
-                - button "Đầu vào" [ref=e1349] [cursor=pointer]:
-                  - img [ref=e1350]
-                - button "Đầu ra" [ref=e1353] [cursor=pointer]:
-                  - img [ref=e1354]
-          - link "9994 Mới nhập Carnival 4.800.000 đ Nhiệm vụ Đầu vào Đầu ra" [ref=e1357]:
-            - /url: /xe/bb465cf2-55dc-4cbe-821d-bd68dc3e94e9
-            - img [ref=e1360]
-            - generic [ref=e1364]:
-              - generic [ref=e1365]:
-                - generic [ref=e1366]: "9994"
-                - generic [ref=e1367]: Mới nhập
-              - generic [ref=e1368]: Carnival
-              - generic [ref=e1369]: 4.800.000 đ
-              - generic [ref=e1370]:
-                - button "Nhiệm vụ" [ref=e1371] [cursor=pointer]:
-                  - img [ref=e1372]
-                - button "Đầu vào" [ref=e1374] [cursor=pointer]:
-                  - img [ref=e1375]
-                - button "Đầu ra" [ref=e1378] [cursor=pointer]:
-                  - img [ref=e1379]
 ```
 
 # Test source

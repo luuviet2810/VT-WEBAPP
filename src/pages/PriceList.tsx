@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowUpDown, Car, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useStore } from '../store/useStore'
-import { formatCurrency } from '../utils/format'
-import { Badge, EmptyState } from '../components/ui'
+import { formatCurrency, todayISO } from '../utils/format'
+import { Badge, EmptyState, ConfirmDialog } from '../components/ui'
 import VehicleFilterBar from '../components/VehicleFilterBar'
 import VehicleFormModal from './VehicleFormModal'
 import { useIsAdminMode, useIsStaffMode } from '../hooks/useAuthRole'
@@ -52,10 +52,13 @@ export default function PriceList() {
     query: '', status: 'all', positionId: 'all', assigneeId: 'all',
     sortBy: 'default', priceMin: 0, priceMax: 110000000,
   })
+  const [confirmSoldId, setConfirmSoldId] = useState<string | null>(null)
+  const [pendingStatus, setPendingStatus] = useState<VehicleStatus | null>(null)
 
   const filtered = useMemo(() => {
     const q = filters.query.trim().toLowerCase()
     return vehicles.filter((v) => {
+      if (v.status === 'sold') return false
       const matchesQuery = !q || v.plate.toLowerCase().includes(q) || v.model.toLowerCase().includes(q)
       const matchesStatus = filters.status === 'all' || v.status === filters.status
       const matchesPosition = filters.positionId === 'all' || v.positionId === filters.positionId
@@ -111,7 +114,7 @@ export default function PriceList() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Bảng giá xe</h1>
           <p className="mt-1 text-sm text-slate-500">
-            {filtered.length}/{vehicles.length} xe
+            {filtered.length} xe
             {isStaffMode && !isAdminMode && ' — chỉ xem thông tin'}
           </p>
         </div>
@@ -157,7 +160,14 @@ export default function PriceList() {
                   canEdit={canEdit}
                   onEdit={() => openEditModal(v.id)}
                   onDelete={() => handleDelete(v.id)}
-                  onStatusChange={(status) => updateVehicle(v.id, { status })}
+                  onStatusChange={(status) => {
+                    if (status === 'sold') {
+                      setConfirmSoldId(v.id)
+                      setPendingStatus(status)
+                    } else {
+                      updateVehicle(v.id, { status })
+                    }
+                  }}
                 />
               ))}
             </tbody>
@@ -177,6 +187,24 @@ export default function PriceList() {
       )}
 
       <VehicleFormModal open={modalOpen} onClose={closeModal} editVehicleId={editVehicleId} />
+
+      <ConfirmDialog
+        open={confirmSoldId !== null}
+        title="Đánh dấu xe đã bán"
+        message="Xe sẽ không còn hiển thị trong Danh sách xe và Bảng giá. Bạn có chắc muốn tiếp tục?"
+        confirmLabel="Xác nhận"
+        cancelLabel="Huỷ"
+        variant="default"
+        onConfirm={() => {
+          if (confirmSoldId && pendingStatus) updateVehicle(confirmSoldId, { status: pendingStatus, soldDate: todayISO() })
+          setConfirmSoldId(null)
+          setPendingStatus(null)
+        }}
+        onCancel={() => {
+          setConfirmSoldId(null)
+          setPendingStatus(null)
+        }}
+      />
     </div>
   )
 }

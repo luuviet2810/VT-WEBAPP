@@ -8,7 +8,7 @@
 
 import type { CheckSheet } from '../types'
 
-export type TaskPriority = 'low' | 'low' | 'low' | 'urgent'
+export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent'
 export type TaskStatus = 'todo' | 'doing' | 'done'
 
 export interface GeneratedTask {
@@ -20,6 +20,7 @@ export interface GeneratedTask {
   vehicleId: string
   checklist: { id: string; text: string; done: boolean }[]
   ruleId: string
+  source: 'rule_engine'
   createdAt: string
 }
 
@@ -112,7 +113,7 @@ const ruleSuoiGheBroken: Rule = {
 
 const ruleRearCameraBroken: Rule = {
   id: 'in_rear_camera_broken',
-  title: 'Kiểm tra camera',
+  title: 'Kiểm tra camera lùi',
   description: 'Camera lùi bị hỏng cần được kiểm tra/sửa',
   priority: 'low',
   evaluate(ctx: RuleContext) {
@@ -242,6 +243,42 @@ const ruleFuelEmpty: Rule = {
   },
 }
 
+// ====== SONG NƯNG RULES ======
+
+const ruleSongNungNeeded: Rule = {
+  id: 'song_nung_needed',
+  title: 'Đi song nưng ngay',
+  description: 'Song nưng chưa được in hoặc còn ở bản nháp, cần in và xác nhận',
+  priority: 'high',
+  evaluate(ctx: RuleContext) {
+    return ctx.sheet.songNungResultStatus === 'draft' || ctx.sheet.songNungResultStatus === 'none'
+  },
+}
+
+// ====== KEY STATUS RULES ======
+
+const ruleSmartkeyDamaged: Rule = {
+  id: 'in_smartkey_damaged',
+  title: 'Kiểm tra chìa khóa hỏng',
+  description: 'Chìa khóa thông minh bị hỏng cần được kiểm tra và thay thế',
+  priority: 'low',
+  evaluate(ctx: RuleContext) {
+    if (ctx.sheet.type !== 'in') return false
+    return ctx.sheet.smartkeyStatus === 'damaged'
+  },
+}
+
+const ruleOutSmartkeyDamaged: Rule = {
+  id: 'out_smartkey_damaged',
+  title: 'Kiểm tra chìa khóa hỏng',
+  description: 'Chìa khóa đầu ra bị hỏng cần được kiểm tra và thay thế',
+  priority: 'low',
+  evaluate(ctx: RuleContext) {
+    if (ctx.sheet.type !== 'out') return false
+    return ctx.sheet.outSmartkeyStatus === 'damaged'
+  },
+}
+
 // ====== ĐẦU RA RULES ======
 
 const ruleOutDauMayEmpty: Rule = {
@@ -356,6 +393,10 @@ const ALL_RULES: Rule[] = [
   ruleScreenBroken,
   rulePaintNeeded,
   ruleFuelEmpty,
+  // Song nưng
+  ruleSongNungNeeded,
+  // Chìa khóa
+  ruleSmartkeyDamaged,
   // Đầu ra
   ruleOutDauMayEmpty,
   ruleOutNuocLamMatEmpty,
@@ -363,6 +404,7 @@ const ALL_RULES: Rule[] = [
   ruleOutSuoiGheBroken,
   ruleOutConSeongnyeongCanRepair,
   ruleOutTireBad,
+  ruleOutSmartkeyDamaged,
   // Đầu ra generic
   ...OUT_CHECK_GENERIC_RULES,
 ]
@@ -388,6 +430,7 @@ export function generateTasks(sheet: CheckSheet, vehiclePlate: string): Generate
     vehicleId: sheet.vehicleId,
     checklist: [],
     ruleId: rule.id,
+    source: 'rule_engine' as const,
     createdAt: new Date().toISOString(),
   }))
 

@@ -472,6 +472,10 @@ export default function CheckSheetForm({
         else if (smartkeyStatus === 'damaged') error++
       }
 
+      // Song nưng
+      if (songNungResultStatus === 'printed') ok++
+      else if (songNungResultStatus === 'draft' || songNungResultStatus === 'none') error++
+
       // Nhiên liệu
       if (fuelLevel) {
         const fl = classifyStatus(fuelLevel)
@@ -522,9 +526,13 @@ export default function CheckSheetForm({
         else if (outSmartkeyStatus === 'damaged') error++
       }
 
+      // Song nưng
+      if (songNungResultStatus === 'printed') ok++
+      else if (songNungResultStatus === 'draft' || songNungResultStatus === 'none') error++
+
       return { ok, error, none, noteCount: outNotes ? 1 : 0 }
     }
-  }, [type, screen, rearCamera, rearSensor, dashcam, interior, exterior, outCheck, outNotes, inputDieuHoa, inputSuoiGhe, inputTireState, fuelLevel, inputAcquySOC, keyType, smartkeyStatus, outKeyType, outSmartkeyStatus])
+  }, [type, screen, rearCamera, rearSensor, dashcam, interior, exterior, outCheck, outNotes, inputDieuHoa, inputSuoiGhe, inputTireState, fuelLevel, inputAcquySOC, keyType, smartkeyStatus, outKeyType, outSmartkeyStatus, songNungResultStatus])
 
   // Paint count
   const paintCount = useMemo(() => {

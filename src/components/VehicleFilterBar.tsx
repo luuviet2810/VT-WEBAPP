@@ -123,21 +123,21 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
           />
         </div>
 
-          {/* Bộ lọc button */}
+          {/* Bộ lọc button — icon only */}
         <div className="relative" ref={filterRef}>
           <button
             type="button"
             onClick={() => setFilterOpen(!filterOpen)}
-            className={`flex h-12 items-center gap-2 rounded-xl border px-4 text-base font-medium transition-colors ${
+            title="Bộ lọc"
+            className={`flex h-12 w-12 items-center justify-center rounded-xl border transition-colors ${
               hasActiveFilters
                 ? 'border-brand-400 bg-brand-50 text-brand-700'
-                : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50'
             }`}
           >
-            <Filter size={16} />
-            Bộ lọc
+            <Filter size={18} />
             {hasActiveFilters && (
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-500 text-[10px] font-bold text-white">
+              <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-brand-500 text-[10px] font-bold text-white">
                 {[
                   filters.status !== 'all',
                   filters.positionId !== 'all',
@@ -149,7 +149,7 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
             )}
           </button>
 
-          {/* Desktop popover (hidden on mobile) */}
+          {/* Popover (unchanged) */}
           {filterOpen && (
             <div className="hidden md:block">
               <div className="fixed inset-0 z-30" onClick={() => setFilterOpen(false)} />
@@ -219,10 +219,9 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
           )}
         </div>
 
-        {/* Reset */}
-        <button type="button" onClick={resetFilters} className="btn-secondary flex h-12 shrink-0 items-center gap-2 whitespace-nowrap px-5 text-base">
-          <RotateCcw size={16} />
-          Đặt lại
+        {/* Reset — icon only */}
+        <button type="button" title="Đặt lại" onClick={resetFilters} className="flex h-12 w-12 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition-colors hover:border-slate-300 hover:bg-slate-50">
+          <RotateCcw size={18} />
         </button>
       </div>
     </div>

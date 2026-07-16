@@ -8,6 +8,7 @@ import { initializeFromSupabase } from './store/useStore'
 
 import VehicleList from './pages/VehicleList'
 import PriceList from './pages/PriceList'
+import SoldVehicles from './pages/SoldVehicles'
 import VehicleDetail from './pages/VehicleDetail'
 import Tasks from './pages/Tasks'
 import TaskDetail from './pages/TaskDetail'
@@ -173,6 +174,16 @@ export default function App() {
               <VehicleList />
             </MainLayout>
           </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/xe-da-ban"
+        element={
+          <RoleGuard allowedRoles={['admin']}>
+            <MainLayout>
+              <SoldVehicles />
+            </MainLayout>
+          </RoleGuard>
         }
       />
       <Route

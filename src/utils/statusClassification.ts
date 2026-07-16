@@ -25,6 +25,7 @@ const CLASSIFICATION: Record<string, 'ok' | 'bad' | 'install'> = {
   'half': 'ok',
   'quarter': 'ok',
   'full': 'ok',
+  'printed': 'ok',
 
   // === BAD (needs repair) ===
   'broken': 'bad',
@@ -41,6 +42,7 @@ const CLASSIFICATION: Record<string, 'ok' | 'bad' | 'install'> = {
   'scratch': 'bad',
   'worn': 'bad',
   'badd': 'bad',
+  'draft': 'bad',
 
   // === INSTALL (missing, needs installation) ===
   'none': 'install',

@@ -18,6 +18,7 @@ import {
   Vehicle,
 } from '../types'
 import { generateTasks } from '../utils/taskRules'
+import { getAutoSyncPatch } from '../utils/ruleFieldMap'
 import { getVehicleWorkflowStatus, WORKFLOW_STATUS_LABEL } from '../utils/vehicleWorkflow'
 import { taskCreated, taskCompleted, vehicleAdded } from '../utils/notificationTemplates'
 import { todayISO, uid } from '../utils/format'
@@ -453,6 +454,7 @@ export const useStore = create<StoreState>()(
         vehicleId: t.vehicleId ?? null,
         dueDate: t.dueDate ?? null,
         dueTime: t.dueTime ?? null,
+        source: 'manual',
         createdAt: todayISO(),
       }
 
@@ -490,6 +492,29 @@ export const useStore = create<StoreState>()(
         await taskService.updateTask(id, patch)
       } catch (err) {
         console.error('\uD83D\uDD34 [STORE] Failed to update task in Supabase:', err)
+      }
+
+      // Auto-sync CheckSheet when a rule_engine task is moved to Done
+      const updatedTask = get().tasks.find((t) => t.id === id)
+      if (updatedTask?.ruleId && patch.status === 'done' && taskBefore?.status !== 'done') {
+        const sheetType = updatedTask.ruleId.startsWith('out_') ? 'out' : 'in'
+        const sheets = get().checkSheets
+          .filter((s) => s.vehicleId === updatedTask.vehicleId && s.type === sheetType)
+          .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        const sheet = sheets[0]
+        if (sheet) {
+          const sheetPatch = getAutoSyncPatch(updatedTask.ruleId, sheet)
+          if (sheetPatch) {
+            set((s) => ({
+              checkSheets: s.checkSheets.map((c) => (c.id === sheet!.id ? { ...c, ...sheetPatch } : c)),
+            }))
+            try {
+              await checksheetService.updateCheckSheet(sheet.id, sheetPatch)
+            } catch (err) {
+              console.error('\uD83D\uDD34 [STORE] Failed to auto-sync check sheet:', err)
+            }
+          }
+        }
       }
 
       const emp = get().employees.find((e) => e.id === get().currentEmployeeId)
@@ -633,6 +658,7 @@ export const useStore = create<StoreState>()(
               dueDate: null,
               dueTime: null,
               ruleId: gen.ruleId,
+              source: gen.source,
             })
             set((s) => ({ tasks: [created, ...s.tasks] }))
             // Notification disabled
@@ -981,6 +1007,7 @@ export const useStore = create<StoreState>()(
         dueDate: (row.due_date as string) ?? null,
         dueTime: (row.due_time as string) ?? null,
         ruleId: (row.rule_id as string) ?? null,
+        source: (row.source as Task['source']) ?? undefined,
         createdAt: row.created_at as string,
       }
       set((s) => {

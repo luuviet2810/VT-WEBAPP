@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Edit3, Plus, Trash2, X, GripVertical, ArrowRight, Clock } from 'lucide-react'
+import { Edit3, Plus, Trash2, X, GripVertical, ArrowRight, Clock, Search, RotateCcw } from 'lucide-react'
 import {
   DndContext,
   closestCenter,
@@ -100,6 +100,7 @@ export default function Positions() {
   const employees = useStore((s) => s.employees)
   const vehicleTimelines = useStore((s) => s.vehicleTimelines)
   const moveVehicle = useStore((s) => s.moveVehicle)
+  const updateVehicle = useStore((s) => s.updateVehicle)
   const addPosition = useStore((s) => s.addPosition)
   const updatePosition = useStore((s) => s.updatePosition)
   const deletePosition = useStore((s) => s.deletePosition)
@@ -107,6 +108,7 @@ export default function Positions() {
 
   // Sort positions by order for display
   const sortedPositions = [...positions].sort((a, b) => a.order - b.order)
+  const [searchQuery, setSearchQuery] = useState('')
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -142,6 +144,13 @@ export default function Positions() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
 
   // Vehicle drag handlers (native HTML5 drag)
+  const [yardDialogOpen, setYardDialogOpen] = useState(false)
+  const [yardDragVehicleId, setYardDragVehicleId] = useState<string | null>(null)
+  const [yardPositionTarget, setYardPositionTarget] = useState<string | null>(null)
+  const [selectedYardPos, setSelectedYardPos] = useState('')
+
+  const YARD_POSITIONS = ['A15', 'C14', 'Hwamul 5', 'Hwamul 6', 'Hwamul 7', 'Hwamul 8', 'Hwamul 9', 'Hwamul 10']
+
   function handleVehicleDragStart(e: React.DragEvent, vehicleId: string) {
     setDragId(vehicleId)
     e.dataTransfer.effectAllowed = 'move'
@@ -161,11 +170,31 @@ export default function Positions() {
   function handleVehicleDrop(e: React.DragEvent, positionId: string) {
     e.preventDefault()
     setDragOverId(null)
-    
+
     if (dragId) {
+      const pos = positions.find((p) => p.id === positionId)
+      if (pos?.name === 'Trong bãi lớn') {
+        setYardDragVehicleId(dragId)
+        setYardPositionTarget(positionId)
+        setSelectedYardPos('')
+        setYardDialogOpen(true)
+        setDragId(null)
+        return
+      }
       moveVehicle(dragId, positionId)
       setDragId(null)
     }
+  }
+
+  function confirmYardPosition() {
+    if (yardDragVehicleId && yardPositionTarget && selectedYardPos) {
+      updateVehicle(yardDragVehicleId, { yardPosition: selectedYardPos })
+      moveVehicle(yardDragVehicleId, yardPositionTarget)
+    }
+    setYardDialogOpen(false)
+    setYardDragVehicleId(null)
+    setYardPositionTarget(null)
+    setSelectedYardPos('')
   }
 
   function handleVehicleDragEnd() {
@@ -251,13 +280,26 @@ export default function Positions() {
 
   return (
     <div className="flex h-[calc(100dvh-120px)] flex-col">
-      {/* Header */}
-      <div className="mb-4 flex shrink-0 items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Vị trí xe</h1>
-          <p className="mt-1 text-sm text-slate-500">Kéo thả xe giữa các công đoạn — cập nhật tự động</p>
+      {/* Page title */}
+      <div className="mb-3 shrink-0">
+        <h1 className="text-2xl font-bold text-slate-900">Vị trí xe</h1>
+        <p className="mt-1 text-sm text-slate-500">Kéo thả xe giữa các công đoạn — cập nhật tự động</p>
+      </div>
+      {/* Search + Actions */}
+      <div className="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative flex-1 max-w-md">
+          <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            className="input h-10 pl-10"
+            placeholder="Tìm biển số hoặc dòng xe..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
         <div className="flex items-center gap-2">
+          <button type="button" title="Đặt lại" onClick={() => setSearchQuery('')} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition-colors hover:border-slate-300 hover:bg-slate-50">
+            <RotateCcw size={16} />
+          </button>
           <button className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:border-slate-300 hover:text-slate-700" onClick={() => setHistoryOpen(true)} title="Hoạt động gần đây">
             <Clock size={18} />
           </button>
@@ -270,7 +312,11 @@ export default function Positions() {
       {/* Kanban Board — ~85% viewport, full height */}
       <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto pb-3">
         {sortedPositions.map((p) => {
-          const posVehicles = vehicles.filter((v) => v.positionId === p.id && v.status !== 'sold')
+          const q = searchQuery.trim().toLowerCase()
+          const posVehicles = vehicles
+            .filter((v) => v.positionId === p.id && v.status !== 'sold')
+            .filter((v) => !q || v.plate.toLowerCase().includes(q) || v.model.toLowerCase().includes(q))
+            .sort((a, b) => a.plate.localeCompare(b.plate))
           const isDragOver = dragOverId === p.id
 
           return (
@@ -335,6 +381,11 @@ export default function Positions() {
                       <span className="truncate text-sm font-semibold text-slate-800">
                         {v.plate} <span className="font-normal text-slate-400">- {v.model}</span>
                       </span>
+                      {v.yardPosition && (
+                        <span className="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                          📍 {v.yardPosition}
+                        </span>
+                      )}
                     </Link>
                   )
                 })}
@@ -522,6 +573,30 @@ export default function Positions() {
           onCancel={() => setShowDeleteConfirm(null)}
         />
       )}
+
+      {/* Yard position dialog */}
+      <Modal
+        open={yardDialogOpen}
+        onClose={() => setYardDialogOpen(false)}
+        title="Chọn vị trí trong bãi lớn"
+      >
+        <div className="space-y-4">
+          <select
+            className="input w-full"
+            value={selectedYardPos}
+            onChange={(e) => setSelectedYardPos(e.target.value)}
+          >
+            <option value="">-- Chọn vị trí --</option>
+            {YARD_POSITIONS.map((pos) => (
+              <option key={pos} value={pos}>{pos}</option>
+            ))}
+          </select>
+          <div className="flex justify-end gap-3">
+            <button className="btn-secondary" onClick={() => setYardDialogOpen(false)}>Huỷ</button>
+            <button className="btn-primary" onClick={confirmYardPosition} disabled={!selectedYardPos}>Xác nhận</button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

@@ -36,6 +36,7 @@ export async function createTask(task: Omit<Task, 'id' | 'createdAt'>): Promise<
       due_date: task.dueDate || null,
       due_time: task.dueTime || null,
       rule_id: task.ruleId || null,
+      source: task.source || null,
     })
     .select()
     .single()
@@ -185,6 +186,8 @@ function mapRow(row: Record<string, unknown>): Task {
     vehicleId: (row.vehicle_id as string) || undefined,
     dueDate: (row.due_date as string) || undefined,
     dueTime: (row.due_time as string) || undefined,
+    ruleId: (row.rule_id as string) || undefined,
+    source: (row.source as Task['source']) || undefined,
     createdAt: row.created_at as string,
   }
 }

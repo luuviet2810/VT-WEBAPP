@@ -7,6 +7,8 @@ import { useStore } from '../store/useStore'
 import { useIsAdminMode } from '../hooks/useAuthRole'
 import { FuelType, VehicleStatus } from '../types'
 
+export const DISPLACEMENT_OPTIONS = ['1.0L', '1.4L', '1.6L', '1.8L', '2.0L', '2.2L', '2.4L', '3.0L', '3.3L']
+
 // Download all images as individual files
 async function downloadAllImages(
   images: string[],
@@ -124,7 +126,7 @@ export default function VehicleFormModal({
           model: v.model,
           year: v.year?.toString() ?? '',
           fuelType: v.fuelType ?? '',
-          displacement: v.displacement ?? '',
+          displacement: v.displacement ? (v.displacement.includes('L') ? v.displacement : `${v.displacement}L`) : '',
           mileage: v.mileage ?? '',
           color: v.color ?? '',
           costPrice: v.costPrice?.toString() ?? '',
@@ -146,7 +148,7 @@ export default function VehicleFormModal({
       model: form.model.trim(),
       year: form.year ? Number(form.year) : undefined,
       fuelType: (form.fuelType as FuelType) || undefined,
-      displacement: form.displacement || undefined,
+      displacement: form.displacement.replace(/L$/, '') || undefined,
       mileage: form.mileage || undefined,
       color: form.color || undefined,
       costPrice: form.costPrice ? Number(form.costPrice) : undefined,
@@ -205,7 +207,7 @@ export default function VehicleFormModal({
                 <label className="label">Dung tích (L)</label>
                 <select className="input" value={form.displacement} onChange={(e) => set('displacement', e.target.value)}>
                   <option value="">Chọn...</option>
-                  {['1.0L', '1.4L', '1.6L', '2.0L', '2.5L', '3.0L'].map((d) => (
+                  {DISPLACEMENT_OPTIONS.map((d) => (
                     <option key={d} value={d}>
                       {d}
                     </option>

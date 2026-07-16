@@ -1,5 +1,6 @@
 import { useState, memo } from 'react'
 import { Pencil, Trash2, Check, X } from 'lucide-react'
+import { Badge } from '../ui'
 import type { Task } from '../../types'
 
 type Props = {
@@ -62,7 +63,10 @@ const TaskRow = memo(function TaskRow({ task, onToggleChecklist, onUpdateTask, o
             </button>
           </div>
         ) : (
-          <div className="text-sm font-medium text-slate-800">{task.title}</div>
+          <><div className="text-sm font-medium text-slate-800">{task.title}</div>
+          <div className="mt-1">
+            <Badge tone={task.ruleId ? 'blue' : 'slate'}>{task.ruleId ? '🤖 Auto' : '✍️ Manual'}</Badge>
+          </div></>
         )}
         <div className="mt-1.5 space-y-1">
           {(task.checklist || []).map((item) => (

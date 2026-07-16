@@ -19,6 +19,9 @@ export interface Vehicle {
   documents: string[]
   createdAt: string
   updatedAt: string
+  soldDate?: string
+  yardPosition?: string
+  imagesDeletedAt?: string
 }
 
 export interface Position {
@@ -62,6 +65,7 @@ export interface TimelineItem {
 
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent'
 export type TaskStatus = 'todo' | 'doing' | 'done'
+export type TaskSource = 'rule_engine' | 'manual'
 
 export interface TaskChecklistItem {
   id: string
@@ -89,6 +93,7 @@ export interface Task {
   dueDate?: string | null
   dueTime?: string | null
   ruleId?: string | null
+  source?: TaskSource
   createdAt: string
 }
 

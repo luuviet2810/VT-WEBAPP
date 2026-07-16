@@ -3,7 +3,7 @@ import { Plus, X, Trash2, GripVertical, Calendar, User } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import { useTaskPermissions } from '../rbac/usePermissions'
 import { Badge } from '../components/ui'
-import type { Task, TaskChecklistItem, TaskPriority, TaskStatus } from '../types'
+import type { Task, TaskPriority, TaskStatus } from '../types'
 import { uid } from '../utils/format'
 
 type WorkSection = 'todo' | 'doing' | 'done'
@@ -19,8 +19,6 @@ const PRIORITY_TONE: Record<TaskPriority, 'slate' | 'blue' | 'orange' | 'red'> =
 
 // ====== TASK CARD ======
 function TaskCard({ task, vehiclePlate, onEdit, onDragStart }: { task: Task; vehiclePlate: string; onEdit: () => void; onDragStart: (e: React.DragEvent) => void }) {
-  const checklistTotal = task.checklist?.length ?? 0
-  const checklistDone = task.checklist?.filter((i) => i.done).length ?? 0
   const isOverdue = task.dueDate && task.dueDate < new Date().toISOString().slice(0, 10) && task.status !== 'done'
 
   return (
@@ -39,25 +37,16 @@ function TaskCard({ task, vehiclePlate, onEdit, onDragStart }: { task: Task; veh
             <Badge tone={PRIORITY_TONE[task.priority]}>{PRIORITY_LABEL[task.priority]}</Badge>
           </div>
 
-          {/* Vehicle plate */}
-          <div className="mt-1 text-xs font-medium text-slate-400">{vehiclePlate || 'Không có xe'}</div>
+          {/* Source badge + Vehicle plate */}
+          <div className="mt-1 flex items-center gap-2">
+            <span className="text-xs font-medium text-slate-400">{vehiclePlate || 'Không có xe'}</span>
+            <Badge tone={task.ruleId ? 'blue' : 'slate'}>{task.ruleId ? '🤖 Auto' : '✍️ Manual'}</Badge>
+          </div>
 
           {/* Meta */}
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-400">
             {isOverdue && <span className="flex items-center gap-1 font-medium text-red-500"><Calendar size={12} /> Quá hạn</span>}
-            {checklistTotal > 0 && (
-              <span className="flex items-center gap-1">
-                {checklistDone}/{checklistTotal} bước
-              </span>
-            )}
           </div>
-
-          {/* Progress bar */}
-          {checklistTotal > 0 && (
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full" style={{ background: 'rgba(0,0,0,0.06)' }}>
-              <div className="h-full rounded-full bg-brand-500 transition-all" style={{ width: `${Math.round((checklistDone / checklistTotal) * 100)}%` }} />
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -72,7 +61,6 @@ function TaskEditDrawer({ task, vehicles, employees, onClose, onUpdate, onDelete
   const [priority, setPriority] = useState<TaskPriority>(task.priority)
   const [status, setStatus] = useState<TaskStatus>(task.status)
   const [assigneeId, setAssigneeId] = useState(task.assigneeId ?? '')
-  const [checklist, setChecklist] = useState<TaskChecklistItem[]>(task.checklist ?? [])
   const [dueDate, setDueDate] = useState(task.dueDate ?? '')
   const [dueTime, setDueTime] = useState(task.dueTime ?? '')
   const [saving, setSaving] = useState(false)
@@ -91,7 +79,6 @@ function TaskEditDrawer({ task, vehicles, employees, onClose, onUpdate, onDelete
       title: title.trim(), priority, status,
       assigneeId: assigneeId || null,
       dueDate: dueDate || null, dueTime: dueTime || null,
-      checklist: checklist.filter((i) => i.text.trim()),
     })
     setSaving(false)
     onClose()
@@ -115,6 +102,12 @@ function TaskEditDrawer({ task, vehicles, employees, onClose, onUpdate, onDelete
             <div className="rounded-2xl px-4 py-3" style={{ background: 'rgba(0,0,0,0.02)' }}>
               <div className="text-xs font-medium text-slate-400">Xe</div>
               <div className="mt-0.5 text-sm font-semibold text-slate-700">{vehicle ? `${vehicle.plate} ${vehicle.model}` : 'Không có xe'}</div>
+            </div>
+
+            {/* Source badge */}
+            <div className="flex items-center gap-2">
+              <Badge tone={task.ruleId ? 'blue' : 'slate'}>{task.ruleId ? '🤖 Auto' : '✍️ Manual'}</Badge>
+              <span className="text-xs text-slate-400">{task.ruleId ? 'Tự động tạo từ biên bản kiểm tra' : 'Được tạo thủ công'}</span>
             </div>
 
             {/* Title */}
@@ -146,24 +139,6 @@ function TaskEditDrawer({ task, vehicles, employees, onClose, onUpdate, onDelete
                 <option value="">Không phân công</option>
                 {employees.map((e) => (<option key={e.id} value={e.id}>{e.name}</option>))}
               </select>
-            </div>
-
-            {/* Checklist */}
-            <div>
-              <label className="label">Các bước kiểm tra</label>
-              <div className="space-y-2">
-                {checklist.map((item, idx) => (
-                  <div key={item.id} className="flex gap-2">
-                    <input type="checkbox" checked={item.done} onChange={() => setChecklist((rows) => rows.map((r, i) => (i === idx ? { ...r, done: !r.done } : r)))}
-                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-brand-600" />
-                    <input className="input flex-1" placeholder="Bước kiểm tra" value={item.text}
-                      onChange={(e) => setChecklist((rows) => rows.map((r, i) => (i === idx ? { ...r, text: e.target.value } : r)))} />
-                    <button type="button" className="btn-icon shrink-0" onClick={() => setChecklist((rows) => rows.filter((_, i) => i !== idx))}><Trash2 size={15} /></button>
-                  </div>
-                ))}
-              </div>
-              <button type="button" className="mt-2 flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
-                onClick={() => setChecklist((rows) => [...rows, { id: uid('chk'), text: '', done: false }])}><Plus size={14} /> Thêm bước</button>
             </div>
 
             {/* Due Date / Time */}
@@ -204,7 +179,6 @@ export default function Tasks() {
   const [newPriority, setNewPriority] = useState<TaskPriority>('medium')
   const [newStatus, setNewStatus] = useState<TaskStatus>('todo')
   const [newVehicleId, setNewVehicleId] = useState('')
-  const [newChecklist, setNewChecklist] = useState<TaskChecklistItem[]>([{ id: uid('chk'), text: '', done: false }])
   const [newDueDate, setNewDueDate] = useState('')
   const [newDueTime, setNewDueTime] = useState('')
 
@@ -248,15 +222,13 @@ export default function Tasks() {
   }
 
   function resetAddForm() {
-    setNewTitle(''); setNewChecklist([{ id: uid('chk'), text: '', done: false }])
-    setNewPriority('medium'); setNewStatus('todo'); setNewVehicleId('')
+    setNewTitle(''); setNewPriority('medium'); setNewStatus('todo'); setNewVehicleId('')
     setNewDueDate(''); setNewDueTime('')
   }
 
   function handleAddTask() {
     if (!newTitle.trim()) return
-    const checklist = newChecklist.map((i) => ({ ...i, text: i.text.trim() })).filter((i) => i.text)
-    addTask({ id: uid('task'), title: newTitle.trim(), checklist, priority: newPriority, status: newStatus, vehicleId: newVehicleId || null, assigneeId: null, dueDate: newDueDate || null, dueTime: newDueTime || null, createdAt: new Date().toISOString() })
+    addTask({ id: uid('task'), title: newTitle.trim(), priority: newPriority, status: newStatus, vehicleId: newVehicleId || null, assigneeId: null, dueDate: newDueDate || null, dueTime: newDueTime || null, createdAt: new Date().toISOString() })
     setShowAddDrawer(false); resetAddForm()
   }
 
@@ -337,19 +309,6 @@ export default function Tasks() {
                   <option value="">Không có xe</option>
                   {[...vehicles].sort((a, b) => a.plate.localeCompare(b.plate)).map((v) => (<option key={v.id} value={v.id}>{v.plate} - {v.model}</option>))}
                 </select></div>
-                <div>
-                  <label className="label">Các bước kiểm tra</label>
-                  <div className="space-y-2">
-                    {newChecklist.map((item, idx) => (
-                      <div key={item.id} className="flex gap-2">
-                        <input className="input flex-1" placeholder="Bước kiểm tra" value={item.text} onChange={(e) => setNewChecklist((rows) => rows.map((r, i) => (i === idx ? { ...r, text: e.target.value } : r)))} />
-                        <button type="button" className="btn-icon shrink-0" onClick={() => setNewChecklist((rows) => (rows.length === 1 ? rows : rows.filter((_, i) => i !== idx)))}><Trash2 size={15} /></button>
-                      </div>
-                    ))}
-                  </div>
-                  <button type="button" className="mt-2 flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
-                    onClick={() => setNewChecklist((rows) => [...rows, { id: uid('chk'), text: '', done: false }])}><Plus size={14} /> Thêm bước</button>
-                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div><label className="label">Ngày hạn</label><input type="date" className="input w-full" value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)} /></div>
                   <div><label className="label">Giờ hạn</label><input type="time" className="input w-full" value={newDueTime} onChange={(e) => setNewDueTime(e.target.value)} /></div>

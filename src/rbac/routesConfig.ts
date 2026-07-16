@@ -108,6 +108,15 @@ const PROTECTED_ROUTES: RouteConfig[] = [
     requiredPermissions: ['attendance:read'],
   },
 
+  {
+    path: '/xe-da-ban',
+    label: 'Xe đã bán',
+    component: 'SoldVehicles',
+    layout: 'main',
+    allowedRoles: ['admin'],
+    requiredPermissions: ['pricelist:read'],
+  },
+
   // Employee management routes (Admin only)
   { 
     path: '/nhan-vien', 

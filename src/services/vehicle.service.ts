@@ -26,6 +26,9 @@ function mapVehicleRow(v: VehicleRow, images: string[] = [], documents: string[]
     documents,
     createdAt: v.created_at as string,
     updatedAt: v.updated_at as string,
+    soldDate: v.sold_date as string | undefined,
+    yardPosition: v.yard_position as string | undefined,
+    imagesDeletedAt: v.images_deleted_at as string | undefined,
   }
 }
 
@@ -133,6 +136,8 @@ export async function createVehicle(vehicle: Omit<Vehicle, 'id' | 'createdAt' | 
     position_id: vehicle.positionId,
     assignee_id: vehicle.assigneeId,
     note: vehicle.note,
+    sold_date: vehicle.soldDate,
+    yard_position: vehicle.yardPosition,
   }
   const result = await supabase
     .from('vehicles')
@@ -165,6 +170,9 @@ export async function updateVehicle(id: string, patch: Partial<Vehicle>): Promis
   if (patch.positionId !== undefined) updateData.position_id = patch.positionId
   if (patch.assigneeId !== undefined) updateData.assignee_id = patch.assigneeId
   if (patch.note !== undefined) updateData.note = patch.note
+  if (patch.soldDate !== undefined) updateData.sold_date = patch.soldDate
+  if (patch.yardPosition !== undefined) updateData.yard_position = patch.yardPosition
+  if (patch.imagesDeletedAt !== undefined) updateData.images_deleted_at = patch.imagesDeletedAt
   // NOTE: images and documents are NOT columns in vehicles table
 
   updateData.updated_at = new Date().toISOString()

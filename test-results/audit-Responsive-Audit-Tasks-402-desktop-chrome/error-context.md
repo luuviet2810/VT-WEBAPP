@@ -35,7 +35,7 @@ Call log:
       - element is outside of the viewport
     - retrying click action
       - waiting 100ms
-    49 × waiting for element to be visible, enabled and stable
+    48 × waiting for element to be visible, enabled and stable
        - element is visible, enabled and stable
        - scrolling into view if needed
        - done scrolling
@@ -119,32 +119,24 @@ Call log:
           - generic [ref=e92]:
             - generic [ref=e93]:
               - generic [ref=e94]: 🚗 Chưa làm
-              - generic [ref=e95]: "2"
-            - generic [ref=e96]:
-              - generic [ref=e99] [cursor=pointer]:
-                - img [ref=e101]
-                - generic [ref=e108]:
-                  - generic [ref=e109]:
-                    - generic [ref=e110]: Kiểm tra điều hòa
-                    - generic [ref=e111]: Cứ từ từ
-                  - generic [ref=e112]: "0302"
-              - generic [ref=e115] [cursor=pointer]:
-                - img [ref=e117]
-                - generic [ref=e124]:
-                  - generic [ref=e125]:
-                    - generic [ref=e126]: Đổ ga điều hòa
-                    - generic [ref=e127]: Cứ từ từ
-                  - generic [ref=e128]: "0302"
-          - generic [ref=e129]:
-            - generic [ref=e130]:
-              - generic [ref=e131]: 🟡 Đang làm
-              - generic [ref=e132]: "0"
-            - generic [ref=e134]: Kéo task vào đây
-          - generic [ref=e135]:
-            - generic [ref=e136]:
-              - generic [ref=e137]: ✅ Đã hoàn thành
-              - generic [ref=e138]: "0"
-            - generic [ref=e140]: Kéo task vào đây
+              - generic [ref=e95]: "1"
+            - generic [ref=e99] [cursor=pointer]:
+              - img [ref=e101]
+              - generic [ref=e108]:
+                - generic [ref=e109]:
+                  - generic [ref=e110]: Đổ ga điều hòa
+                  - generic [ref=e111]: Cứ từ từ
+                - generic [ref=e112]: "0302"
+          - generic [ref=e113]:
+            - generic [ref=e114]:
+              - generic [ref=e115]: 🟡 Đang làm
+              - generic [ref=e116]: "0"
+            - generic [ref=e118]: Kéo task vào đây
+          - generic [ref=e119]:
+            - generic [ref=e120]:
+              - generic [ref=e121]: ✅ Đã hoàn thành
+              - generic [ref=e122]: "0"
+            - generic [ref=e124]: Kéo task vào đây
 ```
 
 # Test source

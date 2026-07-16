@@ -58,6 +58,7 @@ export default function VehicleList() {
     const q = filters.query.trim().toLowerCase()
     return vehicles
       .filter((v) => {
+        if (v.status === 'sold') return false
         const matchesQuery = !q || v.plate.toLowerCase().includes(q) || v.model.toLowerCase().includes(q)
         const matchesPosition = filters.positionId === 'all' || v.positionId === filters.positionId
         const matchesStatus = filters.status === 'all' || v.status === filters.status
@@ -78,8 +79,9 @@ export default function VehicleList() {
   // Get latest check sheets for a vehicle
   const getLatestCheckSheets = (vehicleId: string) => {
     const vehicleSheets = checkSheets.filter((c) => c.vehicleId === vehicleId)
-    const latestIn = vehicleSheets.filter((c) => c.type === 'in').sort((a, b) => (a.checkDate < b.checkDate ? 1 : -1))[0]
-    const latestOut = vehicleSheets.filter((c) => c.type === 'out').sort((a, b) => (a.checkDate < b.checkDate ? 1 : -1))[0]
+    const byCreatedAt = (a: typeof checkSheets[0], b: typeof checkSheets[0]) => (a.createdAt < b.createdAt ? 1 : -1)
+    const latestIn = vehicleSheets.filter((c) => c.type === 'in').sort(byCreatedAt)[0]
+    const latestOut = vehicleSheets.filter((c) => c.type === 'out').sort(byCreatedAt)[0]
     return { latestIn, latestOut }
   }
 
@@ -117,10 +119,11 @@ export default function VehicleList() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900">Danh sách xe</h1>
         <p className="mt-1 text-sm text-slate-500">
-          {vehicles.length} xe trong hệ thống — thêm xe mới tại{' '}
+          {filtered.length} xe
+          <span className="ml-2 text-slate-400">— thêm xe mới tại{' '}
           <Link to="/bang-gia" className="text-brand-600 hover:underline">
             Bảng giá
-          </Link>
+          </Link></span>
         </p>
       </div>
 
@@ -327,6 +330,7 @@ function CheckSheetPreview({ sheet, mode, employees, vehicleId }: { sheet: Check
           { label: 'Ắc quy SOC', status: sheet.acquySOC != null ? String(sheet.acquySOC) : null },
           { label: 'Chìa khóa', status: sheet.outKeyType },
           { label: 'Số lượng chìa', status: sheet.outSmartkeyStatus },
+          { label: 'Song nưng', status: sheet.songNungResultStatus },
         ]
       })()
 
