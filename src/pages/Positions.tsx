@@ -21,6 +21,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useStore } from '../store/useStore'
+import { useYardPositionDialog } from '../hooks/useYardPositionDialog'
 import { EmptyState, Modal, ConfirmDialog } from '../components/ui'
 import { Position } from '../types'
 
@@ -144,12 +145,7 @@ export default function Positions() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
 
   // Vehicle drag handlers (native HTML5 drag)
-  const [yardDialogOpen, setYardDialogOpen] = useState(false)
-  const [yardDragVehicleId, setYardDragVehicleId] = useState<string | null>(null)
-  const [yardPositionTarget, setYardPositionTarget] = useState<string | null>(null)
-  const [selectedYardPos, setSelectedYardPos] = useState('')
-
-  const YARD_POSITIONS = ['A15', 'C14', 'Hwamul 5', 'Hwamul 6', 'Hwamul 7', 'Hwamul 8', 'Hwamul 9', 'Hwamul 10']
+  const yardDialog = useYardPositionDialog()
 
   function handleVehicleDragStart(e: React.DragEvent, vehicleId: string) {
     setDragId(vehicleId)
@@ -174,27 +170,13 @@ export default function Positions() {
     if (dragId) {
       const pos = positions.find((p) => p.id === positionId)
       if (pos?.name === 'Trong bãi lớn') {
-        setYardDragVehicleId(dragId)
-        setYardPositionTarget(positionId)
-        setSelectedYardPos('')
-        setYardDialogOpen(true)
+        yardDialog.request(dragId, positionId)
         setDragId(null)
         return
       }
       moveVehicle(dragId, positionId)
       setDragId(null)
     }
-  }
-
-  function confirmYardPosition() {
-    if (yardDragVehicleId && yardPositionTarget && selectedYardPos) {
-      updateVehicle(yardDragVehicleId, { yardPosition: selectedYardPos })
-      moveVehicle(yardDragVehicleId, yardPositionTarget)
-    }
-    setYardDialogOpen(false)
-    setYardDragVehicleId(null)
-    setYardPositionTarget(null)
-    setSelectedYardPos('')
   }
 
   function handleVehicleDragEnd() {
@@ -575,28 +557,7 @@ export default function Positions() {
       )}
 
       {/* Yard position dialog */}
-      <Modal
-        open={yardDialogOpen}
-        onClose={() => setYardDialogOpen(false)}
-        title="Chọn vị trí trong bãi lớn"
-      >
-        <div className="space-y-4">
-          <select
-            className="input w-full"
-            value={selectedYardPos}
-            onChange={(e) => setSelectedYardPos(e.target.value)}
-          >
-            <option value="">-- Chọn vị trí --</option>
-            {YARD_POSITIONS.map((pos) => (
-              <option key={pos} value={pos}>{pos}</option>
-            ))}
-          </select>
-          <div className="flex justify-end gap-3">
-            <button className="btn-secondary" onClick={() => setYardDialogOpen(false)}>Huỷ</button>
-            <button className="btn-primary" onClick={confirmYardPosition} disabled={!selectedYardPos}>Xác nhận</button>
-          </div>
-        </div>
-      </Modal>
+      {yardDialog.dialog}
     </div>
   )
 }

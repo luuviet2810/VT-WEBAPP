@@ -2,6 +2,7 @@ import { useMemo, useEffect, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Clock, FileImage, Info, ListChecks, Trash2 } from 'lucide-react'
 import { useStore } from '../store/useStore'
+import { useYardPositionDialog } from '../hooks/useYardPositionDialog'
 import { Badge, EmptyState, Modal, Tabs, ConfirmDialog } from '../components/ui'
 import PhotoUploader from '../components/PhotoUploader'
 import VehicleGallery from '../components/VehicleGallery'
@@ -51,6 +52,7 @@ export default function VehicleDetail() {
   const canChangePrice = useCanChangePrice()
   const vehiclePerms = useVehiclePermissions()
   const checksheetPerms = useChecksheetPermissions()
+  const yardDialog = useYardPositionDialog()
 
   const [tab, setTab] = useState('info')
   const [checkModal, setCheckModal] = useState<'in' | 'out' | null>(null)
@@ -135,7 +137,19 @@ export default function VehicleDetail() {
             <select
               className="input mt-2"
               value={currentVehicle.positionId || ''}
-              onChange={(e) => moveVehicle(currentVehicle.id, e.target.value)}
+              onChange={(e) => {
+                const newPosId = e.target.value
+                if (!newPosId) return
+                const selectedPos = positions.find((p) => p.id === newPosId)
+                if (selectedPos?.name === 'Trong bãi lớn') {
+                  yardDialog.request(currentVehicle.id, newPosId, () => {
+                    // Reset dropdown when user cancels
+                    // (dropdown will re-render with original positionId)
+                  })
+                } else {
+                  moveVehicle(currentVehicle.id, newPosId)
+                }
+              }}
             >
               <option value="">— Chưa phân bổ —</option>
               {positions.map((p) => (
@@ -428,6 +442,9 @@ export default function VehicleDetail() {
         onConfirm={confirmDelete}
         onCancel={() => setShowDeleteConfirm(false)}
       />
+
+      {/* Yard position dialog — shared workflow with Positions page */}
+      {yardDialog.dialog}
     </div>
   )
 }

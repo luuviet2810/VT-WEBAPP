@@ -276,7 +276,7 @@ export default function App() {
       <Route
         path="/bang-gia"
         element={
-          <RoleGuard allowedRoles={['admin']}>
+          <RoleGuard allowedRoles={['admin', 'staff']}>
             <MainLayout>
               <PriceList />
             </MainLayout>

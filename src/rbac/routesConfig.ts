@@ -127,13 +127,13 @@ const PROTECTED_ROUTES: RouteConfig[] = [
     requiredPermissions: ['user:read'],
   },
 
-  // Price list routes (Admin only)
-  { 
-    path: '/bang-gia', 
-    label: 'Bảng giá', 
-    component: 'PriceList', 
+  // Price list routes
+  {
+    path: '/bang-gia',
+    label: 'Bảng giá',
+    component: 'PriceList',
     layout: 'main',
-    allowedRoles: ['admin'],
+    allowedRoles: ['admin', 'staff'],
     requiredPermissions: ['pricelist:read'],
   },
 
