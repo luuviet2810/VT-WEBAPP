@@ -143,14 +143,20 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   staff: [
     // Vehicle - read only (can view assigned vehicles)
     'vehicle:read',
+    'vehicle:move',
+    'vehicle:upload_photo',
+    'vehicle:upload_document',
+    'vehicle:delete_photo',
+    'vehicle:delete_document',
 
     // Task - read and update own tasks
     'task:read',
     'task:update',
 
-    // CheckSheet - create for assigned vehicles
+    // CheckSheet - full access for daily work
     'checksheet:create',
     'checksheet:read',
+    'checksheet:update',
 
     // User - read own profile
     'user:read',
