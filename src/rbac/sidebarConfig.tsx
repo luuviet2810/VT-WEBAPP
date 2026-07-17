@@ -41,7 +41,7 @@ export const SIDEBAR_CONFIG: Record<UserRole, SidebarConfig> = {
       { key: 'vehicles', label: 'Danh sách xe', icon: <Car size={18} />, path: '/xe' },
       { key: 'pricelist', label: 'Bảng giá', icon: <DollarSign size={18} />, path: '/bang-gia' },
       { key: 'positions', label: 'Vị trí xe', icon: <MapPin size={18} />, path: '/vi-tri' },
-      { key: 'mytasks', label: 'Việc của tôi', icon: <ClipboardList size={18} />, path: '/viec-cua-toi' },
+      { key: 'tasks', label: 'Nhiệm vụ', icon: <CheckSquare size={18} />, path: '/nhiem-vu' },
       { key: 'attendance', label: 'Chấm công', icon: <Clock size={18} />, path: '/cham-cong' },
     ],
     bottom: [

@@ -149,8 +149,9 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'vehicle:delete_photo',
     'vehicle:delete_document',
 
-    // Task - read and update own tasks
+    // Task - full access for daily work
     'task:read',
+    'task:create',
     'task:update',
 
     // CheckSheet - full access for daily work

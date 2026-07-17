@@ -31,12 +31,21 @@ export default function LoginPage() {
     setError('')
     setIsLoading(true)
 
-    const result = await login(email, password)
+    try {
+      const result = await login(email, password)
 
-    if (result.success) {
-      navigate('/', { replace: true })
-    } else {
-      setError(result.error || 'Đăng nhập thất bại')
+      if (result.success) {
+        navigate('/', { replace: true })
+      } else {
+        setError(result.error || 'Đăng nhập thất bại')
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (msg.includes('fetch') || msg.includes('network') || msg.includes('Network')) {
+        setError('Lỗi kết nối. Vui lòng kiểm tra mạng và thử lại.')
+      } else {
+        setError('Đã xảy ra lỗi. Vui lòng thử lại.')
+      }
     }
 
     setIsLoading(false)

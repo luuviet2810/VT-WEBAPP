@@ -200,7 +200,7 @@ export default function App() {
       <Route
         path="/nhiem-vu"
         element={
-          <RoleGuard allowedRoles={['admin']}>
+          <RoleGuard allowedRoles={['admin', 'staff']}>
             <MainLayout>
               <Tasks />
             </MainLayout>
@@ -210,7 +210,7 @@ export default function App() {
       <Route
         path="/nhiem-vu/:id"
         element={
-          <RoleGuard allowedRoles={['admin']}>
+          <RoleGuard allowedRoles={['admin', 'staff']}>
             <MainLayout>
               <TaskDetail />
             </MainLayout>

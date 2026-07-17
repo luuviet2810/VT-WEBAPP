@@ -53,26 +53,26 @@ const PROTECTED_ROUTES: RouteConfig[] = [
   },
 
   // Task routes
-  { 
-    path: '/nhiem-vu', 
-    label: 'Nhiệm vụ', 
-    component: 'Tasks', 
+  {
+    path: '/nhiem-vu',
+    label: 'Nhiệm vụ',
+    component: 'Tasks',
     layout: 'main',
-    allowedRoles: ['admin'],
+    allowedRoles: ['admin', 'staff'],
     requiredPermissions: ['task:read'],
   },
-  { 
-    path: '/nhiem-vu/:id', 
-    label: 'Chi tiết nhiệm vụ', 
-    component: 'TaskDetail', 
+  {
+    path: '/nhiem-vu/:id',
+    label: 'Chi tiết nhiệm vụ',
+    component: 'TaskDetail',
     layout: 'main',
-    allowedRoles: ['admin'],
+    allowedRoles: ['admin', 'staff'],
     requiredPermissions: ['task:read'],
   },
-  { 
-    path: '/viec-cua-toi', 
-    label: 'Việc của tôi', 
-    component: 'MyTasks', 
+  {
+    path: '/viec-cua-toi',
+    label: 'Việc của tôi',
+    component: 'MyTasks',
     layout: 'main',
     allowedRoles: ['staff'],
     requiredPermissions: ['task:read'],

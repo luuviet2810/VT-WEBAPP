@@ -27,35 +27,56 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     if (authInitialized) return
     authInitialized = true
 
+    console.log('[AUDIT] initializeAuth — checking existing session')
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) {
+        console.log('[AUDIT] getSession found session for user', data.session.user.id)
         loadProfileIntoStore(data.session.user.id)
       } else {
+        console.log('[AUDIT] getSession — no session')
         set({ authLoading: false })
       }
     })
 
     unsubscribe = onAuthStateChanged((session) => {
       if (session) {
+        console.log('[AUDIT] onAuthStateChanged SIGNED_IN / TOKEN_REFRESHED — user', session.user.id)
         loadProfileIntoStore(session.user.id)
       } else {
+        console.log('[AUDIT] onAuthStateChanged SIGNED_OUT — clearing auth')
         set({ currentUser: null, isAuthenticated: false, authLoading: false })
       }
     })
   },
 
   login: async (email, password) => {
+    console.log('[AUDIT] login starting for', email)
     const result = await signInWithEmail(email, password)
     if (result.ok) {
+      console.log('[AUDIT] login success for user', result.user.id, 'role', result.user.role)
       set({ currentUser: result.user, isAuthenticated: true, authLoading: false })
       return { success: true }
     }
+    console.log('[AUDIT] login failed:', result.error)
     return { success: false, error: result.error }
   },
 
   logout: async () => {
+    console.log('[AUDIT] logout starting')
     await authSignOut()
+    // Clear ALL application state so no stale data survives
+    useStore.setState({
+      vehicles: [],
+      positions: [],
+      tasks: [],
+      employees: [],
+      moveLogs: [],
+      checkSheets: [],
+      attendance: [],
+      notifications: [],
+    })
     set({ currentUser: null, isAuthenticated: false })
+    console.log('[AUDIT] logout complete — auth + app state cleared')
   },
 }))
 
@@ -67,7 +88,10 @@ async function loadProfileIntoStore(authId: string) {
     .maybeSingle()
 
   if (error || !data) {
-    useAuthStore.setState({ authLoading: false })
+    // Profile not found yet — don't set authLoading:false here.
+    // The login() function will handle this after creating the profile.
+    // Otherwise the UI would see "no user" and redirect to /login prematurely.
+    console.log('[AUDIT] loadProfileIntoStore — profile not found yet for authId', authId)
     return
   }
 
@@ -89,6 +113,7 @@ async function loadProfileIntoStore(authId: string) {
     updatedAt: row.updated_at as string,
   }
 
+  console.log('[AUDIT] loadProfileIntoStore — profile loaded for', profile.name, 'role', profile.role)
   useAuthStore.setState({ currentUser: profile, isAuthenticated: true, authLoading: false })
 
   // Sync the current employee ID to the main store so attendance and other
