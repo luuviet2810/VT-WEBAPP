@@ -55,6 +55,8 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     if (result.ok) {
       console.log('[AUDIT] login success for user', result.user.id, 'role', result.user.role)
       set({ currentUser: result.user, isAuthenticated: true, authLoading: false })
+      // Re-initialize app data for the new user session
+      useStore.getState().loadTemplates()
       return { success: true }
     }
     console.log('[AUDIT] login failed:', result.error)
@@ -64,17 +66,26 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   logout: async () => {
     console.log('[AUDIT] logout starting')
     await authSignOut()
-    // Clear ALL application state so no stale data survives
+    // Reset ALL user-related data in the main store
     useStore.setState({
       vehicles: [],
-      positions: [],
       tasks: [],
       employees: [],
       moveLogs: [],
       checkSheets: [],
       attendance: [],
       notifications: [],
+      taskActivityLogs: [],
+      vehicleTimelines: {},
+      currentEmployeeId: '',
+      isInitialized: false,
+      templates: [],
+      // settings: preserved — these are app-wide preferences
     })
+    // Reset persisted view mode store to default
+    try {
+      localStorage.removeItem('gara-view-mode')
+    } catch {}
     set({ currentUser: null, isAuthenticated: false })
     console.log('[AUDIT] logout complete — auth + app state cleared')
   },
