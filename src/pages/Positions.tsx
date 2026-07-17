@@ -23,7 +23,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { useStore } from '../store/useStore'
 import { useYardPositionDialog } from '../hooks/useYardPositionDialog'
 import { Modal, EmptyState, ConfirmDialog } from '../components/ui'
-import VehicleDetailTabs, { VEHICLE_DETAIL_TABS } from '../components/VehicleDetailTabs'
+import MoveVehicleDialog from '../components/MoveVehicleDialog'
 import { Position } from '../types'
 
 // Sortable position item component
@@ -150,7 +150,6 @@ export default function Positions() {
 
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null)
   const [vehicleTab, setVehicleTab] = useState('info')
-  const selectedVehicle = selectedVehicleId ? vehicles.find((v) => v.id === selectedVehicleId) ?? null : null
 
   function handleVehicleDragStart(e: React.DragEvent, vehicleId: string) {
     setDragId(vehicleId)
@@ -565,11 +564,11 @@ export default function Positions() {
       {yardDialog.dialog}
 
       {/* Vehicle detail modal */}
-      {selectedVehicle && (
-        <Modal open={true} onClose={() => setSelectedVehicleId(null)} title={selectedVehicle.plate} subtitle={selectedVehicle.model}>
-          <VehicleDetailTabs vehicle={selectedVehicle} tab={vehicleTab} onTabChange={setVehicleTab} />
-        </Modal>
-      )}
+      {selectedVehicleId && (() => {
+        const v = vehicles.find((x) => x.id === selectedVehicleId)
+        if (!v) return null
+        return <MoveVehicleDialog open={true} vehicle={v} onClose={() => setSelectedVehicleId(null)} />
+      })()}
     </div>
   )
 }
