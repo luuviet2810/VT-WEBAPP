@@ -127,9 +127,9 @@ export default function VehicleFormModal({
   return (
     <div className={`fixed inset-0 z-50 flex items-center justify-center ${open ? '' : 'hidden'}`}>
       <div className="fixed inset-0 bg-black/40" onClick={handleClose} />
-      <div className="relative z-10 flex max-h-[90vh] w-full max-w-3xl flex-col rounded-xl bg-white p-6 shadow-xl">
+      <div className="relative z-10 flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-white shadow-xl">
         {/* Header */}
-        <div className="mb-1 flex items-center justify-between">
+        <div className="flex shrink-0 items-center justify-between px-6 pt-6 pb-3">
           <div className="flex items-center gap-2">
             <h2 className="text-base font-semibold text-gray-900">{isEditing ? 'Chỉnh sửa xe' : 'Thêm xe mới'}</h2>
             <Badge tone="slate">
@@ -149,7 +149,7 @@ export default function VehicleFormModal({
         ) : (
           /* New vehicle — show create form */
           <>
-            <div className="bg-white pb-3">
+            <div className="shrink-0 px-6 pb-3">
               <div className="flex gap-2 border-b border-slate-100">
                 {VEHICLE_DETAIL_TABS.map((t) => (
                   <button
@@ -166,7 +166,7 @@ export default function VehicleFormModal({
                 ))}
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <label className="label">Biển số (4 số cuối) *</label>
