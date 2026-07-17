@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { ArrowLeft, Loader2 } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { Loader2 } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import { useYardPositionDialog } from '../hooks/useYardPositionDialog'
 import type { Vehicle } from '../types'
@@ -13,23 +13,29 @@ interface Props {
 export default function MoveVehicleDialog({ open, vehicle: v, onClose }: Props) {
   const positions = useStore((s) => s.positions)
   const moveVehicle = useStore((s) => s.moveVehicle)
-  const updateVehicle = useStore((s) => s.updateVehicle)
   const yardDialog = useYardPositionDialog()
 
   const [loadingId, setLoadingId] = useState<string | null>(null)
   const currentPos = positions.find((p) => p.id === v.positionId)
 
+  // Sort: "Trong bãi lớn" always last
+  const sortedPositions = useMemo(() => {
+    const copy = [...positions]
+    const idx = copy.findIndex((p) => p.name === 'Trong bãi lớn')
+    if (idx >= 0) {
+      const [yard] = copy.splice(idx, 1)
+      copy.push(yard)
+    }
+    return copy
+  }, [positions])
+
   async function handleSelect(targetPosId: string) {
     const targetPos = positions.find((p) => p.id === targetPosId)
     if (!targetPos) return
-
-    // If already at this position, do nothing
     if (targetPosId === v.positionId) return
 
     if (targetPos.name === 'Trong bãi lớn') {
-      // Use yard dialog — on confirm it will call moveVehicle + updateVehicle
       yardDialog.request(v.id, targetPosId, () => {})
-      onClose()
       return
     }
 
@@ -42,11 +48,10 @@ export default function MoveVehicleDialog({ open, vehicle: v, onClose }: Props) 
     onClose()
   }
 
-  if (!open) return null
+  // Keep mounted when yard dialog is open so it can render on top
+  if (!open && !yardDialog.open) return null
 
-  const gridCols = positions.length <= 8
-    ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4'
-    : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4'
+  const gridCols = 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4'
 
   return (
     <>
@@ -73,9 +78,34 @@ export default function MoveVehicleDialog({ open, vehicle: v, onClose }: Props) 
 
           {/* Position grid */}
           <div className={`grid ${gridCols} gap-2 max-h-64 overflow-y-auto`}>
-            {positions.map((p) => {
+            {sortedPositions.map((p) => {
               const isActive = p.id === v.positionId
               const isLoading = loadingId === p.id
+              const isYard = p.name === 'Trong bãi lớn'
+
+              if (isYard) {
+                return (
+                  <button
+                    key={p.id}
+                    disabled={isActive || isLoading}
+                    onClick={() => handleSelect(p.id)}
+                    className={`col-span-full flex items-center justify-center gap-2 rounded-xl border-2 px-3 py-3 text-sm font-semibold transition-all duration-150 ${
+                      isActive
+                        ? 'border-emerald-400 bg-emerald-50 text-emerald-700'
+                        : 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-400 active:scale-[0.97]'
+                    } ${isLoading ? 'pointer-events-none opacity-60' : ''}`}
+                  >
+                    {isLoading ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : isActive ? (
+                      <span className="flex items-center gap-1.5">📍 ✓ {p.name}</span>
+                    ) : (
+                      <span className="flex items-center gap-1.5">📍 {p.name} — Chọn vị trí trong bãi</span>
+                    )}
+                  </button>
+                )
+              }
+
               return (
                 <button
                   key={p.id}
@@ -100,13 +130,15 @@ export default function MoveVehicleDialog({ open, vehicle: v, onClose }: Props) 
           </div>
 
           {/* Close */}
-          <button onClick={onClose} className="btn-secondary mt-4 w-full text-sm">
-            Đóng
-          </button>
+          {!yardDialog.open && (
+            <button onClick={onClose} className="btn-secondary mt-4 w-full text-sm">
+              Đóng
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Yard position dialog (internal) */}
+      {/* Yard position dialog (renders on top) */}
       {yardDialog.dialog}
     </>
   )
