@@ -248,10 +248,20 @@ const ruleFuelEmpty: Rule = {
 const ruleSongNungNeeded: Rule = {
   id: 'song_nung_needed',
   title: 'Đi song nưng ngay',
-  description: 'Song nưng chưa được in hoặc còn ở bản nháp, cần in và xác nhận',
+  description: 'Song nưng chưa có kết quả, cần đi kiểm định',
   priority: 'high',
   evaluate(ctx: RuleContext) {
-    return ctx.sheet.songNungResultStatus === 'draft' || ctx.sheet.songNungResultStatus === 'none'
+    return ctx.sheet.songNungResultStatus === 'none'
+  },
+}
+
+const ruleSongNungDraft: Rule = {
+  id: 'song_nung_draft',
+  title: 'Cần in Song nưng Final',
+  description: 'Đã có bản nháp song nưng, cần in bản chính',
+  priority: 'high',
+  evaluate(ctx: RuleContext) {
+    return ctx.sheet.songNungResultStatus === 'draft'
   },
 }
 
@@ -395,6 +405,7 @@ const ALL_RULES: Rule[] = [
   ruleFuelEmpty,
   // Song nưng
   ruleSongNungNeeded,
+  ruleSongNungDraft,
   // Chìa khóa
   ruleSmartkeyDamaged,
   // Đầu ra

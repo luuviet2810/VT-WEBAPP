@@ -137,7 +137,7 @@ export default function VehicleDetailTabs({ vehicle, tab, onTabChange }: Props) 
         <Tabs tabs={VEHICLE_DETAIL_TABS} active={tab} onChange={onTabChange} />
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto min-h-0">
         {tab === 'info' && (
           <div>
             {infoFields}

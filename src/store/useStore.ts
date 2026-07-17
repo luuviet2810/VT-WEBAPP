@@ -510,6 +510,15 @@ export const useStore = create<StoreState>()(
             }))
             try {
               await checksheetService.updateCheckSheet(sheet.id, sheetPatch)
+              // Re-run rule engine so the next task in the chain is generated
+              // (e.g. song_nung_needed Done \u2192 draft \u2192 song_nung_draft triggers)
+              const updatedSheet = get().checkSheets.find((s) => s.id === sheet.id)
+              const vehicleForRules = updatedSheet?.vehicleId
+                ? get().vehicles.find((v) => v.id === updatedSheet.vehicleId)
+                : undefined
+              if (updatedSheet && vehicleForRules) {
+                get().generateTasksFromSheet(updatedSheet, vehicleForRules.plate)
+              }
             } catch (err) {
               console.error('\uD83D\uDD34 [STORE] Failed to auto-sync check sheet:', err)
             }
@@ -638,6 +647,8 @@ export const useStore = create<StoreState>()(
 
       for (const existing of existingTasks) {
         if (!existing.ruleId || !keepRuleIds.has(existing.ruleId)) {
+          // Don't delete completed tasks — keep them visible in Done
+          if (existing.status === 'done') continue
           get().deleteTask(existing.id)
         }
       }

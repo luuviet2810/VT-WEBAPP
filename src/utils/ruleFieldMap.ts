@@ -37,7 +37,8 @@ const RULE_FIELD_MAP: Record<string, SheetMapper> = {
   in_fuel_empty: () => ({ fuelLevel: 'full' }),
 
   // ===== SONG NƯNG RULES =====
-  song_nung_needed: () => ({ songNungResultStatus: 'printed' }),
+  song_nung_needed: () => ({ songNungResultStatus: 'draft' }),
+  song_nung_draft: () => ({ songNungResultStatus: 'printed' }),
 
   // ===== KEY STATUS RULES =====
   in_smartkey_damaged: () => ({ smartkeyStatus: 'two' }),
