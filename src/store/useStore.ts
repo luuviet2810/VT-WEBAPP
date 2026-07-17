@@ -478,6 +478,14 @@ export const useStore = create<StoreState>()(
       const taskBefore = stateBefore.tasks.find((t) => t.id === id)
       const vehicleId = taskBefore?.vehicleId
 
+      // Auto-assign current user when dragging to "Đang làm" if no assignee
+      if (patch.status === 'doing' && taskBefore && !taskBefore.assigneeId) {
+        const empId = get().currentEmployeeId
+        if (empId) {
+          patch = { ...patch, assigneeId: empId }
+        }
+      }
+
       set((s) => ({ tasks: s.tasks.map((t) => (t.id === id ? { ...t, ...patch } : t)) }))
 
       const prevStatus = vehicleId
