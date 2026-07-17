@@ -1,4 +1,5 @@
-import { Clock, Download, FileText, Image as ImageIcon, Info, LogIn, LogOut } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { ArrowLeft, Clock, Download, FileText, Image as ImageIcon, Info, LogIn, LogOut } from 'lucide-react'
 import { EmptyState, Tabs } from '../components/ui'
 import PhotoUploader from '../components/PhotoUploader'
 import CheckSheetForm from '../components/CheckSheetForm'
@@ -52,6 +53,13 @@ export default function VehicleDetailTabs({ vehicle, tab, onTabChange }: Props) 
   const vehicleTimelines = useStore((s) => s.vehicleTimelines)
   const moveLogs = useStore((s) => s.moveLogs)
   const timeline = vehicleTimelines[vehicle.id] || []
+
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024)
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 1024)
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [])
 
   function patch(p: Partial<Vehicle>) {
     updateVehicle(vehicle.id, p)
@@ -159,11 +167,23 @@ export default function VehicleDetailTabs({ vehicle, tab, onTabChange }: Props) 
         )}
 
         {tab === 'checkin' && (
-          <CheckSheetForm vehicle={vehicle} type="in" onCancel={() => onTabChange('info')} onSaved={() => {}} />
+          isMobile ? (
+            <FullscreenSheet title="Đầu vào" vehicle={vehicle} onBack={() => onTabChange('info')}>
+              <CheckSheetForm vehicle={vehicle} type="in" onCancel={() => onTabChange('info')} onSaved={() => onTabChange('info')} />
+            </FullscreenSheet>
+          ) : (
+            <CheckSheetForm vehicle={vehicle} type="in" onCancel={() => onTabChange('info')} onSaved={() => {}} />
+          )
         )}
 
         {tab === 'checkout' && (
-          <CheckSheetForm vehicle={vehicle} type="out" onCancel={() => onTabChange('info')} onSaved={() => {}} />
+          isMobile ? (
+            <FullscreenSheet title="Đầu ra" vehicle={vehicle} onBack={() => onTabChange('info')}>
+              <CheckSheetForm vehicle={vehicle} type="out" onCancel={() => onTabChange('info')} onSaved={() => onTabChange('info')} />
+            </FullscreenSheet>
+          ) : (
+            <CheckSheetForm vehicle={vehicle} type="out" onCancel={() => onTabChange('info')} onSaved={() => {}} />
+          )
         )}
 
         {tab === 'docs' && (
@@ -218,6 +238,31 @@ export default function VehicleDetailTabs({ vehicle, tab, onTabChange }: Props) 
             )}
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+/** Fullscreen sheet for mobile — replaces the inline CheckSheet modal on small screens */
+function FullscreenSheet({ title, vehicle, onBack, children }: { title: string; vehicle: Vehicle; onBack: () => void; children: React.ReactNode }) {
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-white">
+      {/* Header */}
+      <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-4 py-3">
+        <div className="flex items-center gap-3">
+          <button onClick={onBack} className="rounded-lg p-1 text-slate-500 hover:bg-slate-100">
+            <ArrowLeft size={20} />
+          </button>
+          <div>
+            <span className="text-sm font-semibold text-slate-900">{title}</span>
+            <span className="ml-2 text-xs text-slate-400">{vehicle.plate} • {vehicle.model}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Scrollable content */}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {children}
       </div>
     </div>
   )

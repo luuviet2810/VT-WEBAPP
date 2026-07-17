@@ -2,9 +2,9 @@ import { useMemo, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Trash2 } from 'lucide-react'
 import { useStore } from '../store/useStore'
-import { useYardPositionDialog } from '../hooks/useYardPositionDialog'
 import { Badge, EmptyState, ConfirmDialog } from '../components/ui'
 import VehicleDetailTabs, { VEHICLE_DETAIL_TABS } from '../components/VehicleDetailTabs'
+import MoveVehicleDialog from '../components/MoveVehicleDialog'
 import { useCanDeleteVehicle, useVehiclePermissions } from '../rbac/usePermissions'
 import { getVehicleWorkflowStatus, WORKFLOW_STATUS_TONE, WORKFLOW_STATUS_LABEL } from '../utils/vehicleWorkflow'
 
@@ -19,14 +19,13 @@ export default function VehicleDetail() {
   const vehicleTimelines = useStore((s) => s.vehicleTimelines)
   const loadVehicleTimeline = useStore((s) => s.loadVehicleTimeline)
   const updateVehicle = useStore((s) => s.updateVehicle)
-  const moveVehicle = useStore((s) => s.moveVehicle)
   const deleteVehicle = useStore((s) => s.deleteVehicle)
 
   const canDelete = useCanDeleteVehicle()
   const vehiclePerms = useVehiclePermissions()
-  const yardDialog = useYardPositionDialog()
 
   const [tab, setTab] = useState('info')
+  const [moveDialogOpen, setMoveDialogOpen] = useState(false)
   const [timelineLoading, setTimelineLoading] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
@@ -88,25 +87,9 @@ export default function VehicleDetail() {
           <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Vị trí hiện tại</div>
           <div className="mt-1 font-semibold text-brand-600">{position ? position.name : 'Chưa phân bổ'}</div>
           {vehiclePerms.canMove && (
-            <select
-              className="input mt-2"
-              value={v.positionId || ''}
-              onChange={(e) => {
-                const newPosId = e.target.value
-                if (!newPosId) return
-                const selectedPos = positions.find((p) => p.id === newPosId)
-                if (selectedPos?.name === 'Trong bãi lớn') {
-                  yardDialog.request(v.id, newPosId)
-                } else {
-                  moveVehicle(v.id, newPosId)
-                }
-              }}
-            >
-              <option value="">— Chưa phân bổ —</option>
-              {positions.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
+            <button onClick={() => setMoveDialogOpen(true)} className="btn-secondary mt-2 w-full text-sm">
+              Chuyển vị trí
+            </button>
           )}
         </div>
         <div className="card p-4">
@@ -139,7 +122,7 @@ export default function VehicleDetail() {
         onCancel={() => setShowDeleteConfirm(false)}
       />
 
-      {yardDialog.dialog}
+      <MoveVehicleDialog open={moveDialogOpen} vehicle={v} onClose={() => setMoveDialogOpen(false)} />
     </div>
   )
 }
