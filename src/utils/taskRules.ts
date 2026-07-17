@@ -259,7 +259,7 @@ const ruleSongNungDraft: Rule = {
   id: 'song_nung_draft',
   title: 'Cần in Song nưng Final',
   description: 'Đã có bản nháp song nưng, cần in bản chính',
-  priority: 'high',
+  priority: 'medium',
   evaluate(ctx: RuleContext) {
     return ctx.sheet.songNungResultStatus === 'draft'
   },
