@@ -84,14 +84,31 @@ export async function signInWithEmail(
 ): Promise<AuthResult> {
   const normalizedEmail = email.trim().toLowerCase()
 
+  // Clear any stale Supabase session storage before login.
+  // When switching users (Staff → Admin), the old session's refresh token
+  // can still be present in localStorage and cause "Invalid login credentials"
+  // even if the new credentials are correct.
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key?.startsWith('sb-') && key.endsWith('-auth-token')) {
+        localStorage.removeItem(key)
+      }
+    }
+  } catch {}
+
+  console.log('[AUDIT] signInWithEmail — calling supabase.auth.signInWithPassword for', normalizedEmail)
   const { data, error } = await supabase.auth.signInWithPassword({
     email: normalizedEmail,
     password,
   })
 
   if (error || !data.user) {
+    console.log('[AUDIT] signInWithEmail FAILED — code:', (error as any)?.code, 'message:', (error as any)?.message)
     return { ok: false, error: normalizeAuthError(error) }
   }
+
+  console.log('[AUDIT] signInWithEmail SUCCESS — user:', data.user.id, 'email:', data.user.email)
 
   const profile = await loadOrCreateProfile(data.user.id, normalizedEmail, data.user.user_metadata?.full_name ?? normalizedEmail.split('@')[0])
   if (!profile) {
