@@ -61,41 +61,41 @@ function TaskCard({ task, vehiclePlate, onEdit, onDragStart }: { task: Task; veh
 
   return (
     <div draggable onDragStart={onDragStart} onClick={onEdit}
-      className="cursor-pointer rounded-xl border bg-white p-3 shadow-sm transition-all duration-200 hover:shadow-md hover:border-blue-200 active:scale-[0.98]"
+      className="cursor-pointer rounded-xl border bg-white p-4 shadow-sm transition-all duration-200 hover:shadow-md hover:border-blue-200 active:scale-[0.98] h-[154px]"
       style={{ borderColor: 'rgba(0,0,0,0.06)' }}
     >
-      <div className="flex items-start gap-2">
+      <div className="flex items-start gap-2 h-full">
         <div className="flex h-5 w-5 shrink-0 cursor-grab items-center justify-center rounded text-slate-300 opacity-0 transition-opacity hover:opacity-100 active:cursor-grabbing">
           <GripVertical size={14} />
         </div>
-        <div className="min-w-0 flex-1">
-          {/* Title + Priority */}
-          <div className="flex items-start justify-between gap-2">
-            <span className="text-sm font-semibold text-slate-800 line-clamp-2">{task.title}</span>
+        <div className="min-w-0 flex-1 flex flex-col gap-0">
+          {/* Title + Priority — fixed height for 2 lines */}
+          <div className="flex items-start justify-between gap-2 min-h-0">
+            <span className="text-sm font-semibold text-slate-800 line-clamp-2 leading-5 flex-1 min-w-0">{task.title}</span>
             <Badge tone={PRIORITY_TONE[task.priority]}>{PRIORITY_LABEL[task.priority]}</Badge>
           </div>
 
-          {/* Source badge + Vehicle plate */}
-          <div className="mt-1 flex items-center gap-2">
-            <span className="text-xs font-medium text-slate-400">{vehiclePlate || 'Không có xe'}</span>
-            <Badge tone={task.ruleId ? 'blue' : 'slate'}>{task.ruleId ? '🤖 Auto' : '✍️ Manual'}</Badge>
-          </div>
+          {/* Info rows — each on its own line */}
+          <div className="mt-2 flex flex-col gap-1.5 text-xs">
+            {/* Vehicle plate + Source badge */}
+            <div className="flex items-center gap-2">
+              <span className="text-slate-500 truncate">{vehiclePlate || '—'}</span>
+              <Badge tone={task.ruleId ? 'blue' : 'slate'}>{task.ruleId ? '🤖 Auto' : '✍️ Manual'}</Badge>
+            </div>
 
-          {/* Assignee + Deadline — compact metadata row */}
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
-            <span className="text-slate-500">
-              👤 {assignee ? assignee.name : 'Chưa phân công'}
-            </span>
+            {/* Assignee */}
+            <div className="flex items-center gap-1.5 text-slate-500">
+              <User size={12} className="shrink-0" />
+              <span className="truncate">{assignee ? assignee.name : 'Chưa phân công'}</span>
+            </div>
+
+            {/* Deadline */}
             {deadlineText && (
-              <span className={`flex items-center gap-1 ${deadlineText.tone}`}>
-                ⏰ {deadlineText.text}
-              </span>
+              <div className={`flex items-center gap-1.5 ${deadlineText.tone}`}>
+                <Calendar size={12} className="shrink-0" />
+                <span className="truncate">{deadlineText.text}</span>
+              </div>
             )}
-          </div>
-
-          {/* Meta */}
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-400">
-            {isOverdue && <span className="flex items-center gap-1 font-medium text-red-500"><Calendar size={12} /> Quá hạn</span>}
           </div>
         </div>
       </div>
