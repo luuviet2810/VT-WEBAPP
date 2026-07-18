@@ -166,21 +166,53 @@ function TaskEditDrawer({ task, vehicles, employees, onClose, onUpdate, onDelete
               <input className="input w-full" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
             </div>
 
-            {/* Priority + Status */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="label">Mức ưu tiên</label>
-                <select className="input w-full" value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority)}>
-                  <option value="high">Làm gấp / Giao ngay _ 5⭐</option><option value="medium">Ưu tiên hơn _ 4⭐</option><option value="low">Cứ từ từ _ 3⭐</option>
-                </select>
-              </div>
-              <div>
-                <label className="label">Trạng thái</label>
-                <select className="input w-full" value={status} onChange={(e) => setStatus(e.target.value as TaskStatus)}>
-                  <option value="todo">Chưa làm</option><option value="doing">Đang làm</option><option value="done">Đã hoàn thành</option>
-                </select>
+            {/* Priority */}
+            <div>
+              <label className="label">Mức ưu tiên</label>
+              <select className="input w-full" value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority)}>
+                <option value="high">Làm gấp / Giao ngay _ 5⭐</option><option value="medium">Ưu tiên hơn _ 4⭐</option><option value="low">Cứ từ từ _ 3⭐</option>
+              </select>
+            </div>
+
+          {/* Current Status */}
+          <div>
+            <label className="label">Trạng thái hiện tại</label>
+            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">
+              <span className={`h-2 w-2 rounded-full ${status === 'todo' ? 'bg-slate-400' : status === 'doing' ? 'bg-orange-400' : 'bg-green-500'}`} />
+              {status === 'todo' ? 'Chưa làm' : status === 'doing' ? 'Đang làm' : 'Hoàn thành'}
+            </div>
+          </div>
+
+          {/* Quick Actions — only show actionable transitions */}
+          {status !== 'done' && (
+            <div>
+              <label className="label">Chuyển nhanh</label>
+              <div className="flex gap-3">
+                {status === 'todo' && (
+                  <button
+                    onClick={() => { setStatus('doing'); onUpdate(task.id, { status: 'doing' }) }}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-semibold text-orange-700 transition-colors hover:bg-orange-100 min-h-[44px]"
+                  >
+                    ▶ Đang làm
+                  </button>
+                )}
+                {(status === 'todo' || status === 'doing') && (
+                  <button
+                    onClick={() => { setStatus('done'); onUpdate(task.id, { status: 'done' }) }}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-100 min-h-[44px]"
+                  >
+                    ✓ Hoàn thành
+                  </button>
+                )}
               </div>
             </div>
+          )}
+
+          {status === 'done' && (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+              ✓ Công việc đã hoàn thành
+            </div>
+          )}
 
             {/* Assignee */}
             <div>
