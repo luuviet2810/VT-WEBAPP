@@ -165,7 +165,7 @@ export default function VehicleList() {
                 {/* Vehicle Info */}
                 <div className="p-2.5 pb-2 sm:p-3 sm:pb-2.5">
                   <div className="flex items-start justify-between gap-1">
-                    <span className="text-sm font-bold text-slate-900 sm:text-base">{v.plate || '—'}</span>
+                    <span className="truncate text-sm font-bold text-slate-900 sm:text-base">{v.plate || '—'}</span>
                     <Badge tone={WORKFLOW_STATUS_TONE[workflowStatus]}>{WORKFLOW_STATUS_LABEL[workflowStatus]}</Badge>
                   </div>
                   <div className="mt-0.5 text-xs text-slate-500 sm:text-sm">{v.model}</div>
@@ -186,12 +186,12 @@ export default function VehicleList() {
                     )}
                   </div>
 
-                  {/* Quick Actions — grid on mobile (3 equal cols), flex on tablet+ */}
-                  <div className="mt-2 grid grid-cols-3 gap-1.5 border-t border-slate-100 pt-2 sm:mt-2.5 sm:flex sm:pt-2.5">
+                  {/* Quick Actions — 3 equal columns, never overflow */}
+                  <div className="mt-2 grid min-w-0 grid-cols-3 gap-1.5 border-t border-slate-100 pt-2 sm:mt-2.5 sm:flex sm:pt-2.5">
                     {/* Nhiệm vụ */}
                     <button
                       onClick={(e) => { e.preventDefault(); setSelectedTaskVehicleId(v.id) }}
-                      className={`flex items-center justify-center rounded-lg text-xs font-medium transition-colors sm:min-h-[44px] sm:flex-1 sm:gap-1.5 sm:px-3 ${
+                      className={`flex min-w-0 items-center justify-center overflow-hidden rounded-lg text-xs font-medium transition-colors sm:min-h-[44px] sm:flex-1 sm:gap-1.5 sm:px-3 ${
                         vehicleTasks.length === 0
                           ? 'bg-slate-50 text-slate-400 hover:bg-slate-100'
                           : vehicleTasks.every((t) => t.status === 'done')
@@ -200,36 +200,35 @@ export default function VehicleList() {
                               ? 'bg-red-50 text-red-600 hover:bg-red-100'
                               : 'bg-amber-50 text-amber-600 hover:bg-amber-100'
                       }`}
-                      style={{ minHeight: 44, minWidth: 44 }}
                       aria-label="Nhiệm vụ"
                     >
-                      <Wrench size={14} />
-                      <span className="hidden sm:inline">Nhiệm vụ</span>
-                      <span className="hidden sm:inline">{vehicleTasks.filter((t) => t.status !== 'done').length > 0 && `(${vehicleTasks.filter((t) => t.status !== 'done').length})`}</span>
+                      <Wrench size={14} className="shrink-0" />
+                      <span className="hidden sm:inline truncate">Nhiệm vụ</span>
+                      {vehicleTasks.filter((t) => t.status !== 'done').length > 0 && (
+                        <span className="hidden sm:inline shrink-0">({vehicleTasks.filter((t) => t.status !== 'done').length})</span>
+                      )}
                     </button>
                     {/* Đầu vào */}
                     <button
                       onClick={(e) => { e.preventDefault(); handleOpenPreview(v.id, 'in') }}
-                      className={`flex items-center justify-center rounded-lg text-xs font-medium transition-colors sm:min-h-[44px] sm:flex-1 sm:gap-1.5 sm:px-3 ${
+                      className={`flex min-w-0 items-center justify-center overflow-hidden rounded-lg text-xs font-medium transition-colors sm:min-h-[44px] sm:flex-1 sm:gap-1.5 sm:px-3 ${
                         latestIn ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
                       }`}
-                      style={{ minHeight: 44, minWidth: 44 }}
                       aria-label="Đầu vào"
                     >
-                      <ClipboardList size={14} />
-                      <span className="hidden sm:inline">Đầu vào</span>
+                      <ClipboardList size={14} className="shrink-0" />
+                      <span className="hidden sm:inline truncate">Đầu vào</span>
                     </button>
                     {/* Đầu ra */}
                     <button
                       onClick={(e) => { e.preventDefault(); handleOpenPreview(v.id, 'out') }}
-                      className={`flex items-center justify-center rounded-lg text-xs font-medium transition-colors sm:min-h-[44px] sm:flex-1 sm:gap-1.5 sm:px-3 ${
+                      className={`flex min-w-0 items-center justify-center overflow-hidden rounded-lg text-xs font-medium transition-colors sm:min-h-[44px] sm:flex-1 sm:gap-1.5 sm:px-3 ${
                         latestOut ? 'bg-purple-50 text-purple-600 hover:bg-purple-100' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
                       }`}
-                      style={{ minHeight: 44, minWidth: 44 }}
                       aria-label="Đầu ra"
                     >
-                      <ClipboardList size={14} />
-                      <span className="hidden sm:inline">Đầu ra</span>
+                      <ClipboardList size={14} className="shrink-0" />
+                      <span className="hidden sm:inline truncate">Đầu ra</span>
                     </button>
                   </div>
                 </div>

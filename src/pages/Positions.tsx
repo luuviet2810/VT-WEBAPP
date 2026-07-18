@@ -1,6 +1,6 @@
 // ====== POSITIONS PAGE - Kanban-style vehicle management ======
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Edit3, Plus, Trash2, X, GripVertical, ArrowRight, Clock, Search, RotateCcw } from 'lucide-react'
 import {
@@ -151,6 +151,55 @@ export default function Positions() {
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null)
   const [vehicleTab, setVehicleTab] = useState('info')
 
+  // Search result panel
+  const boardRef = useRef<HTMLDivElement>(null)
+  const vehicleRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+  const [highlightId, setHighlightId] = useState<string | null>(null)
+  const [showSearchResults, setShowSearchResults] = useState(false)
+  const searchRef = useRef<HTMLDivElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Search results
+  const searchResults = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return []
+    return vehicles
+      .filter((v) => v.status !== 'sold')
+      .filter((v) => v.plate.toLowerCase().includes(q) || v.model.toLowerCase().includes(q))
+      .slice(0, 8)
+  }, [vehicles, searchQuery])
+
+  // Close search panel on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowSearchResults(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  function handleSearchResultClick(vehicleId: string) {
+    setShowSearchResults(false)
+    setSearchQuery('')
+
+    // Find the column containing this vehicle
+    const targetPos = sortedPositions.find((p) =>
+      vehicles.some((v) => v.id === vehicleId && v.positionId === p.id && v.status !== 'sold')
+    )
+    if (!targetPos || !boardRef.current) return
+
+    // Scroll board to the correct column
+    const colIndex = sortedPositions.indexOf(targetPos)
+    const colWidth = 288 + 16 // w-72 + gap-4
+    boardRef.current.scrollTo({ left: colIndex * colWidth, behavior: 'smooth' })
+
+    // Highlight the vehicle card
+    setHighlightId(vehicleId)
+    setTimeout(() => setHighlightId(null), 2500)
+  }
+
   function handleVehicleDragStart(e: React.DragEvent, vehicleId: string) {
     setDragId(vehicleId)
     e.dataTransfer.effectAllowed = 'move'
@@ -273,14 +322,37 @@ export default function Positions() {
       </div>
       {/* Search + Actions */}
       <div className="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative flex-1 max-w-md">
+        <div className="relative flex-1 max-w-md" ref={searchRef}>
           <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
+            ref={searchInputRef}
             className="input h-10 pl-10"
             placeholder="Tìm biển số hoặc dòng xe..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => { setSearchQuery(e.target.value); setShowSearchResults(true) }}
+            onFocus={() => setShowSearchResults(true)}
           />
+          {/* Search result panel */}
+          {showSearchResults && searchResults.length > 0 && (
+            <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
+              {searchResults.map((v) => {
+                const pos = positions.find((p) => p.id === v.positionId)
+                return (
+                  <button
+                    key={v.id}
+                    onClick={() => handleSearchResultClick(v.id)}
+                    className="w-full px-4 py-3 text-left transition-colors hover:bg-brand-50 border-b border-slate-50 last:border-0"
+                  >
+                    <div className="text-sm font-semibold text-slate-800">{v.plate} — {v.model}</div>
+                    <div className="mt-0.5 flex items-center gap-3 text-xs text-slate-500">
+                      <span>📍 {pos?.name || '—'}</span>
+                      {v.yardPosition && <span>📌 {v.yardPosition}</span>}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <button type="button" title="Đặt lại" onClick={() => setSearchQuery('')} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition-colors hover:border-slate-300 hover:bg-slate-50">
@@ -296,7 +368,7 @@ export default function Positions() {
       </div>
 
       {/* Kanban Board — ~85% viewport, full height */}
-      <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto pb-3">
+      <div ref={boardRef} className="flex min-h-0 flex-1 gap-4 overflow-x-auto pb-3">
         {sortedPositions.map((p) => {
           const q = searchQuery.trim().toLowerCase()
           const posVehicles = vehicles
@@ -359,6 +431,7 @@ export default function Positions() {
                           ? 'opacity-50 scale-95 shadow-lg ring-2 ring-brand-400'
                           : 'hover:shadow-md hover:border-brand-200 active:cursor-grabbing'
                         }
+                        ${highlightId === v.id ? 'ring-2 ring-brand-500 bg-brand-50' : ''}
                       `}
                     >
                       <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-400 opacity-0 transition-opacity group-hover:opacity-100">

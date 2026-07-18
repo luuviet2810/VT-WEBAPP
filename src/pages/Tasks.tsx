@@ -20,6 +20,44 @@ const PRIORITY_TONE: Record<TaskPriority, 'slate' | 'blue' | 'orange' | 'red'> =
 // ====== TASK CARD ======
 function TaskCard({ task, vehiclePlate, onEdit, onDragStart }: { task: Task; vehiclePlate: string; onEdit: () => void; onDragStart: (e: React.DragEvent) => void }) {
   const isOverdue = task.dueDate && task.dueDate < new Date().toISOString().slice(0, 10) && task.status !== 'done'
+  const employees = useStore((s) => s.employees)
+  const assignee = task.assigneeId ? employees.find((e) => e.id === task.assigneeId) : null
+
+  // Deadline display logic
+  const deadlineText = useMemo(() => {
+    if (!task.dueDate) return { text: 'Không có hạn', tone: 'text-slate-400' }
+    if (task.status === 'done') return null
+
+    const now = new Date()
+    const due = new Date(`${task.dueDate}${task.dueTime ? `T${task.dueTime}` : 'T23:59'}`)
+    const diffMs = due.getTime() - now.getTime()
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+    if (diffMs < 0) {
+      const abs = Math.abs(diffHours)
+      return {
+        text: abs < 24 ? `Quá hạn ${abs} giờ` : `Quá hạn ${Math.floor(abs / 24)} ngày`,
+        tone: 'text-red-500',
+      }
+    }
+    if (diffHours < 24) {
+      return {
+        text: task.dueTime ? `Hôm nay ${task.dueTime}` : 'Hôm nay',
+        tone: 'text-orange-500',
+      }
+    }
+    if (diffDays === 0 || diffDays === 1) {
+      return {
+        text: task.dueTime ? `Ngày mai ${task.dueTime}` : 'Ngày mai',
+        tone: 'text-yellow-600',
+      }
+    }
+    return {
+      text: `Còn ${diffDays} ngày`,
+      tone: 'text-emerald-600',
+    }
+  }, [task.dueDate, task.dueTime, task.status])
 
   return (
     <div draggable onDragStart={onDragStart} onClick={onEdit}
@@ -41,6 +79,18 @@ function TaskCard({ task, vehiclePlate, onEdit, onDragStart }: { task: Task; veh
           <div className="mt-1 flex items-center gap-2">
             <span className="text-xs font-medium text-slate-400">{vehiclePlate || 'Không có xe'}</span>
             <Badge tone={task.ruleId ? 'blue' : 'slate'}>{task.ruleId ? '🤖 Auto' : '✍️ Manual'}</Badge>
+          </div>
+
+          {/* Assignee + Deadline — compact metadata row */}
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
+            <span className="text-slate-500">
+              👤 {assignee ? assignee.name : 'Chưa phân công'}
+            </span>
+            {deadlineText && (
+              <span className={`flex items-center gap-1 ${deadlineText.tone}`}>
+                ⏰ {deadlineText.text}
+              </span>
+            )}
           </div>
 
           {/* Meta */}

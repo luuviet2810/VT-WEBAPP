@@ -1,8 +1,10 @@
-import { useState, useMemo } from 'react'
-import { Loader2 } from 'lucide-react'
+import { useState, useMemo, useRef, useEffect } from 'react'
+import { Loader2, Search } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import { useYardPositionDialog } from '../hooks/useYardPositionDialog'
 import type { Vehicle } from '../types'
+
+const YARD_POSITIONS = ['A15', 'C14', 'Hwamul 5', 'Hwamul 6', 'Hwamul 7', 'Hwamul 8', 'Hwamul 9', 'Hwamul 10']
 
 interface Props {
   open: boolean
@@ -13,10 +15,13 @@ interface Props {
 export default function MoveVehicleDialog({ open, vehicle: v, onClose }: Props) {
   const positions = useStore((s) => s.positions)
   const moveVehicle = useStore((s) => s.moveVehicle)
+  const updateVehicle = useStore((s) => s.updateVehicle)
   const yardDialog = useYardPositionDialog()
 
   const [loadingId, setLoadingId] = useState<string | null>(null)
+  const [selectedYardPos, setSelectedYardPos] = useState(v.yardPosition || '')
   const currentPos = positions.find((p) => p.id === v.positionId)
+  const isInYard = currentPos?.name === 'Trong bãi lớn'
 
   // Sort: "Trong bãi lớn" always last
   const sortedPositions = useMemo(() => {
@@ -28,6 +33,11 @@ export default function MoveVehicleDialog({ open, vehicle: v, onClose }: Props) 
     }
     return copy
   }, [positions])
+
+  // Reset yard selection when vehicle changes
+  useEffect(() => {
+    setSelectedYardPos(v.yardPosition || '')
+  }, [v.id, v.yardPosition])
 
   async function handleSelect(targetPosId: string) {
     const targetPos = positions.find((p) => p.id === targetPosId)
@@ -48,7 +58,13 @@ export default function MoveVehicleDialog({ open, vehicle: v, onClose }: Props) 
     onClose()
   }
 
-  // Keep mounted when yard dialog is open so it can render on top
+  function handleYardPosChange(newPos: string) {
+    updateVehicle(v.id, { yardPosition: newPos || undefined })
+    setSelectedYardPos(newPos)
+    // No Move Log, no Notification — only updates the sub-location
+  }
+
+  // Keep mounted when yard dialog is open
   if (!open && !yardDialog.open) return null
 
   const gridCols = 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4'
@@ -71,7 +87,32 @@ export default function MoveVehicleDialog({ open, vehicle: v, onClose }: Props) 
           <div className="mb-4 rounded-xl bg-slate-50 px-4 py-3 text-center">
             <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Vị trí hiện tại</div>
             <div className="mt-0.5 font-semibold text-brand-600">{currentPos ? currentPos.name : 'Chưa phân bổ'}</div>
+            {isInYard && v.yardPosition && (
+              <div className="mt-0.5 text-xs text-slate-500">Khu: {v.yardPosition}</div>
+            )}
           </div>
+
+          {/* Sub-location change for vehicles already in "Trong bãi lớn" */}
+          {isInYard && (
+            <div className="mb-4">
+              <div className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">Đổi khu trong bãi</div>
+              <div className="grid grid-cols-2 gap-2">
+                {YARD_POSITIONS.map((pos) => (
+                  <button
+                    key={pos}
+                    onClick={() => handleYardPosChange(pos)}
+                    className={`rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-150 ${
+                      selectedYardPos === pos
+                        ? 'border-brand-400 bg-brand-50 text-brand-700'
+                        : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    {pos === selectedYardPos ? `📍 ${pos}` : pos}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Position label */}
           <div className="mb-3 text-xs font-medium uppercase tracking-wide text-slate-400">Chuyển tới</div>
@@ -98,9 +139,9 @@ export default function MoveVehicleDialog({ open, vehicle: v, onClose }: Props) 
                     {isLoading ? (
                       <Loader2 size={16} className="animate-spin" />
                     ) : isActive ? (
-                      <span className="flex items-center gap-1.5">📍 ✓ {p.name}</span>
+                      <span className="flex items-center gap-1.5">📍 ✓ Trong bãi lớn{v.yardPosition ? ` (${v.yardPosition})` : ''}</span>
                     ) : (
-                      <span className="flex items-center gap-1.5">📍 {p.name} — Chọn vị trí trong bãi</span>
+                      <span className="flex items-center gap-1.5">📍 Trong bãi lớn — Chọn vị trí trong bãi</span>
                     )}
                   </button>
                 )
@@ -138,7 +179,6 @@ export default function MoveVehicleDialog({ open, vehicle: v, onClose }: Props) 
         </div>
       </div>
 
-      {/* Yard position dialog (renders on top) */}
       {yardDialog.dialog}
     </>
   )
