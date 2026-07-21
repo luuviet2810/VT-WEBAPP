@@ -858,6 +858,9 @@ export const useStore = create<StoreState>()(
     },
 
     updateCheckSheet: async (id, patch) => {
+      console.log('[CHK TRACE] store.updateCheckSheet called — id:', id, 'patch keys:', Object.keys(patch))
+      const existing = get().checkSheets.find((c) => c.id === id)
+      console.log('[CHK TRACE] existing sheet in store:', existing ? 'FOUND (id=' + existing.id + ')' : 'NOT FOUND')
       const prev = get().checkSheets.find((c) => c.id === id)
       set((s) => ({
         checkSheets: s.checkSheets.map((c) => (c.id === id ? { ...c, ...patch } : c)),

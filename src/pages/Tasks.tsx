@@ -19,9 +19,10 @@ const PRIORITY_TONE: Record<TaskPriority, 'slate' | 'blue' | 'orange' | 'red'> =
 
 // ====== TASK CARD ======
 function TaskCard({ task, vehiclePlate, onEdit, onDragStart }: { task: Task; vehiclePlate: string; onEdit: () => void; onDragStart: (e: React.DragEvent) => void }) {
-  const isOverdue = task.dueDate && task.dueDate < new Date().toISOString().slice(0, 10) && task.status !== 'done'
+  const vehicles = useStore((s) => s.vehicles)
   const employees = useStore((s) => s.employees)
   const assignee = task.assigneeId ? employees.find((e) => e.id === task.assigneeId) : null
+  const taskVehicle = task.vehicleId ? vehicles.find((v) => v.id === task.vehicleId) : null
 
   // Deadline display logic
   const deadlineText = useMemo(() => {
@@ -61,41 +62,46 @@ function TaskCard({ task, vehiclePlate, onEdit, onDragStart }: { task: Task; veh
 
   return (
     <div draggable onDragStart={onDragStart} onClick={onEdit}
-      className="cursor-pointer rounded-xl border bg-white p-4 shadow-sm transition-all duration-200 hover:shadow-md hover:border-blue-200 active:scale-[0.98] h-[154px]"
+      className="cursor-pointer rounded-xl border bg-white p-4 shadow-sm transition-all duration-200 hover:shadow-md hover:border-blue-200 active:scale-[0.98]"
       style={{ borderColor: 'rgba(0,0,0,0.06)' }}
     >
-      <div className="flex items-start gap-2 h-full">
-        <div className="flex h-5 w-5 shrink-0 cursor-grab items-center justify-center rounded text-slate-300 opacity-0 transition-opacity hover:opacity-100 active:cursor-grabbing">
+      <div className="flex items-start gap-2">
+        <div className="flex h-5 w-5 shrink-0 cursor-grab items-center justify-center rounded text-slate-300 transition-opacity hover:opacity-100 active:cursor-grabbing">
           <GripVertical size={14} />
         </div>
-        <div className="min-w-0 flex-1 flex flex-col gap-0">
-          {/* Title + Priority — fixed height for 2 lines */}
-          <div className="flex items-start justify-between gap-2 min-h-0">
-            <span className="text-sm font-semibold text-slate-800 line-clamp-2 leading-5 flex-1 min-w-0">{task.title}</span>
+        <div className="min-w-0 flex-1 space-y-2">
+          {/* Title — most prominent, up to 3 lines */}
+          <h3 className="text-sm font-bold text-slate-900 leading-5 line-clamp-3">{task.title}</h3>
+
+          {/* Vehicle model · plate */}
+          <div className="flex items-center gap-1.5 text-xs text-slate-400">
+            <span className="truncate">{taskVehicle ? taskVehicle.model : '—'}</span>
+            <span className="shrink-0">·</span>
+            <span className="shrink-0 font-medium text-slate-500">{vehiclePlate || '—'}</span>
+          </div>
+
+          {/* Divider */}
+          <div className="h-px bg-slate-100" />
+
+          {/* Priority — full width, never beside title */}
+          <div className="flex items-center gap-1.5">
+            <span className={`h-2 w-2 shrink-0 rounded-full ${PRIORITY_TONE[task.priority] === 'red' ? 'bg-red-500' : PRIORITY_TONE[task.priority] === 'orange' ? 'bg-orange-400' : 'bg-blue-500'}`} />
             <Badge tone={PRIORITY_TONE[task.priority]}>{PRIORITY_LABEL[task.priority]}</Badge>
           </div>
 
-          {/* Info rows — each on its own line */}
-          <div className="mt-2 flex flex-col gap-1.5 text-xs">
-            {/* Vehicle plate + Source badge */}
-            <div className="flex items-center gap-2">
-              <span className="text-slate-500 truncate">{vehiclePlate || '—'}</span>
-              <Badge tone={task.ruleId ? 'blue' : 'slate'}>{task.ruleId ? '🤖 Auto' : '✍️ Manual'}</Badge>
-            </div>
-
-            {/* Assignee */}
-            <div className="flex items-center gap-1.5 text-slate-500">
-              <User size={12} className="shrink-0" />
-              <span className="truncate">{assignee ? assignee.name : 'Chưa phân công'}</span>
-            </div>
-
-            {/* Deadline */}
+          {/* Metadata rows — each on its own line, never mixed */}
+          <div className="flex flex-col gap-1 text-xs">
             {deadlineText && (
-              <div className={`flex items-center gap-1.5 ${deadlineText.tone}`}>
-                <Calendar size={12} className="shrink-0" />
-                <span className="truncate">{deadlineText.text}</span>
-              </div>
+              <span className={`flex items-center gap-1.5 ${deadlineText.tone}`}>
+                📅 {deadlineText.text}
+              </span>
             )}
+            <span className="flex items-center gap-1.5 text-slate-500">
+              👤 {assignee ? assignee.name : 'Chưa phân công'}
+            </span>
+            <span className="flex items-center gap-1.5 text-slate-400">
+              {task.ruleId ? '🤖 Auto' : '✍️ Manual'}
+            </span>
           </div>
         </div>
       </div>

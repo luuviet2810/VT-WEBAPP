@@ -396,10 +396,16 @@ export default function CheckSheetForm({
   }
 
   function scheduleSave() {
-    if (!sheetId) return
+    if (!sheetId) {
+      console.log('[CHK TRACE] scheduleSave skipped — no sheetId')
+      return
+    }
     if (saveTimer.current) clearTimeout(saveTimer.current)
+    const patch = buildPatch()
+    console.log('[CHK TRACE] scheduleSave — sheetId:', sheetId, 'patch keys:', Object.keys(patch))
     saveTimer.current = setTimeout(() => {
-      updateCheckSheet(sheetId!, buildPatch()).catch((err) => {
+      console.log('[CHK TRACE] SAVING — calling updateCheckSheet with id:', sheetId)
+      updateCheckSheet(sheetId!, patch).catch((err) => {
         console.error('[CheckSheetForm] SAVE FAILED:', JSON.stringify(err?.message || err, null, 2))
         addNotification({ type: 'error', title: 'Lỗi lưu', body: 'Không thể lưu phiếu kiểm tra. Dữ liệu vẫn còn trên màn hình.' })
       })

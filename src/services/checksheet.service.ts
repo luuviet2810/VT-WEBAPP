@@ -169,6 +169,7 @@ export async function updateCheckSheet(
   id: string,
   patch: Partial<CheckSheet>
 ): Promise<CheckSheet> {
+  console.log('[CHK TRACE] service.updateCheckSheet — id:', id, 'type:', (patch as any).type)
   const updateData: Record<string, unknown> = {}
 
   if (patch.vehicleId !== undefined) updateData.vehicle_id = patch.vehicleId
@@ -212,7 +213,10 @@ export async function updateCheckSheet(
     .select()
     .single()
 
+  console.log('[CHK TRACE] Supabase update result:', error ? 'ERROR' : 'OK', 'id:', id, 'data?.id:', (data as any)?.id)
+
   if (error) {
+    console.log('[CHK TRACE] Supabase update ERROR:', error.message, 'code:', error.code)
     throw error
   }
   return mapRow(data as Record<string, unknown>)
