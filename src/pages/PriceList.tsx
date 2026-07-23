@@ -134,7 +134,7 @@ export default function PriceList() {
           <EmptyState icon={<Car size={36} />} title="Không tìm thấy xe nào" subtitle="Thử thay đổi bộ lọc" />
         </div>
       ) : (
-        <div className="card overflow-x-auto">
+        <div className="card overflow-x-auto will-change-transform" style={{ transform: 'translateZ(0)' }}>
           <table className="w-full text-sm" style={{ minWidth: 800 }}>
             <thead>
               <tr className="border-b border-slate-100 text-left text-xs font-medium uppercase tracking-wide text-slate-400">
@@ -274,7 +274,7 @@ function PriceRow({
       <td className="px-3 py-2.5 whitespace-nowrap">
         <div className="h-10 w-14 overflow-hidden rounded-lg bg-slate-100">
           {vehicle.images[0] ? (
-            <img src={vehicle.images[0]} className="h-full w-full object-cover" />
+            <img src={vehicle.images[0]} loading="lazy" className="h-full w-full object-cover" />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-slate-300">
               <Car size={16} />
