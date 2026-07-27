@@ -365,8 +365,8 @@ export function ConfirmDialog({
 // ====== BATTERY CHECK COMPONENT ======
 
 interface BatteryCheckProps {
-  soh: number
-  soc: number
+  soh: number | undefined
+  soc: number | undefined
   pickerOpen: 'soh' | 'soc' | null
   onSOHChange: (v: number) => void
   onSOCChange: (v: number) => void
@@ -374,7 +374,8 @@ interface BatteryCheckProps {
 }
 
 export function BatteryCheck({ soh, soc, pickerOpen, onSOHChange, onSOCChange, onPickerOpen }: BatteryCheckProps) {
-  const isNormal = soc >= 50
+  const isNormal = (soc ?? 100) >= 50
+  const displayValue = (v: number | undefined) => v !== undefined ? String(v) : '-'
 
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -389,7 +390,7 @@ export function BatteryCheck({ soh, soc, pickerOpen, onSOHChange, onSOCChange, o
             onClick={() => onPickerOpen('soh')}
             className="w-full rounded-lg border border-slate-200 bg-white py-3 text-center text-lg font-semibold text-slate-700 transition-colors hover:border-brand-300 hover:bg-brand-50 active:bg-brand-100"
           >
-            {soh}%
+            {displayValue(soh)}
           </button>
         </div>
         {/* SOC */}
@@ -399,7 +400,7 @@ export function BatteryCheck({ soh, soc, pickerOpen, onSOHChange, onSOCChange, o
             onClick={() => onPickerOpen('soc')}
             className="w-full rounded-lg border border-slate-200 bg-white py-3 text-center text-lg font-semibold text-slate-700 transition-colors hover:border-brand-300 hover:bg-brand-50 active:bg-brand-100"
           >
-            {soc}%
+            {displayValue(soc)}
           </button>
         </div>
       </div>
@@ -410,7 +411,7 @@ export function BatteryCheck({ soh, soc, pickerOpen, onSOHChange, onSOCChange, o
           <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
             <div className="mb-2 text-center text-xs font-medium text-slate-500">SOH (%)</div>
             <WheelPicker
-              value={soh}
+              value={soh ?? 100}
               onChange={onSOHChange}
               min={0}
               max={100}
@@ -434,7 +435,7 @@ export function BatteryCheck({ soh, soc, pickerOpen, onSOHChange, onSOCChange, o
           <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
             <div className="mb-2 text-center text-xs font-medium text-slate-500">SOC (%)</div>
             <WheelPicker
-              value={soc}
+              value={soc ?? 100}
               onChange={onSOCChange}
               min={0}
               max={100}

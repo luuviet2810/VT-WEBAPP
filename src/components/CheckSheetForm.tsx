@@ -219,8 +219,8 @@ export default function CheckSheetForm({
   const [outNotes, setOutNotes] = useState('')
 
   // ====== BATTERY STATE (Đầu vào) ======
-  const [inputAcquySOH, setInputAcquySOH] = useState(100)
-  const [inputAcquySOC, setInputAcquySOC] = useState(100)
+  const [inputAcquySOH, setInputAcquySOH] = useState<number | undefined>(undefined)
+  const [inputAcquySOC, setInputAcquySOC] = useState<number | undefined>(undefined)
   const [inputAcquyPickerOpen, setInputAcquyPickerOpen] = useState<'soh' | 'soc' | null>(null)
 
   // ====== TIRE STATE (Đầu vào) ======
@@ -241,8 +241,8 @@ export default function CheckSheetForm({
   const [outSmartkeyStatus, setOutSmartkeyStatus] = useState<'one' | 'two' | 'damaged' | undefined>(undefined)
 
   // ====== BATTERY STATE (Đầu ra) ======
-  const [acquySOH, setAcquySOH] = useState(100)
-  const [acquySOC, setAcquySOC] = useState(100)
+  const [acquySOH, setAcquySOH] = useState<number | undefined>(undefined)
+  const [acquySOC, setAcquySOC] = useState<number | undefined>(undefined)
   const [acquyPickerOpen, setAcquyPickerOpen] = useState<'soh' | 'soc' | null>(null)
 
   // ====== SONG NƯNG RESULT + KEY STATE ======
@@ -308,10 +308,10 @@ export default function CheckSheetForm({
           setExterior(emptyExteriorCheck())
           setOutCheck(EMPTY_CHECK_SHEET.outCheck)
           setOutNotes('')
-          setInputAcquySOH(100)
-          setInputAcquySOC(100)
-          setAcquySOH(100)
-          setAcquySOC(100)
+          setInputAcquySOH(undefined)
+          setInputAcquySOC(undefined)
+          setAcquySOH(undefined)
+          setAcquySOC(undefined)
           setInputDieuHoa({ status: '' as DieuHoaStatus })
           setInputSuoiGhe({ status: '' as SuoiGheStatus })
           setInputTireState({ status: '' as CheckOutStatus })
@@ -337,10 +337,10 @@ export default function CheckSheetForm({
           setExterior(Object.keys(sheet.exterior ?? {}).length > 0 ? sheet.exterior : emptyExteriorCheck())
           setOutCheck(sheet.outCheck ?? EMPTY_CHECK_SHEET.outCheck)
           setOutNotes(sheet.outNotes ?? '')
-          setInputAcquySOH(sheet.inputAcquySOH ?? 100)
-          setInputAcquySOC(sheet.inputAcquySOC ?? 100)
-          setAcquySOH(sheet.acquySOH ?? 100)
-          setAcquySOC(sheet.acquySOC ?? 100)
+          setInputAcquySOH(sheet.inputAcquySOH ?? undefined)
+          setInputAcquySOC(sheet.inputAcquySOC ?? undefined)
+          setAcquySOH(sheet.acquySOH ?? undefined)
+          setAcquySOC(sheet.acquySOC ?? undefined)
           setInputDieuHoa(sheet.inputDieuHoa ?? { status: '' as DieuHoaStatus })
           setInputSuoiGhe(sheet.inputSuoiGhe ?? { status: '' as SuoiGheStatus })
           setInputTireState(sheet.inputTireState ?? { status: '' as CheckOutStatus })
@@ -490,9 +490,11 @@ export default function CheckSheetForm({
         else if (fl === 'install') { error++; none++ }
       }
 
-      // SOC ắc quy < 50%
-      if (inputAcquySOC >= 0 && inputAcquySOC < 50) error++
-      else if (inputAcquySOC >= 50) ok++
+      // SOC ắc quy < 50% — skip if not measured (undefined)
+      if (inputAcquySOC !== undefined) {
+        if (inputAcquySOC < 50) error++
+        else ok++
+      }
 
       // Nội thất
       Object.values(interior).forEach((v) => {
@@ -640,7 +642,7 @@ export default function CheckSheetForm({
     if (inputTireState.status === 'none') items.push({ id: uid('chk'), text: 'Thay lốp', done: false })
 
     // SOC acquy đầu vào < 50%
-    if (inputAcquySOC < 50) items.push({ id: uid('chk'), text: 'Kiểm tra / Sạc ắc quy', done: false })
+    if ((inputAcquySOC ?? 100) < 50) items.push({ id: uid('chk'), text: 'Kiểm tra / Sạc ắc quy', done: false })
 
     return items
   }, [type, screen, rearCamera, rearSensor, dashcam, hipass, inputDieuHoa, inputSuoiGhe, interior, exterior, fuelLevel, vehicle.fuelType, inputTireState, inputAcquySOC])
@@ -772,7 +774,7 @@ export default function CheckSheetForm({
     if (inputTireState.status === 'none') labels.push({ text: 'Lốp mòn lắm', bold: true })
 
     // SOC ắc quy < 50%
-    if (inputAcquySOC < 50) labels.push({ text: 'Ắc quy yếu', bold: true })
+    if ((inputAcquySOC ?? 100) < 50) labels.push({ text: 'Ắc quy yếu', bold: true })
 
     return labels
   }, [type, screen, rearCamera, rearSensor, dashcam, inputDieuHoa, inputSuoiGhe, interior, exterior, fuelLevel, inputTireState, inputAcquySOC])

@@ -135,7 +135,7 @@ export default function VehicleList() {
           <EmptyState icon={<Car size={36} />} title="Không tìm thấy xe nào" subtitle="Thử thay đổi bộ lọc hoặc từ khoá tìm kiếm" />
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 max-[390px]:grid-cols-2 min-[391px]:grid-cols-3 md:grid-cols-4 2xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
           {filtered.map((v) => {
             const position = positions.find((p) => p.id === v.positionId)
             const assignee = employees.find((e) => e.id === v.assigneeId)
@@ -152,31 +152,31 @@ export default function VehicleList() {
                 className="card group overflow-hidden transition hover:shadow-md hover:-translate-y-0.5 text-sm"
               >
                 {/* Vehicle Image */}
-                <div className="aspect-[4/3] w-full overflow-hidden bg-slate-100">
+                <div className="aspect-[4/2.5] w-full overflow-hidden bg-slate-100">
                   {v.images[0] ? (
                     <img src={v.images[0]} alt={v.model} className="h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-slate-300">
-                      <Car size={24} />
+                      <Car size={20} />
                     </div>
                   )}
                 </div>
 
                 {/* Vehicle Info */}
-                <div className="p-2.5 pb-2 sm:p-3 sm:pb-2.5">
+                <div className="p-2 pb-1.5 sm:p-3 sm:pb-2">
                   <div className="flex items-start justify-between gap-1">
-                    <span className="truncate text-sm font-bold text-slate-900 sm:text-base">{v.plate || '—'}</span>
+                    <span className="truncate text-sm font-bold text-slate-900">{v.plate || '—'}</span>
                     <Badge tone={WORKFLOW_STATUS_TONE[workflowStatus]}>{WORKFLOW_STATUS_LABEL[workflowStatus]}</Badge>
                   </div>
-                  <div className="mt-0.5 text-xs text-slate-500 sm:text-sm">{v.model}</div>
+                  <div className="text-xs text-slate-500">{v.model}</div>
 
                   {/* Price */}
                   {v.sellPrice != null && (
-                    <div className="mt-0.5 text-xs font-bold text-slate-700 sm:text-sm">{formatCurrency(v.sellPrice)} đ</div>
+                    <div className="text-xs font-bold text-slate-700">{formatCurrency(v.sellPrice)} đ</div>
                   )}
 
-                  {/* Badges row — hidden on very small screens */}
-                  <div className="mt-1 hidden flex-wrap items-center gap-1 sm:flex">
+                  {/* Badges row — hidden on mobile, shown on sm+ */}
+                  <div className="mt-0.5 hidden flex-wrap items-center gap-1 sm:flex">
                     <Badge tone={STATUS_TONE[v.status]}>{STATUS_LABEL[v.status]}</Badge>
                     {hasCheckSheet && (
                       <span className="flex items-center gap-0.5 text-[10px] text-brand-600">
@@ -186,8 +186,8 @@ export default function VehicleList() {
                     )}
                   </div>
 
-                  {/* Quick Actions — 3 equal columns, never overflow */}
-                  <div className="mt-2 grid min-w-0 grid-cols-3 gap-1.5 border-t border-slate-100 pt-2 sm:mt-2.5 sm:flex sm:pt-2.5">
+                  {/* Quick Actions — 3 equal columns */}
+                  <div className="mt-1.5 grid min-w-0 grid-cols-3 gap-1 border-t border-slate-100 pt-1.5 sm:mt-2 sm:flex sm:gap-1.5 sm:pt-2">
                     {/* Nhiệm vụ */}
                     <button
                       onClick={(e) => { e.preventDefault(); setSelectedTaskVehicleId(v.id) }}
@@ -202,7 +202,7 @@ export default function VehicleList() {
                       }`}
                       aria-label="Nhiệm vụ"
                     >
-                      <Wrench size={14} className="shrink-0" />
+                      <Wrench size={13} className="shrink-0" />
                       <span className="hidden sm:inline truncate">Nhiệm vụ</span>
                       {vehicleTasks.filter((t) => t.status !== 'done').length > 0 && (
                         <span className="hidden sm:inline shrink-0">({vehicleTasks.filter((t) => t.status !== 'done').length})</span>
@@ -216,7 +216,7 @@ export default function VehicleList() {
                       }`}
                       aria-label="Đầu vào"
                     >
-                      <ClipboardList size={14} className="shrink-0" />
+                      <ClipboardList size={13} className="shrink-0" />
                       <span className="hidden sm:inline truncate">Đầu vào</span>
                     </button>
                     {/* Đầu ra */}
@@ -227,7 +227,7 @@ export default function VehicleList() {
                       }`}
                       aria-label="Đầu ra"
                     >
-                      <ClipboardList size={14} className="shrink-0" />
+                      <ClipboardList size={13} className="shrink-0" />
                       <span className="hidden sm:inline truncate">Đầu ra</span>
                     </button>
                   </div>

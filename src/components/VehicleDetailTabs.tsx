@@ -172,7 +172,7 @@ export default function VehicleDetailTabs({ vehicle, tab, onTabChange }: Props) 
               <CheckSheetForm vehicle={vehicle} type="in" onCancel={() => onTabChange('info')} onSaved={() => onTabChange('info')} />
             </FullscreenSheet>
           ) : (
-            <CheckSheetForm vehicle={vehicle} type="in" onCancel={() => onTabChange('info')} onSaved={() => {}} />
+            <CheckSheetForm vehicle={vehicle} type="in" onCancel={() => onTabChange('info')} onSaved={() => onTabChange('info')} />
           )
         )}
 
@@ -182,7 +182,7 @@ export default function VehicleDetailTabs({ vehicle, tab, onTabChange }: Props) 
               <CheckSheetForm vehicle={vehicle} type="out" onCancel={() => onTabChange('info')} onSaved={() => onTabChange('info')} />
             </FullscreenSheet>
           ) : (
-            <CheckSheetForm vehicle={vehicle} type="out" onCancel={() => onTabChange('info')} onSaved={() => {}} />
+            <CheckSheetForm vehicle={vehicle} type="out" onCancel={() => onTabChange('info')} onSaved={() => onTabChange('info')} />
           )
         )}
 
