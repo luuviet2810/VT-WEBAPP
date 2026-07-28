@@ -27,7 +27,7 @@ export function Modal({
 
   if (!open) return null
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/50 backdrop-blur-sm p-0 sm:p-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/50 p-0 sm:p-4">
       <div className={clsx('flex w-full flex-col bg-white shadow-xl sm:rounded-2xl max-h-[100dvh] sm:max-h-[min(90vh,900px)] sm:mt-4', width)}>
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5 sm:py-4 sm:rounded-t-2xl">
           <div className="flex items-center gap-3">

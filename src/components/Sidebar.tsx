@@ -35,7 +35,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Mobile Drawer Overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-sm md:hidden animate-fade-in"
+          className="fixed inset-0 z-40 bg-slate-900/60 md:hidden animate-fade-in"
           onClick={onClose}
         />
       )}
