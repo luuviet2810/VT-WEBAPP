@@ -60,9 +60,9 @@ export interface TaskItem {
 
 export interface QuickStats {
   total: number
-  sold: number
-  pending: number
-  washing: number
+  soldThisMonth: number
+  deposited: number
+  totalSold: number
 }
 
 export function useDashboardViewModel() {
@@ -130,7 +130,9 @@ export function useDashboardViewModel() {
 
     // ===== LOCATIONS =====
     const locationColors = ['#3b82f6', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#f97316']
-    const locationData: LocationItem[] = positions.map((p, i) => ({
+    // Sort positions by order (matching the "Vị trí xe" page)
+    const orderedLocations = [...positions].sort((a, b) => a.order - b.order)
+    const locationData: LocationItem[] = orderedLocations.map((p, i) => ({
       name: p.name,
       count: vehicles.filter((v) => v.positionId === p.id && v.status !== 'sold').length,
       color: locationColors[i % locationColors.length],
@@ -213,11 +215,12 @@ export function useDashboardViewModel() {
       })
 
     // ===== QUICK STATS =====
+    const monthPrefix = today.slice(0, 7)
     const quickStats: QuickStats = {
       total: vehicles.length,
-      sold: vehicles.filter((v) => v.status === 'sold').length,
-      pending: vehicles.filter((v) => v.status === 'deposited').length,
-      washing,
+      soldThisMonth: vehicles.filter((v) => v.status === 'sold' && (v.soldDate ?? v.updatedAt)?.startsWith(monthPrefix)).length,
+      deposited: vehicles.filter((v) => v.status === 'deposited').length,
+      totalSold: vehicles.filter((v) => v.status === 'sold').length,
     }
 
     return {

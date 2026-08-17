@@ -4,17 +4,14 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Car, AlertTriangle, Activity, MapPin, Bell, ClipboardList,
-  CheckCircle, Clock, TrendingUp, ArrowRight, Wrench, User,
+  CheckCircle, Clock, ArrowRight,
 } from 'lucide-react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { Badge } from '../../components/ui'
 import { useDashboardViewModel } from './dashboard/DashboardViewModel'
 import { useStore } from '../../store/useStore'
-import { useAuthStore } from '../../store/useAuthStore'
 import { buildTaskSummary } from '../../utils/taskSummary'
 import type {
   KpiData, LiveFeedItem, LocationItem,
-  WarningItem, WorkflowColumn, TaskItem, QuickStats,
+  WarningItem, QuickStats,
 } from './dashboard/DashboardViewModel'
 
 // ====== HEADER ======
@@ -164,129 +161,14 @@ function WarningCard({ warnings }: { warnings: WarningItem[] }) {
   )
 }
 
-// ====== WORKFLOW BOARD ======
-
-function WorkflowBoard({ columns }: { columns: WorkflowColumn[] }) {
-  return (
-    <div className="card p-4">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-          <Car size={16} className="text-brand-500" />
-          Xe theo quy trình
-        </h3>
-        <Link to="/xe" className="text-xs text-brand-600 hover:text-brand-700">Xem tất cả <ArrowRight size={12} className="inline" /></Link>
-      </div>
-      <div className="flex gap-4 overflow-x-auto pb-2">
-        {columns.map((col) => (
-          <div key={col.title} className="min-w-[200px] shrink-0">
-            <div className="mb-2 flex items-center justify-between rounded-lg bg-slate-100 px-3 py-2">
-              <span className="text-xs font-semibold text-slate-700">{col.title}</span>
-              <span className="rounded-full bg-slate-300 px-2 py-0.5 text-xs font-bold text-slate-700">
-                {col.vehicles.length + (col.extra > 0 ? col.extra : 0)}
-              </span>
-            </div>
-            <div className="space-y-1.5">
-              {col.vehicles.length === 0 ? (
-                <p className="py-4 text-center text-xs text-slate-400">Trống</p>
-              ) : (
-                col.vehicles.map((v) => (
-                  <Link
-                    key={v.id}
-                    to={`/xe/${v.id}`}
-                    className="block rounded-lg border border-slate-100 bg-white p-2.5 transition-colors hover:border-brand-200 hover:bg-brand-50"
-                  >
-                    <div className="text-sm font-semibold text-slate-800">{v.plate}</div>
-                    <div className="text-xs text-slate-500">{v.model}</div>
-                    <div className="mt-1">
-                      <Badge tone="slate">{v.task}</Badge>
-                    </div>
-                  </Link>
-                ))
-              )}
-              {col.extra > 0 && (
-                <p className="py-1 text-center text-xs font-medium text-brand-600">+{col.extra} xe khác</p>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ====== MY TASKS CARD ======
-
-const TASK_TABS = [
-  { key: 'mine', label: 'Nhiệm vụ của tôi' },
-  { key: 'assigned', label: 'Giao cho tôi' },
-] as const
-
-function MyTasksCard({ mine, assigned }: { mine: TaskItem[]; assigned: TaskItem[] }) {
-  const [tab, setTab] = useState<'mine' | 'assigned'>('mine')
-  const items = tab === 'mine' ? mine : assigned
-
-  return (
-    <div className="card flex flex-1 flex-col p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-          <ClipboardList size={16} className="text-purple-500" />
-          Công việc
-        </h3>
-        <Link to="/nhiem-vu" className="text-xs text-brand-600 hover:text-brand-700">Xem tất cả <ArrowRight size={12} className="inline" /></Link>
-      </div>
-      <div className="mb-3 flex gap-1 rounded-lg bg-slate-100 p-1">
-        {TASK_TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-              tab === t.key ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-      <div className="max-h-[260px] space-y-1 overflow-y-auto">
-        {items.length === 0 ? (
-          <p className="py-6 text-center text-sm text-slate-400">Không có nhiệm vụ</p>
-        ) : (
-          items.map((task) => {
-            const statusColor = task.status === 'doing' ? '#f59e0b' : task.status === 'todo' ? '#94a3b8' : '#22c55e'
-            const statusLabel = task.status === 'doing' ? 'Đang làm' : task.status === 'todo' ? 'Chờ làm' : 'Hoàn thành'
-            return (
-              <div key={task.id} className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors hover:bg-slate-50">
-                <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-brand-600" />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-slate-700">{task.plate || ''}</span>
-                    <span className="text-xs text-slate-500">{task.title}</span>
-                  </div>
-                  {task.location && <div className="text-[10px] text-slate-400">{task.location}</div>}
-                </div>
-                <span
-                  className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium"
-                  style={{ background: `${statusColor}1a`, color: statusColor }}
-                >
-                  {statusLabel}
-                </span>
-              </div>
-            )
-          })
-        )}
-      </div>
-    </div>
-  )
-}
-
 // ====== QUICK STATS CARD ======
 
 function QuickStatsCard({ stats }: { stats: QuickStats }) {
   const cards = [
     { label: 'Tổng số xe', value: stats.total, color: '#3b82f6', icon: Car },
-    { label: 'Xe đã bán', value: stats.sold, color: '#22c55e', icon: CheckCircle },
-    { label: 'Xe sắp bán', value: stats.pending, color: '#f59e0b', icon: Clock },
-    { label: 'Xe đang rửa', value: stats.washing, color: '#10b981', icon: Car },
+    { label: 'Xe đã bán (tháng)', value: stats.soldThisMonth, color: '#22c55e', icon: CheckCircle },
+    { label: 'Xe đã cọc', value: stats.deposited, color: '#f59e0b', icon: Clock },
+    { label: 'Số xe đã bán', value: stats.totalSold, color: '#10b981', icon: Car },
   ]
 
   return (
@@ -306,67 +188,14 @@ function QuickStatsCard({ stats }: { stats: QuickStats }) {
   )
 }
 
-// ====== REVENUE CHART CARD ======
-
-const MOCK_REVENUE = [
-  { month: 'T1', revenue: 0, cost: 0 },
-  { month: 'T2', revenue: 0, cost: 0 },
-  { month: 'T3', revenue: 0, cost: 0 },
-  { month: 'T4', revenue: 0, cost: 0 },
-  { month: 'T5', revenue: 0, cost: 0 },
-  { month: 'T6', revenue: 0, cost: 0 },
-  { month: 'T7', revenue: 0, cost: 0 },
-  { month: 'T8', revenue: 250, cost: 180 },
-  { month: 'T9', revenue: 0, cost: 0 },
-  { month: 'T10', revenue: 0, cost: 0 },
-  { month: 'T11', revenue: 0, cost: 0 },
-  { month: 'T12', revenue: 0, cost: 0 },
-]
-
-function RevenueChartCard() {
-  return (
-    <div className="card flex flex-1 flex-col p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-          <TrendingUp size={16} className="text-emerald-500" />
-          Doanh thu
-        </h3>
-      </div>
-      <div className="flex-1">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={MOCK_REVENUE} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-            <Tooltip />
-            <Line type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} name="Doanh thu" />
-            <Line type="monotone" dataKey="cost" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} name="Chi phí" />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  )
-}
-
 // ====== TASK OVERVIEW (most prominent) ======
 
 function TaskOverviewSection() {
   const tasks = useStore((s) => s.tasks)
-  const vehicles = useStore((s) => s.vehicles)
-  const currentUser = useAuthStore((s) => s.currentUser)
-
-  const vehiclesMap = new Map(vehicles.map((v) => [v.id, v]))
   const summaryGroups = buildTaskSummary(tasks)
 
-  const commonTasks = tasks
-    .filter((t) => !t.assigneeId && t.status !== 'done')
-    .slice(0, 5)
-  const myTasks = tasks
-    .filter((t) => t.assigneeId === currentUser?.id && t.status !== 'done')
-    .slice(0, 5)
-
   return (
-    <div className="space-y-5">
+    <div>
       {/* Summary — what needs to be done */}
       {summaryGroups.length > 0 && (
         <div className="card border-2 border-brand-100 p-4">
@@ -390,69 +219,6 @@ function TaskOverviewSection() {
           </div>
         </div>
       )}
-
-      {/* Common + personal tasks */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        {/* Nhiệm vụ chung */}
-        <div className="card p-4">
-          <div className="mb-2 flex items-center gap-2">
-            <Wrench size={15} className="text-slate-400" />
-            <span className="text-sm font-semibold text-slate-700">Nhiệm vụ chung</span>
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">{commonTasks.length}</span>
-          </div>
-          {commonTasks.length === 0 ? (
-            <p className="py-6 text-center text-sm text-slate-400">Không có nhiệm vụ</p>
-          ) : (
-            <div className="space-y-2">
-              {commonTasks.map((t) => {
-                const v = t.vehicleId ? vehiclesMap.get(t.vehicleId) : null
-                return (
-                  <div key={t.id} className="rounded-xl border border-slate-100 bg-white px-3 py-2 shadow-sm">
-                    <div className="text-sm font-medium text-slate-800">{t.title}</div>
-                    <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
-                      <span>{v?.plate || '—'}</span>
-                      <Badge tone={t.ruleId ? 'blue' : 'slate'}>{t.ruleId ? '🤖 Auto' : '✍️ Manual'}</Badge>
-                      <Badge tone={t.status === 'done' ? 'green' : t.status === 'doing' ? 'orange' : 'slate'}>
-                        {t.status === 'todo' ? 'Chưa làm' : t.status === 'doing' ? 'Đang làm' : 'Hoàn thành'}
-                      </Badge>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Giao cho tôi */}
-        <div className="card p-4">
-          <div className="mb-2 flex items-center gap-2">
-            <User size={15} className="text-slate-400" />
-            <span className="text-sm font-semibold text-slate-700">Giao cho tôi</span>
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">{myTasks.length}</span>
-          </div>
-          {myTasks.length === 0 ? (
-            <p className="py-6 text-center text-sm text-slate-400">Chưa có nhiệm vụ được giao</p>
-          ) : (
-            <div className="space-y-2">
-              {myTasks.map((t) => {
-                const v = t.vehicleId ? vehiclesMap.get(t.vehicleId) : null
-                return (
-                  <div key={t.id} className="rounded-xl border border-slate-100 bg-white px-3 py-2 shadow-sm">
-                    <div className="text-sm font-medium text-slate-800">{t.title}</div>
-                    <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
-                      <span>{v?.plate || '—'}</span>
-                      <Badge tone={t.ruleId ? 'blue' : 'slate'}>{t.ruleId ? '🤖 Auto' : '✍️ Manual'}</Badge>
-                      <Badge tone={t.status === 'done' ? 'green' : t.status === 'doing' ? 'orange' : 'slate'}>
-                        {t.status === 'todo' ? 'Chưa làm' : t.status === 'doing' ? 'Đang làm' : 'Hoàn thành'}
-                      </Badge>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   )
 }
@@ -487,19 +253,8 @@ export default function OverviewDashboard() {
         </div>
       </div>
 
-      {/* ROW 3: Workflow Board — full width, independent height */}
-      <WorkflowBoard columns={vm.workflowColumns} />
-
-      {/* ROW 4: My Tasks + Stats & Revenue — equal-height cards */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
-        <div className="flex flex-col lg:col-span-3">
-          <MyTasksCard mine={vm.myTasks} assigned={vm.assignedToMe} />
-        </div>
-        <div className="flex flex-col gap-5 lg:col-span-2">
-          <QuickStatsCard stats={vm.quickStats} />
-          <RevenueChartCard />
-        </div>
-      </div>
+      {/* ROW 3: Quick stats — full width */}
+      <QuickStatsCard stats={vm.quickStats} />
     </div>
   )
 }
