@@ -27,6 +27,7 @@ const CHANNELS: RealtimeChannels = {
   taskActivity: null,
   vehicleImages: null,
   vehicleDocs: null,
+  notifications: null,
 }
 
 let isSubscribed = false
@@ -42,6 +43,7 @@ function tableChannel(table: TableName): keyof RealtimeChannels {
     task_activity_logs: 'taskActivity',
     vehicle_images: 'vehicleImages',
     vehicle_documents: 'vehicleDocs',
+    notifications: 'notifications',
   }
   return map[table]
 }
@@ -169,6 +171,32 @@ export function subscribe(store: RealtimeStoreActions): void {
       }
     )
     .subscribe()
+
+  // ====== NOTIFICATIONS ======
+  CHANNELS.notifications = supabase
+    .channel('realtime-notifications')
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'notifications' },
+      (payload) => {
+        store.upsertNotification(payload.new as Record<string, unknown>)
+      }
+    )
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'notifications' },
+      (payload) => {
+        store.upsertNotification(payload.new as Record<string, unknown>)
+      }
+    )
+    .on(
+      'postgres_changes',
+      { event: 'DELETE', schema: 'public', table: 'notifications' },
+      (payload) => {
+        store.deleteNotification(payload.old.id as string)
+      }
+    )
+    .subscribe()
 }
 
 export function unsubscribe(): void {
@@ -187,6 +215,9 @@ export function unsubscribe(): void {
   CHANNELS.taskActivity = null
   CHANNELS.vehicleImages = null
   CHANNELS.vehicleDocs = null
+
+  if (CHANNELS.notifications) supabase.removeChannel(CHANNELS.notifications)
+  CHANNELS.notifications = null
 }
 
 export function isActive(): boolean {

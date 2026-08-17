@@ -94,6 +94,7 @@ export interface Task {
   dueTime?: string | null
   ruleId?: string | null
   source?: TaskSource
+  deferred?: boolean
   createdAt: string
 }
 
@@ -281,6 +282,8 @@ export interface CheckSheet {
   songNungResultStatus?: 'draft' | 'printed' | 'none'
   keyType?: 'smartkey' | 'mechanical' | 'both'
   smartkeyStatus?: 'one' | 'two' | 'damaged'
+  // Kiểm tra gầm
+  undercarriageStatus?: 'ok' | 'slightly_rusty' | 'very_rusty'
   createdAt: string
 }
 

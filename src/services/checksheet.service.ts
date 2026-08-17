@@ -76,6 +76,7 @@ function mapRow(row: Record<string, unknown>): CheckSheet {
     acquySOH: row.acquy_soh as number | undefined,
     acquySOC: row.acquy_soc as number | undefined,
     songNungResultStatus: row.song_nung_result_status as CheckSheet['songNungResultStatus'],
+    undercarriageStatus: row.undercarriage_status as CheckSheet['undercarriageStatus'],
     keyType: row.key_type as CheckSheet['keyType'],
     smartkeyStatus: row.smartkey_status as CheckSheet['smartkeyStatus'],
     outKeyType: row.out_key_type as CheckSheet['outKeyType'],
@@ -147,6 +148,7 @@ export async function createCheckSheet(
     acquy_soh: sheet.acquySOH,
     acquy_soc: sheet.acquySOC,
     song_nung_result_status: sheet.songNungResultStatus,
+    undercarriage_status: sheet.undercarriageStatus,
     key_type: sheet.keyType,
     smartkey_status: sheet.smartkeyStatus,
     out_key_type: sheet.outKeyType,
@@ -196,6 +198,7 @@ export async function updateCheckSheet(
   if (patch.acquySOH !== undefined) updateData.acquy_soh = patch.acquySOH
   if (patch.acquySOC !== undefined) updateData.acquy_soc = patch.acquySOC
   if (patch.songNungResultStatus !== undefined) updateData.song_nung_result_status = patch.songNungResultStatus
+  if (patch.undercarriageStatus !== undefined) updateData.undercarriage_status = patch.undercarriageStatus
   if (patch.keyType !== undefined) updateData.key_type = patch.keyType
   if (patch.smartkeyStatus !== undefined) updateData.smartkey_status = patch.smartkeyStatus
   if (patch.outKeyType !== undefined) updateData.out_key_type = patch.outKeyType
@@ -290,6 +293,7 @@ export async function getOrCreateCheckSheet(
     acquySOH: undefined,
     acquySOC: undefined,
     songNungResultStatus: undefined,
+    undercarriageStatus: undefined,
     keyType: undefined,
     smartkeyStatus: undefined,
     outKeyType: undefined,

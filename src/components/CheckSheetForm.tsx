@@ -247,6 +247,7 @@ export default function CheckSheetForm({
 
   // ====== SONG NƯNG RESULT + KEY STATE ======
   const [songNungResultStatus, setSongNungResultStatus] = useState<'draft' | 'printed' | 'none' | undefined>(undefined)
+  const [undercarriageStatus, setUndercarriageStatus] = useState<'ok' | 'slightly_rusty' | 'very_rusty' | undefined>(undefined)
   const [keyType, setKeyType] = useState<'smartkey' | 'mechanical' | 'both' | undefined>(undefined)
   const [smartkeyStatus, setSmartkeyStatus] = useState<'one' | 'two' | 'damaged' | undefined>(undefined)
 
@@ -276,6 +277,7 @@ export default function CheckSheetForm({
       acquySOH,
       acquySOC,
       songNungResultStatus: songNungResultStatus as CheckSheet['songNungResultStatus'],
+      undercarriageStatus: undercarriageStatus as CheckSheet['undercarriageStatus'],
       keyType: keyType as CheckSheet['keyType'],
       smartkeyStatus: smartkeyStatus as CheckSheet['smartkeyStatus'],
       outKeyType: outKeyType as CheckSheet['outKeyType'],
@@ -318,6 +320,7 @@ export default function CheckSheetForm({
           setOutTireState({ status: '' as CheckOutStatus })
           setInputNotes('')
           setSongNungResultStatus(undefined)
+          setUndercarriageStatus(undefined)
           setKeyType(undefined)
           setSmartkeyStatus(undefined)
           setOutKeyType(undefined)
@@ -347,6 +350,7 @@ export default function CheckSheetForm({
           setOutTireState(sheet.outTireState ?? { status: '' as CheckOutStatus })
           setInputNotes(sheet.inputNotes ?? '')
           setSongNungResultStatus(sheet.songNungResultStatus ?? undefined)
+          setUndercarriageStatus(sheet.undercarriageStatus ?? undefined)
           setKeyType(sheet.keyType ?? undefined)
           setSmartkeyStatus(sheet.smartkeyStatus ?? undefined)
           setOutKeyType(sheet.outKeyType ?? undefined)
@@ -392,7 +396,7 @@ export default function CheckSheetForm({
     if (type === 'out') {
       return { ...base, outCheck, outNotes, acquySOH, acquySOC, outTireState, outKeyType, outSmartkeyStatus }
     }
-    return { ...base, inputAcquySOH, inputAcquySOC, songNungResultStatus, keyType, smartkeyStatus }
+    return { ...base, inputAcquySOH, inputAcquySOC, songNungResultStatus, undercarriageStatus, keyType, smartkeyStatus }
   }
 
   function scheduleSave() {
@@ -418,7 +422,7 @@ export default function CheckSheetForm({
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current)
     }
-  }, [sheetId, checkerId, checkDate, fuelLevel, screen, rearCamera, hipass, rearSensor, dashcam, interior, exterior, inputDieuHoa, inputSuoiGhe, inputTireState, inputNotes, outCheck, outNotes, inputAcquySOH, inputAcquySOC, acquySOH, acquySOC, songNungResultStatus, keyType, smartkeyStatus, outKeyType, outSmartkeyStatus])
+  }, [sheetId, checkerId, checkDate, fuelLevel, screen, rearCamera, hipass, rearSensor, dashcam, interior, exterior, inputDieuHoa, inputSuoiGhe, inputTireState, inputNotes, outCheck, outNotes, inputAcquySOH, inputAcquySOC, acquySOH, acquySOC, songNungResultStatus, undercarriageStatus, keyType, smartkeyStatus, outKeyType, outSmartkeyStatus])
 
   // ====== SUMMARY COUNTS ======
   const summaryCounts = useMemo(() => {
@@ -482,6 +486,10 @@ export default function CheckSheetForm({
       if (songNungResultStatus === 'printed') ok++
       else if (songNungResultStatus === 'draft' || songNungResultStatus === 'none') error++
 
+      // Kiểm tra gầm
+      if (undercarriageStatus === 'ok') ok++
+      else if (undercarriageStatus === 'slightly_rusty' || undercarriageStatus === 'very_rusty') error++
+
       // Nhiên liệu
       if (fuelLevel) {
         const fl = classifyStatus(fuelLevel)
@@ -538,9 +546,13 @@ export default function CheckSheetForm({
       if (songNungResultStatus === 'printed') ok++
       else if (songNungResultStatus === 'draft' || songNungResultStatus === 'none') error++
 
+      // Kiểm tra gầm
+      if (undercarriageStatus === 'ok') ok++
+      else if (undercarriageStatus === 'slightly_rusty' || undercarriageStatus === 'very_rusty') error++
+
       return { ok, error, none, noteCount: outNotes ? 1 : 0 }
     }
-  }, [type, screen, rearCamera, rearSensor, dashcam, interior, exterior, outCheck, outNotes, inputDieuHoa, inputSuoiGhe, inputTireState, fuelLevel, inputAcquySOC, keyType, smartkeyStatus, outKeyType, outSmartkeyStatus, songNungResultStatus])
+  }, [type, screen, rearCamera, rearSensor, dashcam, interior, exterior, outCheck, outNotes, inputDieuHoa, inputSuoiGhe, inputTireState, fuelLevel, inputAcquySOC, keyType, smartkeyStatus, outKeyType, outSmartkeyStatus, songNungResultStatus, undercarriageStatus])
 
   // Paint count
   const paintCount = useMemo(() => {
@@ -1035,6 +1047,20 @@ export default function CheckSheetForm({
                   ]}
                   value={songNungResultStatus}
                   onChange={(v) => setSongNungResultStatus(v as 'none' | 'draft' | 'printed')}
+                />
+              </div>
+
+              {/* Kiểm tra gầm */}
+              <div>
+                <label className="label">Kiểm tra gầm</label>
+                <SegButton
+                  options={[
+                    { value: 'ok', label: 'OK' },
+                    { value: 'slightly_rusty', label: 'Hơi gỉ' },
+                    { value: 'very_rusty', label: 'Gỉ nhiều' },
+                  ]}
+                  value={undercarriageStatus}
+                  onChange={(v) => setUndercarriageStatus(v as 'ok' | 'slightly_rusty' | 'very_rusty')}
                 />
               </div>
 

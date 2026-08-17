@@ -26,6 +26,7 @@ const RULE_FIELD_MAP: Record<string, SheetMapper> = {
   in_dieuhoa_need_gas: () => ({ inputDieuHoa: { status: 'good' } }),
   in_suoi_ghe_broken: () => ({ inputSuoiGhe: { status: 'good' } }),
   in_rear_camera_broken: () => ({ rearCamera: 'ok' }),
+  in_rear_camera_blurry: () => ({ rearCamera: 'ok' }),
   in_rear_sensor_broken: () => ({ rearSensor: 'ok' }),
   in_rear_sensor_none: () => ({ rearSensor: 'ok' }),
   in_dashcam_maybe: () => ({ dashcam: 'good' }),
@@ -39,6 +40,9 @@ const RULE_FIELD_MAP: Record<string, SheetMapper> = {
   // ===== SONG NƯNG RULES =====
   song_nung_needed: () => ({ songNungResultStatus: 'draft' }),
   song_nung_draft: () => ({ songNungResultStatus: 'printed' }),
+
+  // ===== KIỂM TRA GẦM RULES =====
+  in_undercarriage_very_rusty: () => ({ undercarriageStatus: 'ok' }),
 
   // ===== KEY STATUS RULES =====
   in_smartkey_damaged: () => ({ smartkeyStatus: 'two' }),

@@ -115,14 +115,13 @@ export async function deletePosition(id: string): Promise<void> {
 }
 
 export async function reorderPositions(items: Array<{ id: string; sort_order: number }>): Promise<void> {
-  const updates = items.map((item) => ({
-    id: item.id,
-    sort_order: item.sort_order,
-  }))
-
-  const { error } = await supabase
-    .from('positions')
-    .upsert(updates, { onConflict: 'id' })
-
-  if (error) throw error
+  // Update each row individually. upsert() with only {id, sort_order} would
+  // reset other NOT NULL columns (e.g. name) to DEFAULT and fail silently.
+  const results = await Promise.all(
+    items.map((item) =>
+      supabase.from('positions').update({ sort_order: item.sort_order }).eq('id', item.id)
+    )
+  )
+  const firstError = results.find((r) => r.error)
+  if (firstError?.error) throw firstError.error
 }

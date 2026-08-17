@@ -4,11 +4,14 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Car, AlertTriangle, Activity, MapPin, Bell, ClipboardList,
-  CheckCircle, Clock, TrendingUp, ArrowRight,
+  CheckCircle, Clock, TrendingUp, ArrowRight, Wrench, User,
 } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { Badge } from '../../components/ui'
 import { useDashboardViewModel } from './dashboard/DashboardViewModel'
+import { useStore } from '../../store/useStore'
+import { useAuthStore } from '../../store/useAuthStore'
+import { buildTaskSummary } from '../../utils/taskSummary'
 import type {
   KpiData, LiveFeedItem, LocationItem,
   WarningItem, WorkflowColumn, TaskItem, QuickStats,
@@ -345,6 +348,115 @@ function RevenueChartCard() {
   )
 }
 
+// ====== TASK OVERVIEW (most prominent) ======
+
+function TaskOverviewSection() {
+  const tasks = useStore((s) => s.tasks)
+  const vehicles = useStore((s) => s.vehicles)
+  const currentUser = useAuthStore((s) => s.currentUser)
+
+  const vehiclesMap = new Map(vehicles.map((v) => [v.id, v]))
+  const summaryGroups = buildTaskSummary(tasks)
+
+  const commonTasks = tasks
+    .filter((t) => !t.assigneeId && t.status !== 'done')
+    .slice(0, 5)
+  const myTasks = tasks
+    .filter((t) => t.assigneeId === currentUser?.id && t.status !== 'done')
+    .slice(0, 5)
+
+  return (
+    <div className="space-y-5">
+      {/* Summary — what needs to be done */}
+      {summaryGroups.length > 0 && (
+        <div className="card border-2 border-brand-100 p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <span className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+              📋 Tổng quan nhiệm vụ
+              <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-600">{summaryGroups.length} loại cần làm</span>
+            </span>
+            <Link to="/nhiem-vu" className="text-xs font-medium text-brand-600 hover:underline">Xem tất cả →</Link>
+          </div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {summaryGroups.map((g) => (
+              <div key={g.key} className="flex items-center justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="shrink-0 text-base">{g.icon}</span>
+                  <span className="truncate text-sm font-medium text-slate-700">{g.label}</span>
+                </div>
+                <span className="shrink-0 text-sm font-semibold text-slate-800">{g.count} {g.isManual ? 'việc' : 'xe'}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Common + personal tasks */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        {/* Nhiệm vụ chung */}
+        <div className="card p-4">
+          <div className="mb-2 flex items-center gap-2">
+            <Wrench size={15} className="text-slate-400" />
+            <span className="text-sm font-semibold text-slate-700">Nhiệm vụ chung</span>
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">{commonTasks.length}</span>
+          </div>
+          {commonTasks.length === 0 ? (
+            <p className="py-6 text-center text-sm text-slate-400">Không có nhiệm vụ</p>
+          ) : (
+            <div className="space-y-2">
+              {commonTasks.map((t) => {
+                const v = t.vehicleId ? vehiclesMap.get(t.vehicleId) : null
+                return (
+                  <div key={t.id} className="rounded-xl border border-slate-100 bg-white px-3 py-2 shadow-sm">
+                    <div className="text-sm font-medium text-slate-800">{t.title}</div>
+                    <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
+                      <span>{v?.plate || '—'}</span>
+                      <Badge tone={t.ruleId ? 'blue' : 'slate'}>{t.ruleId ? '🤖 Auto' : '✍️ Manual'}</Badge>
+                      <Badge tone={t.status === 'done' ? 'green' : t.status === 'doing' ? 'orange' : 'slate'}>
+                        {t.status === 'todo' ? 'Chưa làm' : t.status === 'doing' ? 'Đang làm' : 'Hoàn thành'}
+                      </Badge>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Giao cho tôi */}
+        <div className="card p-4">
+          <div className="mb-2 flex items-center gap-2">
+            <User size={15} className="text-slate-400" />
+            <span className="text-sm font-semibold text-slate-700">Giao cho tôi</span>
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">{myTasks.length}</span>
+          </div>
+          {myTasks.length === 0 ? (
+            <p className="py-6 text-center text-sm text-slate-400">Chưa có nhiệm vụ được giao</p>
+          ) : (
+            <div className="space-y-2">
+              {myTasks.map((t) => {
+                const v = t.vehicleId ? vehiclesMap.get(t.vehicleId) : null
+                return (
+                  <div key={t.id} className="rounded-xl border border-slate-100 bg-white px-3 py-2 shadow-sm">
+                    <div className="text-sm font-medium text-slate-800">{t.title}</div>
+                    <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
+                      <span>{v?.plate || '—'}</span>
+                      <Badge tone={t.ruleId ? 'blue' : 'slate'}>{t.ruleId ? '🤖 Auto' : '✍️ Manual'}</Badge>
+                      <Badge tone={t.status === 'done' ? 'green' : t.status === 'doing' ? 'orange' : 'slate'}>
+                        {t.status === 'todo' ? 'Chưa làm' : t.status === 'doing' ? 'Đang làm' : 'Hoàn thành'}
+                      </Badge>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ====== PAGE ======
 
 export default function OverviewDashboard() {
@@ -353,6 +465,9 @@ export default function OverviewDashboard() {
   return (
     <div className="space-y-7">
       <DashboardHeader />
+
+      {/* TASK OVERVIEW — most prominent, what needs to be done */}
+      <TaskOverviewSection />
 
       {/* ROW 1: 4 KPI cards — equal width, full row */}
       <div className="flex flex-1 gap-5">

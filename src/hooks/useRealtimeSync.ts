@@ -106,6 +106,14 @@ export function useRealtimeSync(): void {
       deletePosition: (id) => useStore.getState().deletePosition(id),
       upsertMoveLog: (row) => useStore.getState().upsertMoveLogFromRealtime(row),
       upsertTaskActivity: (row) => useStore.getState().upsertTaskActivityFromRealtime(row),
+      upsertNotification: (row) => useStore.getState().upsertNotificationFromRealtime(row),
+      deleteNotification: (id) => {
+        const { notifications } = useStore.getState()
+        const filtered = notifications.filter((n) => n.id !== id)
+        if (filtered.length < notifications.length) {
+          useStore.setState({ notifications: filtered })
+        }
+      },
       upsertVehicleImage: (row) => {
         const r = row as { id: string; vehicle_id: string; url: string }
         handleImageUpsert(r.vehicle_id, r.id, r.url)

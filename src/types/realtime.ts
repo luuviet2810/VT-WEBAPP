@@ -13,6 +13,7 @@ export interface RealtimeChannels {
   taskActivity: RealtimeChannel | null
   vehicleImages: RealtimeChannel | null
   vehicleDocs: RealtimeChannel | null
+  notifications: RealtimeChannel | null
 }
 
 // ---- Store update actions passed from hook to service ----
@@ -29,8 +30,10 @@ export interface RealtimeStoreActions {
   deleteVehicleImage: (id: string) => void
   upsertVehicleDoc: (v: Record<string, unknown>) => void
   deleteVehicleDoc: (id: string) => void
+  upsertNotification: (n: Record<string, unknown>) => void
+  deleteNotification: (id: string) => void
   reloadVehicleTimeline: (vehicleId: string) => void
 }
 
 // ---- Table name literals ----
-export type TableName = 'vehicles' | 'tasks' | 'positions' | 'move_logs' | 'task_activity_logs' | 'vehicle_images' | 'vehicle_documents'
+export type TableName = 'vehicles' | 'tasks' | 'positions' | 'move_logs' | 'task_activity_logs' | 'vehicle_images' | 'vehicle_documents' | 'notifications'

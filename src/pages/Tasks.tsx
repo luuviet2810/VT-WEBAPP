@@ -1,21 +1,41 @@
 import { useMemo, useState, useEffect, useRef } from 'react'
-import { Plus, X, Trash2, GripVertical, Calendar, User } from 'lucide-react'
+import { Plus, X, Trash2, GripVertical, Calendar, User, ChevronDown, ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import { useTaskPermissions } from '../rbac/usePermissions'
-import { Badge } from '../components/ui'
+import { Badge, Modal } from '../components/ui'
+import { buildTaskSummary, TaskGroupSummary } from '../utils/taskSummary'
 import type { Task, TaskPriority, TaskStatus } from '../types'
 import { uid } from '../utils/format'
 
-type WorkSection = 'todo' | 'doing' | 'done'
+type WorkSection = 'todo' | 'deferred' | 'doing' | 'done'
 
-const SECTION_CONFIG: { key: WorkSection; label: string; icon: string; tone: 'slate' | 'orange' | 'green' }[] = [
+const SECTION_CONFIG: { key: WorkSection; label: string; icon: string; tone: 'slate' | 'orange' | 'green' | 'blue' }[] = [
   { key: 'todo', label: 'Chưa làm', icon: '🚗', tone: 'slate' },
+  { key: 'deferred', label: 'Chưa cần làm ngay', icon: '📌', tone: 'blue' },
   { key: 'doing', label: 'Đang làm', icon: '🟡', tone: 'orange' },
   { key: 'done', label: 'Đã hoàn thành', icon: '✅', tone: 'green' },
 ]
 
 const PRIORITY_LABEL: Record<TaskPriority, string> = { high: 'Làm gấp / Giao ngay', medium: 'Ưu tiên hơn', low: 'Cứ từ từ', urgent: 'Làm gấp / Giao ngay' }
 const PRIORITY_TONE: Record<TaskPriority, 'slate' | 'blue' | 'orange' | 'red'> = { high: 'red', medium: 'orange', low: 'blue', urgent: 'red' }
+
+const STATUS_BTN_TONE: Record<'slate' | 'blue' | 'orange' | 'green', string> = {
+  slate: 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100',
+  blue: 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100',
+  orange: 'border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100',
+  green: 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100',
+}
+
+function QuickStatusBtn({ label, tone, onClick }: { label: string; tone: 'slate' | 'blue' | 'orange' | 'green'; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex flex-1 min-w-[120px] items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-colors min-h-[44px] ${STATUS_BTN_TONE[tone]}`}
+    >
+      {label}
+    </button>
+  )
+}
 
 // ====== TASK CARD ======
 function TaskCard({ task, vehiclePlate, onEdit, onDragStart }: { task: Task; vehiclePlate: string; onEdit: () => void; onDragStart: (e: React.DragEvent) => void }) {
@@ -116,6 +136,7 @@ function TaskEditDrawer({ task, vehicles, employees, onClose, onUpdate, onDelete
   const [title, setTitle] = useState(task.title)
   const [priority, setPriority] = useState<TaskPriority>(task.priority)
   const [status, setStatus] = useState<TaskStatus>(task.status)
+  const [deferred, setDeferred] = useState(Boolean(task.deferred))
   const [assigneeId, setAssigneeId] = useState(task.assigneeId ?? '')
   const [dueDate, setDueDate] = useState(task.dueDate ?? '')
   const [dueTime, setDueTime] = useState(task.dueTime ?? '')
@@ -132,7 +153,7 @@ function TaskEditDrawer({ task, vehicles, employees, onClose, onUpdate, onDelete
     if (!title.trim()) return
     setSaving(true)
     onUpdate(task.id, {
-      title: title.trim(), priority, status,
+      title: title.trim(), priority, status, deferred,
       assigneeId: assigneeId || null,
       dueDate: dueDate || null, dueTime: dueTime || null,
     })
@@ -184,37 +205,49 @@ function TaskEditDrawer({ task, vehicles, employees, onClose, onUpdate, onDelete
           <div>
             <label className="label">Trạng thái hiện tại</label>
             <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">
-              <span className={`h-2 w-2 rounded-full ${status === 'todo' ? 'bg-slate-400' : status === 'doing' ? 'bg-orange-400' : 'bg-green-500'}`} />
-              {status === 'todo' ? 'Chưa làm' : status === 'doing' ? 'Đang làm' : 'Hoàn thành'}
+              <span className={`h-2 w-2 rounded-full ${deferred ? 'bg-blue-400' : status === 'todo' ? 'bg-slate-400' : status === 'doing' ? 'bg-orange-400' : 'bg-green-500'}`} />
+              {deferred ? 'Chưa cần làm ngay' : status === 'todo' ? 'Chưa làm' : status === 'doing' ? 'Đang làm' : 'Hoàn thành'}
             </div>
           </div>
 
-          {/* Quick Actions — only show actionable transitions */}
-          {status !== 'done' && (
-            <div>
-              <label className="label">Chuyển nhanh</label>
-              <div className="flex gap-3">
-                {status === 'todo' && (
-                  <button
-                    onClick={() => { setStatus('doing'); onUpdate(task.id, { status: 'doing' }) }}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-semibold text-orange-700 transition-colors hover:bg-orange-100 min-h-[44px]"
-                  >
-                    ▶ Đang làm
-                  </button>
-                )}
-                {(status === 'todo' || status === 'doing') && (
-                  <button
-                    onClick={() => { setStatus('done'); onUpdate(task.id, { status: 'done' }) }}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-100 min-h-[44px]"
-                  >
-                    ✓ Hoàn thành
-                  </button>
-                )}
-              </div>
+          {/* Quick Actions — move to any of the other 3 states */}
+          <div>
+            <label className="label">Chuyển nhanh</label>
+            <div className="flex flex-wrap gap-2">
+              {deferred ? (
+                <>
+                  <QuickStatusBtn label="Chưa làm" tone="slate" onClick={() => { setStatus('todo'); setDeferred(false); onUpdate(task.id, { status: 'todo', deferred: false }) }} />
+                  <QuickStatusBtn label="Đang làm" tone="orange" onClick={() => { setStatus('doing'); setDeferred(false); onUpdate(task.id, { status: 'doing', deferred: false }) }} />
+                  <QuickStatusBtn label="Hoàn thành" tone="green" onClick={() => { setStatus('done'); setDeferred(false); onUpdate(task.id, { status: 'done', deferred: false }) }} />
+                </>
+              ) : status === 'todo' ? (
+                <>
+                  <QuickStatusBtn label="Chưa cần làm ngay" tone="blue" onClick={() => { setDeferred(true); onUpdate(task.id, { status: 'todo', deferred: true }) }} />
+                  <QuickStatusBtn label="Đang làm" tone="orange" onClick={() => { setStatus('doing'); onUpdate(task.id, { status: 'doing' }) }} />
+                  <QuickStatusBtn label="Hoàn thành" tone="green" onClick={() => { setStatus('done'); onUpdate(task.id, { status: 'done' }) }} />
+                </>
+              ) : status === 'doing' ? (
+                <>
+                  <QuickStatusBtn label="Chưa làm" tone="slate" onClick={() => { setStatus('todo'); onUpdate(task.id, { status: 'todo' }) }} />
+                  <QuickStatusBtn label="Chưa cần làm ngay" tone="blue" onClick={() => { setStatus('todo'); setDeferred(true); onUpdate(task.id, { status: 'todo', deferred: true }) }} />
+                  <QuickStatusBtn label="Hoàn thành" tone="green" onClick={() => { setStatus('done'); onUpdate(task.id, { status: 'done' }) }} />
+                </>
+              ) : (
+                <>
+                  <QuickStatusBtn label="Chưa làm" tone="slate" onClick={() => { setStatus('todo'); onUpdate(task.id, { status: 'todo' }) }} />
+                  <QuickStatusBtn label="Chưa cần làm ngay" tone="blue" onClick={() => { setStatus('todo'); setDeferred(true); onUpdate(task.id, { status: 'todo', deferred: true }) }} />
+                  <QuickStatusBtn label="Đang làm" tone="orange" onClick={() => { setStatus('doing'); onUpdate(task.id, { status: 'doing' }) }} />
+                </>
+              )}
+            </div>
+          </div>
+
+          {deferred && status === 'todo' && (
+            <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700">
+              📌 Chưa cần làm ngay — vẫn là "Chưa làm", không tự cập nhật checksheet
             </div>
           )}
-
-          {status === 'done' && (
+          {status === 'done' && !deferred && (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
               ✓ Công việc đã hoàn thành
             </div>
@@ -249,6 +282,125 @@ function TaskEditDrawer({ task, vehicles, employees, onClose, onUpdate, onDelete
   )
 }
 
+// ====== TASK SUMMARY ======
+function TaskSummary({ groups, onDetail }: { groups: TaskGroupSummary[]; onDetail: (g: TaskGroupSummary) => void }) {
+  const [collapsed, setCollapsed] = useState(false)
+  if (groups.length === 0) return null
+  return (
+    <div className="card mb-5 p-4">
+      <button
+        onClick={() => setCollapsed((c) => !c)}
+        className="mb-3 flex w-full items-center justify-between text-sm font-semibold text-slate-700"
+        aria-expanded={!collapsed}
+      >
+        <span className="flex items-center gap-2">
+          📋 Tổng quan nhiệm vụ
+          {!collapsed && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">{groups.length} loại</span>}
+        </span>
+        <ChevronDown size={18} className={`shrink-0 text-slate-400 transition-transform ${collapsed ? '' : 'rotate-180'}`} />
+      </button>
+      {!collapsed && (
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {groups.map((g) => (
+            <div key={g.key} className="flex items-center justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="shrink-0 text-base">{g.icon}</span>
+                <span className="truncate text-sm font-medium text-slate-700">{g.label}</span>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <span className="text-sm font-semibold text-slate-800">{g.count} {g.isManual ? 'việc' : 'xe'}</span>
+                <button
+                  onClick={() => onDetail(g)}
+                  className="rounded-lg bg-white border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-brand-600 transition-colors hover:border-brand-300 hover:bg-brand-50"
+                  style={{ minHeight: 44 }}
+                >
+                  Chi tiết
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ====== TASK SUMMARY DETAIL (drawer/modal, read-only) ======
+function TaskSummaryDetail({ group, vehicles, employees, onClose }: {
+  group: TaskGroupSummary
+  vehicles: { id: string; plate: string; model: string }[]
+  employees: { id: string; name: string }[]
+  onClose: () => void
+}) {
+  const assigneeName = (id?: string | null) => (id ? employees.find((e) => e.id === id)?.name : undefined)
+
+  if (group.isManual) {
+    const unit = group.count === 1 ? 'việc' : 'việc'
+    return (
+      <Modal open onClose={onClose} title={`${group.icon} ${group.label}`} subtitle={`${group.count} ${unit} chưa hoàn thành`} width="max-w-lg">
+        <div className="space-y-2">
+          {group.tasks.map((t) => {
+            const v = t.vehicleId ? vehicles.find((x) => x.id === t.vehicleId) : null
+            return (
+              <div key={t.id} className="rounded-xl border border-slate-100 p-3">
+                <div className="text-sm font-medium text-slate-800">• {t.title}</div>
+                <div className="mt-0.5 text-xs text-slate-500">Xe {v ? `${v.model} · ${v.plate}` : '—'}</div>
+                <div className="mt-1 flex items-center gap-2 text-xs">
+                  <Badge tone={t.status === 'doing' ? 'orange' : 'slate'}>{t.status === 'todo' ? 'Chưa làm' : 'Đang làm'}</Badge>
+                  {assigneeName(t.assigneeId) && <span className="text-slate-500">👤 {assigneeName(t.assigneeId)}</span>}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </Modal>
+    )
+  }
+
+  // Auto group — list unique vehicles, matching the summary count exactly
+  const seen = new Set<string>()
+  const vehicleTasks = group.tasks.filter((t) => {
+    if (!t.vehicleId) return false
+    if (seen.has(t.vehicleId)) return false
+    seen.add(t.vehicleId)
+    return true
+  })
+  const noVehicleTasks = group.tasks.filter((t) => !t.vehicleId)
+  const countUnit = group.count === 1 ? 'xe' : 'xe'
+
+  return (
+    <Modal open onClose={onClose} title={`${group.icon} ${group.label}`} subtitle={`${group.count} ${countUnit} cần thực hiện`} width="max-w-lg">
+      <div className="space-y-2">
+        {vehicleTasks.map((t) => {
+          const v = vehicles.find((x) => x.id === t.vehicleId)
+          return (
+            <div key={t.id} className="rounded-xl border border-slate-100 p-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-slate-800">🚗 {v?.plate || '—'}</span>
+                <span className="text-sm text-slate-500">{v?.model || ''}</span>
+              </div>
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                <Badge tone={t.status === 'doing' ? 'orange' : 'slate'}>{t.status === 'todo' ? 'Chưa làm' : 'Đang làm'}</Badge>
+                <Badge tone={PRIORITY_TONE[t.priority]}>{PRIORITY_LABEL[t.priority]}</Badge>
+                {t.dueDate && <span className="text-slate-400">📅 {t.dueDate}{t.dueTime ? ` ${t.dueTime}` : ''}</span>}
+                {assigneeName(t.assigneeId) && <span className="text-slate-500">👤 {assigneeName(t.assigneeId)}</span>}
+              </div>
+            </div>
+          )
+        })}
+        {noVehicleTasks.map((t) => (
+          <div key={t.id} className="rounded-xl border border-slate-100 p-3">
+            <div className="text-sm font-medium text-slate-800">• {t.title} <span className="text-xs text-slate-400">(không liên kết xe)</span></div>
+            <div className="mt-1 flex items-center gap-2 text-xs">
+              <Badge tone={t.status === 'doing' ? 'orange' : 'slate'}>{t.status === 'todo' ? 'Chưa làm' : 'Đang làm'}</Badge>
+            </div>
+          </div>
+        ))}
+      </div>
+    </Modal>
+  )
+}
+
 // ====== MAIN TASKS PAGE ======
 export default function Tasks() {
   const tasks = useStore((s) => s.tasks)
@@ -259,7 +411,9 @@ export default function Tasks() {
   const addTask = useStore((s) => s.addTask)
   const taskPerms = useTaskPermissions()
   const [assigneeFilter, setAssigneeFilter] = useState('all')
+  const [searchQuery, setSearchQuery] = useState('')
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
+  const [summaryDetailGroup, setSummaryDetailGroup] = useState<TaskGroupSummary | null>(null)
 
   // Add-task drawer
   const [showAddDrawer, setShowAddDrawer] = useState(false)
@@ -272,6 +426,13 @@ export default function Tasks() {
 
   // Drag state
   const dragTaskIdRef = useRef<string | null>(null)
+  const boardScrollRef = useRef<HTMLDivElement>(null)
+
+  function scrollBoard(dir: 1 | -1) {
+    const el = boardScrollRef.current
+    if (!el) return
+    el.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: 'smooth' })
+  }
 
   useEffect(() => {
     if (!showAddDrawer && !editingTaskId) return
@@ -287,8 +448,21 @@ export default function Tasks() {
     return m
   }, [vehicles])
 
+  // Search: match task title, vehicle plate, or vehicle model
+  const searchFiltered = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return tasks
+    const vById = new Map(vehicles.map((v) => [v.id, v]))
+    return tasks.filter((t) => {
+      if (t.title.toLowerCase().includes(q)) return true
+      const v = t.vehicleId ? vById.get(t.vehicleId) : null
+      if (!v) return false
+      return v.plate.toLowerCase().includes(q) || v.model.toLowerCase().includes(q)
+    })
+  }, [tasks, vehicles, searchQuery])
+
   // Filtered tasks
-  const filtered = useMemo(() => tasks.filter((t) => assigneeFilter === 'all' || t.assigneeId === assigneeFilter), [tasks, assigneeFilter])
+  const filtered = useMemo(() => searchFiltered.filter((t) => assigneeFilter === 'all' || t.assigneeId === assigneeFilter), [searchFiltered, assigneeFilter])
 
   // Sort: priority (high→low), then deadline (overdue→today→tomorrow→future→none), then creation order
   const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 0, medium: 1, low: 2 }
@@ -313,11 +487,15 @@ export default function Tasks() {
     return a.createdAt.localeCompare(b.createdAt) // stable: creation order
   })
 
-  const todoTasks = useMemo(() => sortTasks(filtered.filter((t) => t.status === 'todo')), [filtered])
+  const todoTasks = useMemo(() => sortTasks(filtered.filter((t) => t.status === 'todo' && !t.deferred)), [filtered])
+  const deferredTasks = useMemo(() => sortTasks(filtered.filter((t) => t.status === 'todo' && t.deferred)), [filtered])
   const doingTasks = useMemo(() => sortTasks(filtered.filter((t) => t.status === 'doing')), [filtered])
   const doneTasks = useMemo(() => sortTasks(filtered.filter((t) => t.status === 'done')), [filtered])
 
-  const sectionTasks: Record<WorkSection, Task[]> = { todo: todoTasks, doing: doingTasks, done: doneTasks }
+  const sectionTasks: Record<WorkSection, Task[]> = { todo: todoTasks, deferred: deferredTasks, doing: doingTasks, done: doneTasks }
+
+  // Read-only summary of incomplete tasks — updates automatically with Zustand
+  const summaryGroups = useMemo(() => buildTaskSummary(tasks), [tasks])
 
   function handleDragStart(_e: React.DragEvent, taskId: string) { dragTaskIdRef.current = taskId }
   function handleDrop(section: WorkSection) {
@@ -327,8 +505,17 @@ export default function Tasks() {
       dragTaskIdRef.current = null
       if (!taskId) return
       const task = tasks.find((t) => t.id === taskId)
-      if (!task || task.status === section) return
-      updateTask(taskId, { status: section })
+      if (!task) return
+
+      if (section === 'deferred') {
+        // Deferred stays "chưa làm" — never becomes done, never triggers checkSheet sync
+        if (task.status === 'todo' && task.deferred) return
+        updateTask(taskId, { status: 'todo', deferred: true })
+        return
+      }
+
+      if (task.status === section && !task.deferred) return
+      updateTask(taskId, { status: section, deferred: false })
     }
   }
 
@@ -354,6 +541,20 @@ export default function Tasks() {
           <p className="mt-1 text-sm text-slate-500">Kéo thả để cập nhật trạng thái</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <div className="relative">
+            <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              className="input w-56 pl-9"
+              placeholder="Tìm nhiệm vụ, biển số..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-slate-400 hover:text-slate-600" title="Xoá tìm kiếm">
+                <X size={14} />
+              </button>
+            )}
+          </div>
           <select className="input w-44" value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)}>
             <option value="all">Tất cả nhân viên</option>
             {employees.map((e) => (<option key={e.id} value={e.id}>{e.name}</option>))}
@@ -364,8 +565,24 @@ export default function Tasks() {
         </div>
       </div>
 
+      {/* Task Summary */}
+      <TaskSummary groups={summaryGroups} onDetail={setSummaryDetailGroup} />
+
+      {/* Horizontal scroll controls — between summary and board */}
+      <div className="mb-2 flex items-center justify-between gap-3 md:hidden">
+        <span className="text-xs text-slate-400">Vuốt ngang để xem các cột</span>
+        <div className="flex items-center gap-2">
+          <button onClick={() => scrollBoard(-1)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50" aria-label="Cuộn trái">
+            <ChevronLeft size={18} />
+          </button>
+          <button onClick={() => scrollBoard(1)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50" aria-label="Cuộn phải">
+            <ChevronRight size={18} />
+          </button>
+        </div>
+      </div>
+
       {/* Kanban Board */}
-      <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory md:snap-none">
+      <div ref={boardScrollRef} className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory md:snap-none">
         {SECTION_CONFIG.map((section) => {
           const tasksInSection = sectionTasks[section.key]
           return (
@@ -440,6 +657,16 @@ export default function Tasks() {
       {editingTask && (
         <TaskEditDrawer task={editingTask} vehicles={vehicles} employees={employees}
           onClose={() => setEditingTaskId(null)} onUpdate={updateTask} onDelete={deleteTask} />
+      )}
+
+      {/* Task Summary Detail */}
+      {summaryDetailGroup && (
+        <TaskSummaryDetail
+          group={summaryDetailGroup}
+          vehicles={vehicles}
+          employees={employees}
+          onClose={() => setSummaryDetailGroup(null)}
+        />
       )}
     </div>
   )

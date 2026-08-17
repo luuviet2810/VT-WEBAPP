@@ -37,6 +37,7 @@ export async function createTask(task: Omit<Task, 'id' | 'createdAt'>): Promise<
       due_time: task.dueTime || null,
       rule_id: task.ruleId || null,
       source: task.source || null,
+      deferred: task.deferred ?? false,
     })
     .select()
     .single()
@@ -61,6 +62,7 @@ export async function updateTask(id: string, patch: Partial<Task>): Promise<Task
   if (patch.vehicleId !== undefined) updateData.vehicle_id = patch.vehicleId || null
   if (patch.dueDate !== undefined) updateData.due_date = patch.dueDate || null
   if (patch.dueTime !== undefined) updateData.due_time = patch.dueTime || null
+  if (patch.deferred !== undefined) updateData.deferred = patch.deferred
 
   const { data, error } = await supabase
     .from('tasks')
@@ -188,6 +190,7 @@ function mapRow(row: Record<string, unknown>): Task {
     dueTime: (row.due_time as string) || undefined,
     ruleId: (row.rule_id as string) || undefined,
     source: (row.source as Task['source']) || undefined,
+    deferred: Boolean(row.deferred),
     createdAt: row.created_at as string,
   }
 }

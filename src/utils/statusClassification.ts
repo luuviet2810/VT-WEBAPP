@@ -43,6 +43,8 @@ const CLASSIFICATION: Record<string, 'ok' | 'bad' | 'install'> = {
   'worn': 'bad',
   'badd': 'bad',
   'draft': 'bad',
+  'slightly_rusty': 'bad',
+  'very_rusty': 'bad',
 
   // === INSTALL (missing, needs installation) ===
   'none': 'install',
@@ -118,6 +120,9 @@ const STATUS_LABELS: Record<string, string> = {
   // Song nưng result
   draft: 'Bản nháp',
   printed: 'Đã in',
+  // Kiểm tra gầm
+  slightly_rusty: 'Hơi gỉ',
+  very_rusty: 'Gỉ nhiều',
   // Key type
   smartkey: 'Smartkey',
   mechanical: 'Khóa cơ',

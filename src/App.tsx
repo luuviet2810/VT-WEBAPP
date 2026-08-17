@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar'
 import NotificationCenter from './components/NotificationCenter'
 import { useEffect } from 'react'
 import { initializeFromSupabase } from './store/useStore'
+import { useRealtimeSync } from './hooks/useRealtimeSync'
 
 import VehicleList from './pages/VehicleList'
 import PriceList from './pages/PriceList'
@@ -111,6 +112,7 @@ function StatisticsRouter() {
 
 export default function App() {
   const { initializeAuth, authLoading, isAuthenticated, currentUser } = useAuthStore()
+  useRealtimeSync()
 
   useEffect(() => {
     initializeAuth()

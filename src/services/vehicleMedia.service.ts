@@ -109,6 +109,19 @@ export async function deleteVehicleImage(imageId: string, storagePath: string): 
   if (dbError) throw dbError
 }
 
+/**
+ * Update the display order (sort_order) of a vehicle's images.
+ * Used when the user reorders images or sets a new cover image.
+ */
+export async function updateVehicleImageOrder(imageId: string, sortOrder: number): Promise<void> {
+  const { error } = await supabase
+    .from('vehicle_images')
+    .update({ sort_order: sortOrder })
+    .eq('id', imageId)
+
+  if (error) throw error
+}
+
 // ====== VEHICLE DOCUMENTS ======
 
 function mapDocumentRow(row: Record<string, unknown>): VehicleDocumentRow {

@@ -2,14 +2,13 @@
 
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Car, ListChecks, ClipboardList, Fuel, Monitor, Camera, AlertCircle, Wrench, CheckCircle2, XCircle, Minus, StickyNote, ExternalLink } from 'lucide-react'
+import { Car, LogIn, LogOut, Fuel, Monitor, Camera, AlertCircle, Wrench, CheckCircle2, XCircle, Minus, StickyNote, ExternalLink } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import { Badge, EmptyState, Modal } from '../components/ui'
 import VehicleFilterBar from '../components/VehicleFilterBar'
 import { formatCurrency } from '../utils/format'
 import { VehicleStatus, FuelLevel, CheckSheet } from '../types'
 import { classifyStatus, statusLabel } from '../utils/statusClassification'
-import { getVehicleWorkflowStatus, WORKFLOW_STATUS_TONE, WORKFLOW_STATUS_LABEL } from '../utils/vehicleWorkflow'
 import TaskDrawer from '../components/tasks/TaskDrawer'
 import type { VehicleGroup } from '../components/tasks/VehicleTaskCard'
 
@@ -140,10 +139,7 @@ export default function VehicleList() {
             const position = positions.find((p) => p.id === v.positionId)
             const assignee = employees.find((e) => e.id === v.assigneeId)
             const { latestIn, latestOut } = getLatestCheckSheets(v.id)
-            const hasCheckSheet = !!latestIn || !!latestOut
-            const vehicleSheets = checkSheets.filter((c) => c.vehicleId === v.id)
             const vehicleTasks = tasks.filter((t) => t.vehicleId === v.id)
-            const workflowStatus = getVehicleWorkflowStatus(v, vehicleTasks, vehicleSheets)
 
             return (
               <Link
@@ -152,46 +148,45 @@ export default function VehicleList() {
                 className="card group overflow-hidden transition hover:shadow-md hover:-translate-y-0.5 text-sm"
               >
                 {/* Vehicle Image */}
-                <div className="aspect-[4/2.5] w-full overflow-hidden bg-slate-100">
+                <div className="aspect-[4/2.2] w-full overflow-hidden bg-slate-100">
                   {v.images[0] ? (
-                    <img src={v.images[0]} alt={v.model} className="h-full w-full object-cover" />
+                    <img src={v.images[0]} alt={v.model} className="h-full w-full object-cover" loading="lazy" />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-slate-300">
-                      <Car size={20} />
+                      <Car size={24} />
                     </div>
                   )}
                 </div>
 
-                {/* Vehicle Info */}
-                <div className="p-2 pb-1.5 sm:p-3 sm:pb-2">
-                  <div className="flex items-start justify-between gap-1">
-                    <span className="truncate text-sm font-bold text-slate-900">{v.plate || '—'}</span>
-                    <Badge tone={WORKFLOW_STATUS_TONE[workflowStatus]}>{WORKFLOW_STATUS_LABEL[workflowStatus]}</Badge>
+                {/* Vehicle Info — 2-column layout */}
+                <div className="p-2.5 sm:p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    {/* Left: model, price, position */}
+                    <div className="min-w-0 flex-1 text-left">
+                      <div className="truncate text-sm font-semibold text-slate-800">{v.model}</div>
+                      <div className="mt-0.5 text-xs font-bold text-slate-700">
+                        {v.sellPrice != null ? `${formatCurrency(v.sellPrice)} đ` : '—'}
+                      </div>
+                      <div className="mt-0.5 truncate text-xs text-brand-600">📍 {position ? position.name : '—'}</div>
+                    </div>
+                    {/* Right: plate, status, sub-location */}
+                    <div className="shrink-0 text-right">
+                      <div className="text-sm font-bold text-slate-900">{v.plate || '—'}</div>
+                      <div className="mt-0.5">
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${STATUS_TONE[v.status] === 'green' ? 'bg-green-100 text-green-700' : STATUS_TONE[v.status] === 'orange' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-600'}`}>
+                          {STATUS_LABEL[v.status]}
+                        </span>
+                      </div>
+                      <div className="mt-0.5 truncate text-xs text-slate-500">{v.yardPosition || '—'}</div>
+                    </div>
                   </div>
-                  <div className="text-xs text-slate-500">{v.model}</div>
 
-                  {/* Price */}
-                  {v.sellPrice != null && (
-                    <div className="text-xs font-bold text-slate-700">{formatCurrency(v.sellPrice)} đ</div>
-                  )}
-
-                  {/* Badges row — hidden on mobile, shown on sm+ */}
-                  <div className="mt-0.5 hidden flex-wrap items-center gap-1 sm:flex">
-                    <Badge tone={STATUS_TONE[v.status]}>{STATUS_LABEL[v.status]}</Badge>
-                    {hasCheckSheet && (
-                      <span className="flex items-center gap-0.5 text-[10px] text-brand-600">
-                        <ListChecks size={9} />
-                        Đã kiểm tra
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Quick Actions — 3 equal columns */}
-                  <div className="mt-1.5 grid min-w-0 grid-cols-3 gap-1 border-t border-slate-100 pt-1.5 sm:mt-2 sm:flex sm:gap-1.5 sm:pt-2">
+                  {/* Quick Actions — icon only, 3 equal columns */}
+                  <div className="mt-2 grid min-w-0 grid-cols-3 gap-1.5 border-t border-slate-100 pt-2">
                     {/* Nhiệm vụ */}
                     <button
                       onClick={(e) => { e.preventDefault(); setSelectedTaskVehicleId(v.id) }}
-                      className={`flex min-w-0 items-center justify-center overflow-hidden rounded-lg text-xs font-medium transition-colors sm:min-h-[44px] sm:flex-1 sm:gap-1.5 sm:px-3 ${
+                      className={`flex h-10 items-center justify-center overflow-hidden rounded-lg transition-colors ${
                         vehicleTasks.length === 0
                           ? 'bg-slate-50 text-slate-400 hover:bg-slate-100'
                           : vehicleTasks.every((t) => t.status === 'done')
@@ -201,34 +196,31 @@ export default function VehicleList() {
                               : 'bg-amber-50 text-amber-600 hover:bg-amber-100'
                       }`}
                       aria-label="Nhiệm vụ"
+                      title="Nhiệm vụ"
                     >
-                      <Wrench size={13} className="shrink-0" />
-                      <span className="hidden sm:inline truncate">Nhiệm vụ</span>
-                      {vehicleTasks.filter((t) => t.status !== 'done').length > 0 && (
-                        <span className="hidden sm:inline shrink-0">({vehicleTasks.filter((t) => t.status !== 'done').length})</span>
-                      )}
+                      <Wrench size={17} className="shrink-0" />
                     </button>
-                    {/* Đầu vào */}
+                    {/* Đầu vào (LogIn) */}
                     <button
                       onClick={(e) => { e.preventDefault(); handleOpenPreview(v.id, 'in') }}
-                      className={`flex min-w-0 items-center justify-center overflow-hidden rounded-lg text-xs font-medium transition-colors sm:min-h-[44px] sm:flex-1 sm:gap-1.5 sm:px-3 ${
+                      className={`flex h-10 items-center justify-center overflow-hidden rounded-lg transition-colors ${
                         latestIn ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
                       }`}
                       aria-label="Đầu vào"
+                      title="Đầu vào"
                     >
-                      <ClipboardList size={13} className="shrink-0" />
-                      <span className="hidden sm:inline truncate">Đầu vào</span>
+                      <LogIn size={17} className="shrink-0" />
                     </button>
-                    {/* Đầu ra */}
+                    {/* Đầu ra (LogOut) */}
                     <button
                       onClick={(e) => { e.preventDefault(); handleOpenPreview(v.id, 'out') }}
-                      className={`flex min-w-0 items-center justify-center overflow-hidden rounded-lg text-xs font-medium transition-colors sm:min-h-[44px] sm:flex-1 sm:gap-1.5 sm:px-3 ${
+                      className={`flex h-10 items-center justify-center overflow-hidden rounded-lg transition-colors ${
                         latestOut ? 'bg-purple-50 text-purple-600 hover:bg-purple-100' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
                       }`}
                       aria-label="Đầu ra"
+                      title="Đầu ra"
                     >
-                      <ClipboardList size={13} className="shrink-0" />
-                      <span className="hidden sm:inline truncate">Đầu ra</span>
+                      <LogOut size={17} className="shrink-0" />
                     </button>
                   </div>
                 </div>
@@ -301,6 +293,7 @@ function CheckSheetPreview({ sheet, mode, employees, vehicleId }: { sheet: Check
         { label: 'Sưởi ghế', status: sheet.inputSuoiGhe?.status },
         { label: 'Tình trạng lốp', status: sheet.inputTireState?.status },
         { label: 'Song nưng', status: sheet.songNungResultStatus },
+        { label: 'Kiểm tra gầm', status: sheet.undercarriageStatus },
         ...Object.entries(sheet.interior || {}).map(([key, val]) => ({ label: seatLabels[key] || key, status: (val as any)?.condition })),
         ...Object.entries(sheet.exterior || {}).map(([key, val]) => ({ label: spotLabels[key] || key, status: (val as any)?.condition })),
         { label: 'Ắc quy SOH', status: sheet.inputAcquySOH != null ? String(sheet.inputAcquySOH) : null },
@@ -330,6 +323,7 @@ function CheckSheetPreview({ sheet, mode, employees, vehicleId }: { sheet: Check
           { label: 'Chìa khóa', status: sheet.outKeyType },
           { label: 'Số lượng chìa', status: sheet.outSmartkeyStatus },
           { label: 'Song nưng', status: sheet.songNungResultStatus },
+        { label: 'Kiểm tra gầm', status: sheet.undercarriageStatus },
         ]
       })()
 

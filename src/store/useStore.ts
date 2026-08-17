@@ -176,6 +176,7 @@ interface StoreState {
   upsertPositionFromRealtime: (row: Record<string, unknown>) => void
   upsertMoveLogFromRealtime: (row: Record<string, unknown>) => void
   upsertTaskActivityFromRealtime: (row: Record<string, unknown>) => void
+  upsertNotificationFromRealtime: (n: Record<string, unknown>) => void
 }
 
 export const useStore = create<StoreState>()(
@@ -273,6 +274,21 @@ export const useStore = create<StoreState>()(
             const match = existingImages.find((img) => img.url === url)
             if (match) {
               await vehicleMediaService.deleteVehicleImage(match.id, match.path)
+            }
+          }
+
+          // Persist the NEW display order so F5/reload keeps the same order.
+          // Reordering or setting a cover image only changes the array order —
+          // without this, sort_order in DB stays stale and images revert.
+          if (images.length > 0 && images.length === beforeImages.length) {
+            try {
+              const dbImages = await vehicleMediaService.getVehicleImages(id)
+              for (let i = 0; i < images.length; i++) {
+                const row = dbImages.find((img) => img.url === images[i])
+                if (row) await vehicleMediaService.updateVehicleImageOrder(row.id, i)
+              }
+            } catch (orderErr) {
+              console.error('🔴 [STORE] Failed to persist image order:', orderErr)
             }
           }
         } catch (err) {
@@ -1030,6 +1046,7 @@ export const useStore = create<StoreState>()(
         dueTime: (row.due_time as string) ?? null,
         ruleId: (row.rule_id as string) ?? null,
         source: (row.source as Task['source']) ?? undefined,
+        deferred: Boolean(row.deferred),
         createdAt: row.created_at as string,
       }
       set((s) => {
@@ -1094,6 +1111,27 @@ export const useStore = create<StoreState>()(
       set((s) => {
         const exists = s.taskActivityLogs.some((x) => x.id === a.id)
         return { taskActivityLogs: exists ? s.taskActivityLogs : [a, ...s.taskActivityLogs] }
+      })
+    },
+
+    upsertNotificationFromRealtime(row) {
+      const n: Notification = {
+        id: row.id as string,
+        type: row.type as Notification['type'],
+        title: row.title as string,
+        body: row.body as string,
+        read: Boolean(row.read),
+        createdAt: row.created_at as string,
+        data: (row.data as Notification['data']) ?? undefined,
+      }
+      set((s) => {
+        const idx = s.notifications.findIndex((x) => x.id === n.id)
+        if (idx >= 0) {
+          const next = [...s.notifications]
+          next[idx] = { ...next[idx], ...n }
+          return { notifications: next }
+        }
+        return { notifications: [n, ...s.notifications] }
       })
     },
 

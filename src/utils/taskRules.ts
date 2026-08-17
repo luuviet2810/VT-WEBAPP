@@ -122,6 +122,17 @@ const ruleRearCameraBroken: Rule = {
   },
 }
 
+const ruleRearCameraBlurry: Rule = {
+  id: 'in_rear_camera_blurry',
+  title: 'Thay cam lùi xe',
+  description: 'Camera lùi bị mờ cần được thay thế',
+  priority: 'low',
+  evaluate(ctx: RuleContext) {
+    if (ctx.sheet.type !== 'in') return false
+    return ctx.sheet.rearCamera === 'blurry'
+  },
+}
+
 const ruleRearSensorBroken: Rule = {
   id: 'in_rear_sensor_broken',
   title: 'Sửa cảm biến lùi',
@@ -265,6 +276,18 @@ const ruleSongNungDraft: Rule = {
   },
 }
 
+// ====== KIỂM TRA GẦM RULES ======
+
+const ruleUndercarriageVeryRusty: Rule = {
+  id: 'in_undercarriage_very_rusty',
+  title: 'Xử lý gầm bị gỉ',
+  description: 'Gầm xe gỉ nhiều cần được xử lý / thay thế',
+  priority: 'high',
+  evaluate(ctx: RuleContext) {
+    return ctx.sheet.undercarriageStatus === 'very_rusty'
+  },
+}
+
 // ====== KEY STATUS RULES ======
 
 const ruleSmartkeyDamaged: Rule = {
@@ -394,6 +417,7 @@ const ALL_RULES: Rule[] = [
   ruleDieuHoaNeedGas,
   ruleSuoiGheBroken,
   ruleRearCameraBroken,
+  ruleRearCameraBlurry,
   ruleRearSensorBroken,
   ruleRearSensorNone,
   ruleDashcamMaybe,
@@ -406,6 +430,8 @@ const ALL_RULES: Rule[] = [
   // Song nưng
   ruleSongNungNeeded,
   ruleSongNungDraft,
+  // Kiểm tra gầm
+  ruleUndercarriageVeryRusty,
   // Chìa khóa
   ruleSmartkeyDamaged,
   // Đầu ra

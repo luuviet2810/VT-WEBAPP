@@ -5,6 +5,7 @@ import { useStore } from '../store/useStore'
 import { useAuthStore } from '../store/useAuthStore'
 import { Badge } from '../components/ui'
 import { formatDateTime } from '../utils/format'
+import { buildTaskSummary } from '../utils/taskSummary'
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -46,6 +47,7 @@ export default function Dashboard() {
   // ====== TASKS ======
   const myTasks = useMemo(() => tasks.filter((t) => t.assigneeId === currentUser?.id), [tasks, currentUser])
   const unassignedTasks = useMemo(() => tasks.filter((t) => !t.assigneeId), [tasks])
+  const summaryGroups = useMemo(() => buildTaskSummary(tasks), [tasks])
   const vehiclesMap = useMemo(() => {
     const m = new Map<string, string>()
     for (const v of vehicles) m.set(v.id, v.plate)
@@ -71,8 +73,93 @@ export default function Dashboard() {
         </p>
       </div>
 
+      {/* Task Summary — most prominent, what needs to be done */}
+      {summaryGroups.length > 0 && (
+        <div className="card mb-5 border-2 border-brand-100 p-4">
+          <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
+            📋 Tổng quan nhiệm vụ
+            <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-600">{summaryGroups.length} loại cần làm</span>
+          </div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {summaryGroups.map((g) => (
+              <div key={g.key} className="flex items-center justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="shrink-0 text-base">{g.icon}</span>
+                  <span className="truncate text-sm font-medium text-slate-700">{g.label}</span>
+                </div>
+                <span className="shrink-0 text-sm font-semibold text-slate-800">{g.count} {g.isManual ? 'việc' : 'xe'}</span>
+              </div>
+            ))}
+          </div>
+          <Link to="/nhiem-vu" className="mt-3 block text-right text-xs font-medium text-brand-600 hover:underline">
+            Xem tất cả nhiệm vụ →
+          </Link>
+        </div>
+      )}
+
+      {/* Công việc — chung + cá nhân */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        {/* Nhiệm vụ chung */}
+        <div className="card p-4">
+          <div className="mb-2 flex items-center gap-2">
+            <Wrench size={15} className="text-slate-400" />
+            <span className="text-sm font-semibold text-slate-700">Nhiệm vụ chung</span>
+            {unassignedTasks.filter((t) => t.status !== 'done').length > 0 && (
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">{unassignedTasks.filter((t) => t.status !== 'done').length}</span>
+            )}
+          </div>
+          {unassignedTasks.length === 0 ? (
+            <p className="py-6 text-center text-sm text-slate-400">Không có nhiệm vụ</p>
+          ) : (
+            <div className="space-y-2 max-h-80 overflow-y-auto">
+              {unassignedTasks.slice(0, 10).map((t) => (
+                <div key={t.id} className="rounded-xl border border-slate-100 bg-white px-3 py-2 shadow-sm">
+                  <div className="text-sm font-medium text-slate-800">{t.title}</div>
+                  <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
+                    <span>{vehiclesMap.get(t.vehicleId ?? '') || '—'}</span>
+                    <Badge tone={t.ruleId ? 'blue' : 'slate'}>{t.ruleId ? '🤖 Auto' : '✍️ Manual'}</Badge>
+                    <Badge tone={t.status === 'done' ? 'green' : t.status === 'doing' ? 'orange' : 'slate'}>
+                      {t.status === 'todo' ? 'Chưa làm' : t.status === 'doing' ? 'Đang làm' : 'Hoàn thành'}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Giao cho tôi */}
+        <div className="card p-4">
+          <div className="mb-2 flex items-center gap-2">
+            <User size={15} className="text-slate-400" />
+            <span className="text-sm font-semibold text-slate-700">Giao cho tôi</span>
+            {myTasks.filter((t) => t.status !== 'done').length > 0 && (
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">{myTasks.filter((t) => t.status !== 'done').length}</span>
+            )}
+          </div>
+          {myTasks.length === 0 ? (
+            <p className="py-6 text-center text-sm text-slate-400">Không có nhiệm vụ</p>
+          ) : (
+            <div className="space-y-2 max-h-80 overflow-y-auto">
+              {myTasks.slice(0, 10).map((t) => (
+                <div key={t.id} className="rounded-xl border border-slate-100 bg-white px-3 py-2 shadow-sm">
+                  <div className="text-sm font-medium text-slate-800">{t.title}</div>
+                  <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
+                    <span>{vehiclesMap.get(t.vehicleId ?? '') || '—'}</span>
+                    <Badge tone={t.ruleId ? 'blue' : 'slate'}>{t.ruleId ? '🤖 Auto' : '✍️ Manual'}</Badge>
+                    <Badge tone={t.status === 'done' ? 'green' : t.status === 'doing' ? 'orange' : 'slate'}>
+                      {t.status === 'todo' ? 'Chưa làm' : t.status === 'doing' ? 'Đang làm' : 'Hoàn thành'}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-6">
+      <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-6">
         <StatCard label="Trong bãi" value={activeVehicles.length} icon={<Car size={16} />} />
         <StatCard label="Việc chưa xong" value={pending} icon={<Wrench size={16} />} />
         <StatCard label="Việc quá hạn" value={overdue} tone="text-red-600" icon={<AlertTriangle size={16} />} />
@@ -118,61 +205,6 @@ export default function Dashboard() {
           </div>
         </div>
       )}
-
-      {/* Công việc */}
-      <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
-        {/* Nhiệm vụ chung */}
-        <div className="card p-4">
-          <div className="mb-2 flex items-center gap-2">
-            <Wrench size={15} className="text-slate-400" />
-            <span className="text-sm font-semibold text-slate-700">Nhiệm vụ chung</span>
-          </div>
-          {unassignedTasks.length === 0 ? (
-            <p className="py-6 text-center text-sm text-slate-400">Không có nhiệm vụ</p>
-          ) : (
-            <div className="space-y-2 max-h-80 overflow-y-auto">
-              {unassignedTasks.slice(0, 10).map((t) => (
-                <div key={t.id} className="rounded-xl border border-slate-100 bg-white px-3 py-2 shadow-sm">
-                  <div className="text-sm font-medium text-slate-800">{t.title}</div>
-                  <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
-                    <span>{vehiclesMap.get(t.vehicleId ?? '') || '—'}</span>
-                    <Badge tone={t.ruleId ? 'blue' : 'slate'}>{t.ruleId ? '🤖 Auto' : '✍️ Manual'}</Badge>
-                    <Badge tone={t.status === 'done' ? 'green' : t.status === 'doing' ? 'orange' : 'slate'}>
-                      {t.status === 'todo' ? 'Chưa làm' : t.status === 'doing' ? 'Đang làm' : 'Hoàn thành'}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Giao cho tôi */}
-        <div className="card p-4">
-          <div className="mb-2 flex items-center gap-2">
-            <User size={15} className="text-slate-400" />
-            <span className="text-sm font-semibold text-slate-700">Giao cho tôi</span>
-          </div>
-          {myTasks.length === 0 ? (
-            <p className="py-6 text-center text-sm text-slate-400">Không có nhiệm vụ</p>
-          ) : (
-            <div className="space-y-2 max-h-80 overflow-y-auto">
-              {myTasks.slice(0, 10).map((t) => (
-                <div key={t.id} className="rounded-xl border border-slate-100 bg-white px-3 py-2 shadow-sm">
-                  <div className="text-sm font-medium text-slate-800">{t.title}</div>
-                  <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
-                    <span>{vehiclesMap.get(t.vehicleId ?? '') || '—'}</span>
-                    <Badge tone={t.ruleId ? 'blue' : 'slate'}>{t.ruleId ? '🤖 Auto' : '✍️ Manual'}</Badge>
-                    <Badge tone={t.status === 'done' ? 'green' : t.status === 'doing' ? 'orange' : 'slate'}>
-                      {t.status === 'todo' ? 'Chưa làm' : t.status === 'doing' ? 'Đang làm' : 'Hoàn thành'}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
 
       {/* Admin-only sections */}
       {isAdminUser && (
