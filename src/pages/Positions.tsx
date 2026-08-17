@@ -441,7 +441,7 @@ export default function Positions() {
                         {v.plate} <span className="font-normal text-slate-400">- {v.model}</span>
                       </span>
                       {v.yardPosition && (
-                        <span className="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                        <span className="ml-auto shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
                           📍 {v.yardPosition}
                         </span>
                       )}
