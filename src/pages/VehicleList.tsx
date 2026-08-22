@@ -53,7 +53,6 @@ const VehicleCard = memo(function VehicleCard({
   onTaskClick,
   onPreviewIn,
   onPreviewOut,
-  onImageClick,
 }: {
   vehicle: Vehicle
   positionName: string | null
@@ -64,7 +63,6 @@ const VehicleCard = memo(function VehicleCard({
   onTaskClick: (id: string) => void
   onPreviewIn: (id: string) => void
   onPreviewOut: (id: string) => void
-  onImageClick: (id: string, index: number) => void
 }) {
   // [PERF] card render counter
   if (DEV_DISABLE_IMAGES) {
@@ -77,8 +75,8 @@ const VehicleCard = memo(function VehicleCard({
 
   return (
     <Link key={v.id} to={`/xe/${v.id}`} className="card group overflow-hidden transition-transform hover:-translate-y-0.5 text-sm">
-      {/* Vehicle Image — clickable for preview */}
-      <div className="aspect-[4/2.2] w-full overflow-hidden bg-slate-100 cursor-pointer" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onImageClick(v.id, 0) }}>
+      {/* Vehicle Image — click navigates to Vehicle Detail */}
+      <div className="aspect-[4/2.2] w-full overflow-hidden bg-slate-100">
         {!DEV_DISABLE_IMAGES && v.images[0] ? (
           <img src={v.thumbnails?.[v.images[0]] ?? v.images[0]} alt={v.model} className="h-full w-full object-cover" loading="lazy" decoding="async" />
         ) : (
@@ -150,113 +148,6 @@ const VehicleCard = memo(function VehicleCard({
 
 // ===== IMAGE PREVIEW LIGHTBOX =====
 
-function ImagePreviewModal({ images, plate, model, initialIndex, onClose }: {
-  images: string[]
-  plate: string
-  model: string
-  initialIndex: number
-  onClose: () => void
-}) {
-  const [idx, setIdx] = useState(initialIndex)
-  const currentUrl = images[idx]
-
-  // Keyboard navigation
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-      if (e.key === 'ArrowLeft' && idx > 0) setIdx(idx - 1)
-      if (e.key === 'ArrowRight' && idx < images.length - 1) setIdx(idx + 1)
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [idx, images.length, onClose])
-
-  // Touch swipe
-  const touchStart = useRef(0)
-  const touchEnd = useRef(0)
-
-  async function downloadCurrent() {
-    try {
-      const response = await fetch(currentUrl)
-      const blob = await response.blob()
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `${plate}_${String(idx + 1).padStart(2, '0')}.jpg`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
-    } catch {}
-  }
-
-  if (!currentUrl) return null
-
-  return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black/95" onClick={onClose}>
-      {/* Header bar */}
-      <div className="flex shrink-0 items-center justify-between px-4 py-3 text-white" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center gap-3">
-          <button onClick={onClose} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20">
-            <X size={20} />
-          </button>
-          <span className="text-sm font-medium">{plate} — {model}</span>
-        </div>
-        <div className="flex items-center gap-3">
-          {images.length > 1 && (
-            <span className="text-xs text-white/60">{idx + 1} / {images.length}</span>
-          )}
-          <button onClick={downloadCurrent} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20" title="Tải ảnh">
-            <Download size={18} />
-          </button>
-        </div>
-      </div>
-
-      {/* Image area */}
-      <div className="flex min-h-0 flex-1 items-center justify-center px-2"
-        onTouchStart={(e) => { touchStart.current = e.touches[0].clientX }}
-        onTouchMove={(e) => { touchEnd.current = e.touches[0].clientX }}
-        onTouchEnd={() => {
-          const diff = touchStart.current - touchEnd.current
-          if (Math.abs(diff) > 60) {
-            if (diff > 0 && idx < images.length - 1) setIdx(idx + 1)
-            if (diff < 0 && idx > 0) setIdx(idx - 1)
-          }
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <img
-          src={currentUrl}
-          alt={`${plate} ${idx + 1}`}
-          className="max-h-full max-w-full object-contain select-none"
-          draggable={false}
-        />
-      </div>
-
-      {/* Bottom nav */}
-      {images.length > 1 && (
-        <div className="flex shrink-0 items-center justify-center gap-6 px-4 py-4" onClick={(e) => e.stopPropagation()}>
-          <button
-            disabled={idx === 0}
-            onClick={() => setIdx(idx - 1)}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 disabled:opacity-30"
-          >
-            <ChevronLeft size={22} />
-          </button>
-          <span className="text-sm text-white/80">{idx + 1} / {images.length}</span>
-          <button
-            disabled={idx >= images.length - 1}
-            onClick={() => setIdx(idx + 1)}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 disabled:opacity-30"
-          >
-            <ChevronRight size={22} />
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
-
 // ===== END VEHICLE CARD =====
 
 export default function VehicleList() {
@@ -276,8 +167,6 @@ export default function VehicleList() {
   const [previewSheet, setPreviewSheet] = useState<CheckSheet | null>(null)
   const [previewType, setPreviewType] = useState<'in' | 'out'>('in')
   const [selectedTaskVehicleId, setSelectedTaskVehicleId] = useState<string | null>(null)
-  const [previewVehicleId, setPreviewVehicleId] = useState<string | null>(null)
-  const [previewImageIndex, setPreviewImageIndex] = useState(0)
   const toggleTaskChecklistItem = useStore((s) => s.toggleTaskChecklistItem)
   const updateTask = useStore((s) => s.updateTask)
   const deleteTask = useStore((s) => s.deleteTask)
@@ -327,7 +216,6 @@ export default function VehicleList() {
   const handleTaskClick = useCallback((id: string) => setSelectedTaskVehicleId(id), [])
   const handlePreviewIn = useCallback((id: string) => handleOpenPreview(id, 'in'), [])
   const handlePreviewOut = useCallback((id: string) => handleOpenPreview(id, 'out'), [])
-  const handleImageClick = useCallback((id: string, idx: number) => { setPreviewVehicleId(id); setPreviewImageIndex(idx) }, [])
 
   // Build group for TaskDrawer
   const taskDrawerGroup = useMemo<VehicleGroup | null>(() => {
@@ -442,7 +330,6 @@ export default function VehicleList() {
                 onTaskClick={handleTaskClick}
                 onPreviewIn={handlePreviewIn}
                 onPreviewOut={handlePreviewOut}
-                onImageClick={handleImageClick}
               />
             )
           })}
@@ -485,21 +372,6 @@ export default function VehicleList() {
         vehicles={vehicles.map((v) => ({ id: v.id, plate: v.plate }))}
         positionName={taskDrawerGroup?.positionName ?? null}
       />
-
-      {/* Image Preview Lightbox */}
-      {previewVehicleId && (() => {
-        const v = vehicles.find((x) => x.id === previewVehicleId)
-        if (!v || !v.images.length) return null
-        return (
-          <ImagePreviewModal
-            images={v.images}
-            plate={v.plate}
-            model={v.model}
-            initialIndex={Math.min(previewImageIndex, v.images.length - 1)}
-            onClose={() => { setPreviewVehicleId(null); setPreviewImageIndex(0) }}
-          />
-        )
-      })()}
     </div>
   )
 }
@@ -508,6 +380,10 @@ export default function VehicleList() {
 
 function CheckSheetPreview({ sheet, mode, employees, vehicleId }: { sheet: CheckSheet; mode: 'in' | 'out'; employees: { id: string; name: string }[]; vehicleId: string }) {
   const navigate = useNavigate()
+  const exportRef = useRef<HTMLDivElement>(null)
+  const [exportStatus, setExportStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+  const vehicles = useStore((s) => s.vehicles)
+  const vehicle = vehicles.find((v) => v.id === vehicleId)
 
   const seatLabels: Record<string, string> = { driverSeat: 'Ghế lái', passengerSeat: 'Ghế phụ', rearSeat: 'Hàng ghế sau' }
   const spotLabels: Record<string, string> = {
@@ -588,64 +464,299 @@ function CheckSheetPreview({ sheet, mode, employees, vehicleId }: { sheet: Check
     return c === 'bad' || c === 'install'
   }).slice(0, 5)
 
+  // UI grouping (presentation only — no data change)
+  // Export-specific grouping (not used by live preview)
+  const EXPORT_GROUP_MAP: Record<string, string[]> = {
+    'Nhiên liệu & Song nưng & Kiểm tra gầm': ['Nhiên liệu', 'Song nưng', 'Kiểm tra gầm'],
+    'Hệ thống điện & giải trí': ['Màn hình', 'Camera lùi', 'Hi-Pass', 'Camera hành trình', 'Ắc quy SOH', 'Ắc quy SOC'],
+    'An toàn & hỗ trợ lái': ['Cảm biến lùi', 'Điều hòa', 'Sưởi ghế', 'Chìa khóa', 'Số lượng chìa'],
+    'Nội thất': Object.values(seatLabels),
+    'Ngoại thất & thân vỏ': [...Object.values(spotLabels), 'Tình trạng lốp'],
+  }
+  const allExportLabels = new Set(Object.values(EXPORT_GROUP_MAP).flat())
+  const leftoverItems = items.filter((i) => !allExportLabels.has(i.label) && i.label !== 'Hi-Pass')
+  const exportGrouped = Object.entries(EXPORT_GROUP_MAP).map(([groupName, labels]) => {
+    const groupItems = labels.map((lbl) => items.find((i) => i.label === lbl)).filter(Boolean) as typeof items
+    return { name: groupName, items: groupItems }
+  }).filter((g) => g.items.length > 0)
+  if (leftoverItems.length > 0) {
+    exportGrouped.push({ name: 'Khác', items: leftoverItems })
+  }
+
+  function itemDisplay(item: typeof items[0]) {
+    const isBatteryNum = !!(item.status && !isNaN(Number(item.status)))
+    const c = item.status && !isBatteryNum ? classifyStatus(item.status) : null
+    const isUnchecked = !item.status
+    const dotColor = isUnchecked ? '#cbd5e1' : c === 'ok' || isBatteryNum ? '#34c759' : c === 'bad' ? '#ff3b30' : c === 'install' ? '#ff9500' : '#cbd5e1'
+    const textColor = isUnchecked ? '#94a3b8' : c === 'ok' || isBatteryNum ? '#34c759' : c === 'bad' ? '#ff3b30' : c === 'install' ? '#ff9500' : '#334155'
+    const display = isBatteryNum ? `${item.status}%` : statusLabel(item.status)
+    return { dotColor, textColor, display }
+  }
+
+  async function handleExport() {
+    if (!exportRef.current || exportStatus === 'loading') return
+    setExportStatus('loading')
+    try {
+      const html2canvas = (await import('html2canvas')).default
+      const canvas = await html2canvas(exportRef.current, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: false,
+        backgroundColor: '#ffffff',
+      })
+      const blob = await new Promise<Blob>((resolve) => canvas.toBlob((b) => resolve(b!), 'image/jpeg', 0.9))
+      const plate = vehicle?.plate || 'unknown'
+      const date = sheet.checkDate || new Date().toISOString().slice(0, 10)
+      const filename = `VTAUTO_CheckSheet_Input_${plate}_${date}.jpg`
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+      setExportStatus('success')
+      setTimeout(() => setExportStatus('idle'), 1500)
+    } catch (err) {
+      console.error('Export failed:', err)
+      setExportStatus('error')
+      setTimeout(() => setExportStatus('idle'), 2000)
+    }
+  }
+
+  if (mode === 'out') {
+    return (
+      <div className="space-y-5">
+        <div className="grid grid-cols-4 gap-2">
+          <SummaryPill value={ok} label="OK" color="#34c759" />
+          <SummaryPill value={bad} label="Hỏng" color="#ff3b30" />
+          <SummaryPill value={install} label="Cần lắp" color="#ff9500" />
+          <SummaryPill value={unchecked} label="Chưa check" color="#94a3b8" />
+        </div>
+        <div className="divide-y divide-slate-100 rounded-xl border border-slate-200">
+          {items.map((item) => {
+            const d = itemDisplay(item)
+            return (
+              <div key={item.label} className="flex items-center justify-between px-4 py-2.5">
+                <div className="flex items-center gap-2.5">
+                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: d.dotColor }} />
+                  <span className="text-sm text-slate-700">{item.label}</span>
+                </div>
+                <span className="text-sm font-medium" style={{ color: d.textColor }}>{d.display}</span>
+              </div>
+            )
+          })}
+        </div>
+        <div className="flex justify-end">
+          <button type="button" onClick={() => navigate(`/xe/${vehicleId}?tab=checksheet`)} className="btn-primary">
+            <ExternalLink size={15} /> Xem chi tiết
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="space-y-5">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-4 gap-2">
-        <SummaryPill value={ok} label="OK" color="#34c759" />
-        <SummaryPill value={bad} label="Hỏng" color="#ff3b30" />
-        <SummaryPill value={install} label="Cần lắp" color="#ff9500" />
-        <SummaryPill value={unchecked} label="Chưa check" color="#94a3b8" />
+    <div className="space-y-6">
+      {/* Export button */}
+      <div className="flex justify-end">
+        <button onClick={handleExport} disabled={exportStatus === 'loading'}
+          className="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:opacity-50">
+          <Download size={16} />
+          {exportStatus === 'loading' ? 'Đang tạo ảnh...' : exportStatus === 'success' ? '✓ Đã tải' : exportStatus === 'error' ? 'Không thể tải ảnh' : 'Tải ảnh'}
+        </button>
       </div>
 
-      {/* All Inspection Items */}
-      <div className="divide-y divide-slate-100 rounded-xl border border-slate-200">
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {[
+          { label: 'OK', value: ok, color: '#34c759', bg: '#e8f8ef' },
+          { label: 'Hỏng', value: bad, color: '#ff3b30', bg: '#ffe8e7' },
+          { label: 'Cần lắp', value: install, color: '#ff9500', bg: '#fff4e5' },
+          { label: 'Chưa check', value: unchecked, color: '#94a3b8', bg: '#f1f5f9' },
+        ].map((s) => (
+          <div key={s.label} className="rounded-2xl p-4 text-center" style={{ background: s.bg }}>
+            <div className="text-2xl font-bold" style={{ color: s.color }}>{s.value}</div>
+            <div className="mt-0.5 text-xs font-medium" style={{ color: s.color, opacity: 0.7 }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* All inspection items — flat list */}
+      <div className="divide-y divide-slate-50 rounded-2xl border border-slate-200/80 bg-white shadow-sm">
         {items.map((item) => {
-          const isBatteryNum = !!(item.status && !isNaN(Number(item.status)))
-          const c = item.status && !isBatteryNum ? classifyStatus(item.status) : null
-          const isUnchecked = !item.status
-          const dotColor = isUnchecked ? '#cbd5e1' : c === 'ok' || isBatteryNum ? '#34c759' : c === 'bad' ? '#ff3b30' : c === 'install' ? '#ff9500' : '#cbd5e1'
-          const textColor = isUnchecked ? '#94a3b8' : c === 'ok' || isBatteryNum ? '#34c759' : c === 'bad' ? '#ff3b30' : c === 'install' ? '#ff9500' : '#334155'
-          const display = isBatteryNum ? `${item.status}%` : statusLabel(item.status)
+          const d = itemDisplay(item)
           return (
-            <div key={item.label} className="flex items-center justify-between px-4 py-2.5">
-              <div className="flex items-center gap-2.5">
-                <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: dotColor }} />
-                <span className="text-sm text-slate-700">{item.label}</span>
+            <div key={item.label} className="flex items-center justify-between px-5 py-3">
+              <div className="flex items-center gap-3">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: d.dotColor }} />
+                <span className="text-sm font-medium text-slate-700">{item.label}</span>
               </div>
-              <span className="text-sm font-medium" style={{ color: textColor }}>{display}</span>
+              <span className="text-sm font-semibold" style={{ color: d.textColor }}>{d.display}</span>
             </div>
           )
         })}
       </div>
 
-      {/* Abnormal items summary */}
+      {/* Abnormal items */}
       {abnormal.length > 0 ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4">
           <div className="text-sm font-semibold text-red-700">{abnormal.length} hạng mục cần xử lý</div>
-          <ul className="mt-1 space-y-0.5">
+          <ul className="mt-1.5 space-y-0.5">
             {abnormal.map((item) => (
               <li key={item.label} className="text-xs text-red-600">• {item.label}: {statusLabel(item.status)}</li>
             ))}
           </ul>
         </div>
       ) : (
-        <div className="rounded-xl bg-emerald-50 px-4 py-3 text-center text-sm font-medium text-emerald-700">
+        <div className="rounded-2xl bg-emerald-50 px-5 py-4 text-center text-sm font-medium text-emerald-700">
           ✅ Không phát hiện hạng mục bất thường
         </div>
       )}
 
       {/* Action button */}
       <div className="flex justify-end">
-        <button type="button" onClick={() => { navigate(`/xe/${vehicleId}?tab=checksheet`) }} className="btn-primary">
+        <button type="button" onClick={() => navigate(`/xe/${vehicleId}?tab=checksheet`)} className="btn-primary">
           <ExternalLink size={15} /> Xem chi tiết
         </button>
+      </div>
+
+      {/* Hidden export layout — captured by html2canvas for JPG download */}
+      <div ref={exportRef} style={{ position: 'fixed', left: '-9999px', top: 0, width: 800, padding: '20px 24px', background: '#ffffff', fontFamily: 'system-ui, -apple-system, sans-serif', zIndex: -1, color: '#1e293b' }}>
+        {/* ===== HEADER ===== */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #1e293b', paddingBottom: 8, marginBottom: 12 }}>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', color: '#2563eb' }}>VTAUTO</div>
+            <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>Xe cũ tại Hàn Quốc</div>
+          </div>
+          <div style={{ fontSize: 10, color: '#94a3b8', textAlign: 'right', paddingTop: 2 }}>Kiểm tra kỹ – Bán xe chất lượng</div>
+        </div>
+
+        {/* ===== TITLE ===== */}
+        <div style={{ textAlign: 'center', marginBottom: 14 }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#1e293b' }}>CheckSheet Đầu vào</div>
+          <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>Vehicle Input Inspection</div>
+        </div>
+
+        {/* ===== VEHICLE INFO ===== */}
+        <div style={{ display: 'flex', gap: 16, marginBottom: 14 }}>
+          {vehicle?.images[0] ? (
+            <div style={{ width: 200, height: 150, borderRadius: 4, overflow: 'hidden', background: '#f1f5f9', flexShrink: 0 }}>
+              <img src={vehicle.images[0]} alt={vehicle.model} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
+            </div>
+          ) : null}
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <div style={{ fontSize: 30, fontWeight: 900, color: '#0f172a', letterSpacing: '0.02em', lineHeight: 1.1 }}>{vehicle?.plate || '—'}</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#334155', marginTop: 4 }}>{vehicle?.model || '—'}</div>
+            <div style={{ marginTop: 8, fontSize: 11, color: '#475569', lineHeight: '1.5' }}>
+              {vehicle?.year ? <span><span style={{ color: '#94a3b8' }}>Năm SX:</span> {vehicle.year} &nbsp;·&nbsp; </span> : null}
+              <span><span style={{ color: '#94a3b8' }}>Ngày:</span> {sheet.checkDate || '—'}</span>
+              {sheet.checkerId ? <> &nbsp;·&nbsp; <span><span style={{ color: '#94a3b8' }}>NV:</span> {employees.find((e) => e.id === sheet.checkerId)?.name || '—'}</span></> : null}
+              {(() => { const pos = useStore.getState().positions.find((p) => p.id === vehicle?.positionId); return pos ? <> &nbsp;·&nbsp; <span><span style={{ color: '#94a3b8' }}>Vị trí:</span> {pos.name}</span></> : null })()}
+            </div>
+          </div>
+        </div>
+
+        {/* ===== SUMMARY ===== */}
+        <div style={{ display: 'flex', gap: 1, marginBottom: 16, background: '#e2e8f0', border: '1px solid #e2e8f0', borderRadius: 4, overflow: 'hidden' }}>
+          {[
+            { label: 'OK', value: ok, color: '#16a34a' },
+            { label: 'Hỏng', value: bad, color: '#dc2626' },
+            { label: 'Cần lắp', value: install, color: '#ea580c' },
+            { label: 'Chưa check', value: unchecked, color: '#94a3b8' },
+          ].map((s) => (
+            <div key={s.label} style={{ flex: 1, textAlign: 'center', padding: '8px 4px', background: '#ffffff' }}>
+              <div style={{ fontSize: 22, fontWeight: 700, color: s.color }}>{s.value}</div>
+              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 1, fontWeight: 500 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* ===== 2-COLUMN SECTIONS — auto-balanced ===== */}
+        {(() => {
+          if (exportGrouped.length === 0) return null
+
+          // Estimate section heights for balanced distribution
+          const HEADING_H = 38
+          const ITEM_H = 24
+          const heights = exportGrouped.map((g) => HEADING_H + g.items.length * ITEM_H + 4)
+          const totalH = heights.reduce((a, b) => a + b, 0)
+
+          // Find best split point that preserves section order
+          let bestSplit = exportGrouped.length
+          let bestDiff = Infinity
+          let running = 0
+          for (let i = 0; i < exportGrouped.length - 1; i++) {
+            running += heights[i]
+            const col2H = totalH - running
+            const diff = Math.abs(running - col2H)
+            if (diff < bestDiff) { bestDiff = diff; bestSplit = i + 1 }
+          }
+
+          const col1 = exportGrouped.slice(0, bestSplit)
+          const col2 = exportGrouped.slice(bestSplit)
+
+          function renderSection(group: any, globalIdx: number) {
+            return (
+              <div key={group.name} style={{ marginBottom: 10, border: '1px solid #e2e8f0', borderRadius: 4, overflow: 'hidden' }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', padding: '7px 10px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                  {globalIdx + 1}. {group.name}
+                </div>
+                <div style={{ padding: '2px 0' }}>
+                  {group.items.map((item: any) => {
+                    const d = itemDisplay(item)
+                    return (
+                      <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 10px', borderBottom: '1px solid #f8fafc' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: d.dotColor, display: 'inline-block' }} />
+                          <span style={{ fontSize: 12, color: '#334155' }}>{item.label}</span>
+                        </div>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: d.textColor }}>{d.display}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          }
+
+          return (
+            <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {col1.map((group: any, gi: number) => renderSection(group, gi))}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {col2.map((group: any, gi: number) => renderSection(group, gi + bestSplit))}
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* ===== ABNORMAL ITEMS ===== */}
+        {abnormal.length > 0 && (
+          <div style={{ marginTop: 8, borderTop: '2px solid #1e293b', paddingTop: 10 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#dc2626', marginBottom: 6 }}>Các hạng mục cần xử lý</div>
+            {abnormal.map((item: any) => {
+              const d = itemDisplay(item)
+              return (
+                <div key={item.label} style={{ fontSize: 12, color: '#334155', padding: '3px 0 3px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9' }}>
+                  <span>• {item.label}</span>
+                  <span style={{ color: d.textColor, fontWeight: 600 }}>{d.display}</span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* ===== FOOTER ===== */}
+        <div style={{ marginTop: 16, borderTop: '1px solid #e2e8f0', paddingTop: 8, textAlign: 'center', fontSize: 9, color: '#94a3b8' }}>
+          VTAUTO — Xe cũ tại Hàn Quốc
+        </div>
       </div>
     </div>
   )
 }
-
-// ====== SUMMARY PILL ======
 
 function SummaryPill({ value, label, color }: { value: number; label: string; color: string }) {
   return (

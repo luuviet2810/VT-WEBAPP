@@ -1,10 +1,10 @@
 // ====== OVERVIEW DASHBOARD v2 ======
 
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   Car, AlertTriangle, Activity, MapPin, Bell, ClipboardList,
-  CheckCircle, Clock, ArrowRight,
+  CheckCircle, Clock, ArrowRight, Camera, FileText, Calendar, AlertCircle,
 } from 'lucide-react'
 import { useDashboardViewModel } from './dashboard/DashboardViewModel'
 import { useStore } from '../../store/useStore'
@@ -40,7 +40,7 @@ const KPI_CARDS = [
 
 function TodayKPICards({ kpi }: { kpi: KpiData }) {
   return (
-    <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5">
+    <>
       {KPI_CARDS.map((card) => {
         const value = kpi[card.key as keyof typeof kpi] as number
         return (
@@ -53,7 +53,7 @@ function TodayKPICards({ kpi }: { kpi: KpiData }) {
           </div>
         )
       })}
-    </div>
+    </>
   )
 }
 
@@ -223,6 +223,233 @@ function TaskOverviewSection() {
   )
 }
 
+// ====== ERROR IMAGE CARD ======
+
+function ErrorImageCard() {
+  const [data, setData] = useState<{ vehicles: number; images: number } | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      const { supabase } = await import('../../lib/supabase')
+      const { data: images, error } = await supabase
+        .from('vehicle_images')
+        .select('vehicle_id')
+        .eq('category', 'error')
+        .eq('resolved', false)
+      if (!cancelled && !error && images) {
+        const uniqueVehicles = new Set(images.map((i) => i.vehicle_id)).size
+        setData({ vehicles: uniqueVehicles, images: images.length })
+      }
+      if (!cancelled) setLoading(false)
+    }
+    load()
+    return () => { cancelled = true }
+  }, [])
+
+  if (loading || !data) return null
+
+  return (
+    <div className="card flex flex-col justify-between p-4">
+      <div>
+        <div className="flex items-center justify-between">
+          <Camera size={20} className="text-red-500" />
+        </div>
+        <div className="mt-2 text-2xl font-bold text-red-500">{data.vehicles}</div>
+        <div className="mt-0.5 text-xs text-slate-500">{data.vehicles === 1 ? 'xe' : 'xe'} · {data.images} ảnh lỗi</div>
+      </div>
+      <Link to="/xe" className="mt-3 self-start text-xs font-medium text-brand-600 hover:text-brand-700">
+        Xem ảnh lỗi →
+      </Link>
+    </div>
+  )
+}
+
+// ====== MISSING IMAGE STATS CARDS ======
+
+function MissingImageCards() {
+  const vehicles = useStore((s) => s.vehicles)
+  const navigate = useNavigate()
+  const [stats, setStats] = useState<{
+    missingDocuments: string[]
+    missingVehicleImages: string[]
+    missingSongNung: string[]
+    expiredSongNung: string[]
+    expiredRegistration: string[]
+  } | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [modal, setModal] = useState<{ title: string; vehicleIds: string[]; showExpiry?: boolean } | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      const { supabase } = await import('../../lib/supabase')
+
+      // Get all vehicle images grouped by category
+      const { data: images } = await supabase
+        .from('vehicle_images')
+        .select('vehicle_id, category')
+
+      if (cancelled) { setLoading(false); return }
+
+      // Only count active vehicles (not sold) — consistent with dashboard KPI
+      const activeVehicles = vehicles.filter((v) => v.status !== 'sold')
+      const activeIds = new Set(activeVehicles.map((v) => v.id))
+
+      const docsVehicles = new Set(images?.filter((i) => i.category === 'documents').map((i) => i.vehicle_id) ?? [])
+      const vehicleImageVehicles = new Set(images?.filter((i) => i.category === 'vehicle').map((i) => i.vehicle_id) ?? [])
+      const songNungVehicles = new Set(images?.filter((i) => i.category === 'song_nung').map((i) => i.vehicle_id) ?? [])
+
+      const missingDocs: string[] = []
+      const missingVehicle: string[] = []
+      const missingSongNung: string[] = []
+      const expiredSongNung: string[] = []
+      const expiredRegistration: string[] = []
+
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+
+      for (const v of activeVehicles) {
+        if (!docsVehicles.has(v.id)) missingDocs.push(v.id)
+        if (!vehicleImageVehicles.has(v.id)) missingVehicle.push(v.id)
+        if (!songNungVehicles.has(v.id)) missingSongNung.push(v.id)
+        // Check expiry from vehicle-level data
+        if (v.songNungExpiryDate && new Date(v.songNungExpiryDate) < today) expiredSongNung.push(v.id)
+        if (v.registrationExpiryDate && new Date(v.registrationExpiryDate) < today) expiredRegistration.push(v.id)
+      }
+
+      if (!cancelled) {
+        setStats({ missingDocuments: missingDocs, missingVehicleImages: missingVehicle, missingSongNung, expiredSongNung, expiredRegistration })
+        setLoading(false)
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [vehicles])
+
+  if (loading || !stats) return null
+
+  const cards = [
+    {
+      label: 'Xe chưa có ảnh giấy tờ',
+      value: stats.missingDocuments.length,
+      color: '#8b5cf6',
+      icon: FileText,
+      ids: stats.missingDocuments,
+    },
+    {
+      label: 'Xe chưa có ảnh xe',
+      value: stats.missingVehicleImages.length,
+      color: '#06b6d4',
+      icon: Camera,
+      ids: stats.missingVehicleImages,
+    },
+    {
+      label: 'Xe chưa có ảnh Song nưng',
+      value: stats.missingSongNung.length,
+      color: '#f59e0b',
+      icon: Calendar,
+      ids: stats.missingSongNung,
+    },
+    {
+      label: 'Xe có Song nưng hết hạn',
+      value: stats.expiredSongNung.length,
+      color: '#ef4444',
+      icon: AlertCircle,
+      ids: stats.expiredSongNung,
+    },
+    {
+      label: 'Xe có đăng kiểm hết hạn',
+      value: stats.expiredRegistration.length,
+      color: '#dc2626',
+      icon: Calendar,
+      ids: stats.expiredRegistration,
+    },
+  ]
+
+  return (
+    <>
+      {cards.map((c) => (
+        <div key={c.label} className="card flex flex-col justify-between p-4">
+          <div>
+            <div className="flex items-center justify-between">
+              <c.icon size={20} style={{ color: c.color }} />
+            </div>
+            <div className="mt-2 text-2xl font-bold" style={{ color: c.color }}>{c.value}</div>
+            <div className="mt-0.5 text-xs text-slate-500">{c.label}</div>
+          </div>
+          {c.value > 0 && (
+            <button
+              onClick={() => setModal({ title: c.label, vehicleIds: c.ids })}
+              className="mt-3 self-start text-xs font-medium text-brand-600 hover:text-brand-700"
+            >
+              Chi tiết →
+            </button>
+          )}
+        </div>
+      ))}
+
+      {/* Detail Modal */}
+      {modal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setModal(null)}>
+          <div className="mx-4 flex max-h-[70vh] w-full max-w-xl flex-col rounded-xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex shrink-0 items-center justify-between border-b px-5 py-3">
+              <h3 className="text-sm font-semibold text-slate-800">{modal.title}</h3>
+              <button onClick={() => setModal(null)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+                ✕
+              </button>
+            </div>
+            <div className="overflow-y-auto px-5 py-3">
+              {modal.vehicleIds.length === 0 ? (
+                <p className="py-4 text-center text-sm text-slate-400">Không có xe nào</p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-xs font-medium uppercase text-slate-400">
+                      <th className="py-2 pr-2">Biển số</th>
+                      <th className="py-2 pr-2">Dòng xe</th>
+                      {modal.title.includes('Song nưng hết hạn') && <th className="py-2 pr-2">Hạn Song nưng</th>}
+                      {modal.title.includes('đăng kiểm hết hạn') && <th className="py-2 pr-2">Hạn đăng kiểm</th>}
+                      <th className="py-2 text-right" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {modal.vehicleIds.map((vid) => {
+                      const v = vehicles.find((x) => x.id === vid)
+                      if (!v) return null
+                      return (
+                        <tr key={vid} className="border-b border-slate-50 last:border-0">
+                          <td className="py-2 pr-2 font-medium text-brand-600">{v.plate || '—'}</td>
+                          <td className="py-2 pr-2 text-slate-600">{v.model}</td>
+                          {modal.title.includes('Song nưng hết hạn') && (
+                            <td className="py-2 pr-2 text-red-600">{v.songNungExpiryDate ? new Date(v.songNungExpiryDate).toLocaleDateString('vi-VN') : '—'}</td>
+                          )}
+                          {modal.title.includes('đăng kiểm hết hạn') && (
+                            <td className="py-2 pr-2 text-red-600">{v.registrationExpiryDate ? new Date(v.registrationExpiryDate).toLocaleDateString('vi-VN') : '—'}</td>
+                          )}
+                          <td className="py-2 text-right">
+                            <button
+                              onClick={() => navigate(`/xe/${vid}`)}
+                              className="text-xs font-medium text-brand-600 hover:text-brand-700"
+                            >
+                              Chi tiết →
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
 // ====== PAGE ======
 
 export default function OverviewDashboard() {
@@ -235,12 +462,18 @@ export default function OverviewDashboard() {
       {/* TASK OVERVIEW — most prominent, what needs to be done */}
       <TaskOverviewSection />
 
+      {/* IMAGE STATUS ROW: 6 cards — documents, vehicle, song_nung, expired song_nung, expired registration, error */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-6 sm:gap-5">
+        <MissingImageCards />
+        <ErrorImageCard />
+      </div>
+
       {/* ROW 1: 4 KPI cards — equal width, full row */}
-      <div className="flex flex-1 gap-5">
+      <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5">
         <TodayKPICards kpi={vm.kpi} />
       </div>
 
-      {/* ROW 2: LiveFeed + Locations + Warnings — equal-height cards */}
+      {/* ROW 2: LiveFeed + Locations + Warnings */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         <div className="flex flex-col lg:col-span-5">
           <LiveFeedCard items={vm.feedItems} />
@@ -248,7 +481,7 @@ export default function OverviewDashboard() {
         <div className="flex flex-col lg:col-span-3">
           <LocationSummaryCard locations={vm.locationData} />
         </div>
-        <div className="flex flex-col lg:col-span-4">
+        <div className="flex flex-col gap-5 lg:col-span-4">
           <WarningCard warnings={vm.warnings} />
         </div>
       </div>

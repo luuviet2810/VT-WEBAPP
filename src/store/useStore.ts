@@ -131,6 +131,7 @@ interface StoreState {
 
   addVehicle: (v: Partial<Vehicle>) => Promise<Vehicle>
   updateVehicle: (id: string, patch: Partial<Vehicle>) => Promise<void>
+  setVehicleImages: (id: string, images: string[]) => void
   deleteVehicle: (id: string) => Promise<void>
   moveVehicle: (id: string, toPositionId: string) => Promise<void>
   loadVehicleTimeline: (vehicleId: string) => Promise<void>
@@ -385,6 +386,10 @@ export const useStore = create<StoreState>()(
           })
         }
       }
+    },
+
+    setVehicleImages: (id, images) => {
+      set((s) => ({ vehicles: s.vehicles.map((v) => (v.id === id ? { ...v, images } : v)) }))
     },
 
     deleteVehicle: async (id) => {
@@ -1016,6 +1021,8 @@ export const useStore = create<StoreState>()(
         positionId: (row.position_id as string) ?? null,
         assigneeId: (row.assignee_id as string) ?? null,
         note: (row.note as string) ?? undefined,
+        // images and documents are not in the vehicles table payload —
+        // preserve existing ones to avoid losing data on realtime updates
         images: [] as string[],
         documents: [] as string[],
         createdAt: (row.created_at as string) ?? new Date().toISOString(),
@@ -1025,7 +1032,8 @@ export const useStore = create<StoreState>()(
         const idx = s.vehicles.findIndex((x) => x.id === v.id)
         if (idx >= 0) {
           const next = [...s.vehicles]
-          next[idx] = { ...next[idx], ...v }
+          // Preserve existing images, documents, and thumbnails
+          next[idx] = { ...next[idx], ...v, images: next[idx].images, documents: next[idx].documents, thumbnails: next[idx].thumbnails }
           return { vehicles: next }
         }
         return { vehicles: [v, ...s.vehicles] }

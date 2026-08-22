@@ -24,6 +24,8 @@ export interface Vehicle {
   soldDate?: string
   yardPosition?: string
   imagesDeletedAt?: string
+  songNungExpiryDate?: string | null
+  registrationExpiryDate?: string | null
 }
 
 export interface Position {

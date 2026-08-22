@@ -18,10 +18,12 @@ import type { RealtimeStoreActions } from '../types/realtime'
 // Supabase DELETE payload only has { id }. We need to know the URL and vehicle
 // to remove it from the vehicle's images/documents arrays.
 
-const imageIdToInfo = new Map<string, { vehicleId: string; url: string; isDoc: boolean }>()
+const imageIdToInfo = new Map<string, { vehicleId: string; url: string; isDoc: boolean; category?: string }>()
 
-function handleImageUpsert(vehicleId: string, imageId: string, url: string) {
-  imageIdToInfo.set(imageId, { vehicleId, url, isDoc: false })
+function handleImageUpsert(vehicleId: string, imageId: string, url: string, category?: string) {
+  imageIdToInfo.set(imageId, { vehicleId, url, isDoc: false, category })
+  // Only 'vehicle' category images go into vehicle.images (for cover/thumbnail)
+  if (category && category !== 'vehicle') return
   useStore.setState((s) => {
     const idx = s.vehicles.findIndex((v) => v.id === vehicleId)
     if (idx < 0) return {}
@@ -115,8 +117,8 @@ export function useRealtimeSync(): void {
         }
       },
       upsertVehicleImage: (row) => {
-        const r = row as { id: string; vehicle_id: string; url: string }
-        handleImageUpsert(r.vehicle_id, r.id, r.url)
+        const r = row as { id: string; vehicle_id: string; url: string; category?: string }
+        handleImageUpsert(r.vehicle_id, r.id, r.url, r.category)
       },
       deleteVehicleImage: (id) => handleImageDelete(id),
       upsertVehicleDoc: (row) => {

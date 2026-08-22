@@ -144,11 +144,15 @@ export function useDashboardViewModel() {
     }
 
     // ===== WARNINGS =====
+    const now = new Date()
+    now.setHours(0, 0, 0, 0)
     const warnings: WarningItem[] = [
       { label: 'Xe thiếu CheckSheet', count: activeVehicles.filter((v) => !checkSheets.some((c) => c.vehicleId === v.id)).length, severity: 'red', key: 'no_cs' },
       { label: 'Xe chưa có ảnh', count: activeVehicles.filter((v) => v.images.length === 0).length, severity: 'amber', key: 'no_img' },
       { label: 'Xe chưa định giá', count: activeVehicles.filter((v) => !v.sellPrice).length, severity: 'amber', key: 'no_price' },
       { label: 'Xe quá hạn rửa máy', count: activeVehicles.filter((v) => tasks.some((t) => t.vehicleId === v.id && t.status !== 'done' && t.title.toLowerCase().includes('rửa'))).length, severity: 'red', key: 'overdue_wash' },
+      { label: 'Xe hết hạn Song nưng', count: activeVehicles.filter((v) => v.songNungExpiryDate && new Date(v.songNungExpiryDate) < now).length, severity: 'red', key: 'expired_sn' },
+      { label: 'Xe hết hạn đăng kiểm', count: activeVehicles.filter((v) => v.registrationExpiryDate && new Date(v.registrationExpiryDate) < now).length, severity: 'red', key: 'expired_reg' },
     ]
 
     // ===== WORKFLOW =====
@@ -217,7 +221,7 @@ export function useDashboardViewModel() {
     // ===== QUICK STATS =====
     const monthPrefix = today.slice(0, 7)
     const quickStats: QuickStats = {
-      total: vehicles.length,
+      total: activeVehicles.length,
       soldThisMonth: vehicles.filter((v) => v.status === 'sold' && (v.soldDate ?? v.updatedAt)?.startsWith(monthPrefix)).length,
       deposited: vehicles.filter((v) => v.status === 'deposited').length,
       totalSold: vehicles.filter((v) => v.status === 'sold').length,

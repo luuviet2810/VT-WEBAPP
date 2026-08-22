@@ -30,6 +30,8 @@ function mapVehicleRow(v: VehicleRow, images: string[] = [], documents: string[]
     soldDate: v.sold_date as string | undefined,
     yardPosition: v.yard_position as string | undefined,
     imagesDeletedAt: v.images_deleted_at as string | undefined,
+    songNungExpiryDate: v.song_nung_expiry_date as string | null | undefined,
+    registrationExpiryDate: v.registration_expiry_date as string | null | undefined,
   }
 }
 
@@ -181,6 +183,8 @@ export async function updateVehicle(id: string, patch: Partial<Vehicle>): Promis
   if (patch.soldDate !== undefined) updateData.sold_date = patch.soldDate
   if (patch.yardPosition !== undefined) updateData.yard_position = patch.yardPosition
   if (patch.imagesDeletedAt !== undefined) updateData.images_deleted_at = patch.imagesDeletedAt
+  if (patch.songNungExpiryDate !== undefined) updateData.song_nung_expiry_date = patch.songNungExpiryDate
+  if (patch.registrationExpiryDate !== undefined) updateData.registration_expiry_date = patch.registrationExpiryDate
   // NOTE: images and documents are NOT columns in vehicles table
 
   updateData.updated_at = new Date().toISOString()

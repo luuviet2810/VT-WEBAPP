@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react'
-import { ArrowLeft, Clock, Download, FileText, Image as ImageIcon, Info, LogIn, LogOut } from 'lucide-react'
-import { EmptyState, Tabs } from '../components/ui'
+import { useState, useEffect, useRef, useMemo } from 'react'
+import { ArrowLeft, Clock, Download, FileText, Image as ImageIcon, Info, LogIn, LogOut, ImagePlus, Star, Trash2, GripVertical, X, ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
+import { Modal, EmptyState, Tabs } from '../components/ui'
 import PhotoUploader from '../components/PhotoUploader'
 import CheckSheetForm from '../components/CheckSheetForm'
 import { useStore } from '../store/useStore'
 import { formatDateTime } from '../utils/format'
+import * as vehicleMediaService from '../services/vehicleMedia.service'
+import * as storageService from '../services/storage.service'
+import type { VehicleImageRow } from '../services/vehicleMedia.service'
 import type { Vehicle } from '../types'
 
 interface Props {
@@ -128,6 +131,26 @@ export default function VehicleDetailTabs({ vehicle, tab, onTabChange }: Props) 
           <option value="sold">Đã bán</option>
         </select>
       </div>
+      <div>
+        <label className="label">Hạn Song nưng</label>
+        <input className="input" type="date" defaultValue={vehicle.songNungExpiryDate ?? ''} onBlur={(e) => patch({ songNungExpiryDate: e.target.value || null })} />
+        {vehicle.songNungExpiryDate && (
+          <span className={`mt-1 inline-flex items-center gap-1 text-xs font-medium ${new Date(vehicle.songNungExpiryDate) < new Date() ? 'text-red-600' : 'text-green-600'}`}>
+            <span className={`inline-block h-1.5 w-1.5 rounded-full ${new Date(vehicle.songNungExpiryDate) < new Date() ? 'bg-red-600' : 'bg-green-600'}`} />
+            {new Date(vehicle.songNungExpiryDate) < new Date() ? 'Hết hạn' : 'Còn hạn'}
+          </span>
+        )}
+      </div>
+      <div>
+        <label className="label">Hạn đăng kiểm</label>
+        <input className="input" type="date" defaultValue={vehicle.registrationExpiryDate ?? ''} onBlur={(e) => patch({ registrationExpiryDate: e.target.value || null })} />
+        {vehicle.registrationExpiryDate && (
+          <span className={`mt-1 inline-flex items-center gap-1 text-xs font-medium ${new Date(vehicle.registrationExpiryDate) < new Date() ? 'text-red-600' : 'text-green-600'}`}>
+            <span className={`inline-block h-1.5 w-1.5 rounded-full ${new Date(vehicle.registrationExpiryDate) < new Date() ? 'bg-red-600' : 'bg-green-600'}`} />
+            {new Date(vehicle.registrationExpiryDate) < new Date() ? 'Hết hạn' : 'Còn hạn'}
+          </span>
+        )}
+      </div>
     </div>
   )
 
@@ -150,19 +173,7 @@ export default function VehicleDetailTabs({ vehicle, tab, onTabChange }: Props) 
 
         {tab === 'photos' && (
           <div className="flex flex-1 flex-col">
-            <PhotoUploader
-              images={vehicle.images}
-              onChange={(images) => patch({ images })}
-              rightContent={
-                <button
-                  className="btn-secondary flex items-center gap-2"
-                  onClick={() => downloadAllImages(vehicle.images, vehicle.model, vehicle.plate)}
-                  disabled={!vehicle.images || vehicle.images.length === 0}
-                >
-                  <Download size={16} /> Tải tất cả
-                </button>
-              }
-            />
+            <CategorizedPhotoViewer vehicle={vehicle} />
           </div>
         )}
 
@@ -264,6 +275,456 @@ function FullscreenSheet({ title, vehicle, onBack, children }: { title: string; 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {children}
       </div>
+    </div>
+  )
+}
+
+// ====== CATEGORIZED PHOTO VIEWER ======
+
+function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
+  const [imageRows, setImageRows] = useState<VehicleImageRow[]>([])
+  const [uploading, setUploading] = useState<string | null>(null)
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null)
+  const [previewRows, setPreviewRows] = useState<VehicleImageRow[]>([])
+  const [dragIdx, setDragIdx] = useState<{ cat: string; idx: number } | null>(null)
+  const [overIdx, setOverIdx] = useState<{ cat: string; idx: number } | null>(null)
+  const inputRefs = useRef<Record<string, HTMLInputElement | null>>({})
+  const [expiryModal, setExpiryModal] = useState<{ files: File[]; category: string } | null>(null)
+  const [expiryDate, setExpiryDate] = useState('')
+  const [regExpiryDate, setRegExpiryDate] = useState('')
+  const [editingExpiry, setEditingExpiry] = useState<VehicleImageRow | null>(null)
+  const [editExpiryDate, setEditExpiryDate] = useState('')
+
+  const CATEGORIES = [
+    { key: 'error', title: 'Ảnh lỗi xe', desc: null },
+    { key: 'documents', title: 'Ảnh giấy tờ', desc: 'Song nưng, Đăng ký, Uỷ quyền' },
+    { key: 'song_nung', title: 'Ảnh Song nưng', desc: null },
+    { key: 'vehicle', title: 'Ảnh xe', desc: null },
+  ]
+
+  useEffect(() => {
+    if (vehicle?.id) loadImages()
+  }, [vehicle?.id])
+
+  async function loadImages() {
+    if (!vehicle?.id) return
+    try {
+      const rows = await vehicleMediaService.getVehicleImages(vehicle.id)
+      setImageRows(rows)
+      syncVehicleImages(rows)
+    } catch (err) {
+      console.error('Failed to load images:', err)
+    }
+  }
+
+  function syncVehicleImages(rows: VehicleImageRow[]) {
+    const vehicleUrls = rows
+      .filter((r) => r.category === 'vehicle' || !r.category)
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((r) => r.url)
+    useStore.getState().setVehicleImages(vehicle.id, vehicleUrls)
+  }
+
+  const byCategory = useMemo(() => {
+    const map: Record<string, VehicleImageRow[]> = {}
+    for (const cat of CATEGORIES) map[cat.key] = []
+    for (const row of imageRows) {
+      const cat = row.category || 'vehicle'
+      if (map[cat]) map[cat].push(row)
+      else map[cat] = [row]
+    }
+    for (const cat of Object.keys(map)) {
+      map[cat].sort((a, b) => a.sort_order - b.sort_order)
+    }
+    return map
+  }, [imageRows])
+
+  async function handleUpload(files: FileList | File[] | null, category: string, expiryDate?: string | null) {
+    if (!files || !files.length || !vehicle?.id) {
+      console.warn('[upload] No files or vehicle ID', { files: !!files, length: files?.length, vehicleId: vehicle?.id })
+      return
+    }
+    setUploading(category)
+    try {
+      let sortOrder = imageRows.length
+      for (const file of Array.from(files)) {
+        console.log('[upload] Starting upload for', file.name, 'category:', category)
+        const result = await storageService.uploadVehicleImage(vehicle.id, file)
+        console.log('[upload] Storage upload OK:', result.url)
+        let thumbUrl: string | null = null
+        try {
+          const { resizeImage } = await import('../utils/imageResize')
+          const thumbBlob = await resizeImage(file, 600, 0.75)
+          const thumbFile = new File([thumbBlob], 'thumb_' + file.name, { type: 'image/jpeg' })
+          const thumbResult = await storageService.uploadVehicleImage(vehicle.id, thumbFile)
+          thumbUrl = thumbResult.url
+        } catch (thumbErr) {
+          console.warn('[upload] Thumbnail creation failed:', thumbErr)
+        }
+        try {
+          const dbRow = await vehicleMediaService.addVehicleImage(
+            vehicle.id, result.path, 'vehicle-images', result.url,
+            file.size, file.type, sortOrder, thumbUrl, category,
+            category === 'song_nung' ? (expiryDate ?? null) : undefined
+          )
+          console.log('[upload] DB insert OK:', dbRow.id, 'category:', dbRow.category)
+        } catch (dbErr) {
+          console.error('[upload] DB insert FAILED:', dbErr)
+          // Clean up storage on DB failure
+          try { await storageService.deleteVehicleImage(result.url) } catch {}
+          throw dbErr
+        }
+        sortOrder++
+      }
+      await loadImages()
+      console.log('[upload] Upload complete, images reloaded')
+    } catch (err) {
+      console.error('[upload] Upload failed:', err)
+    } finally {
+      setUploading(null)
+    }
+  }
+
+  async function handleDelete(row: VehicleImageRow) {
+    try {
+      await vehicleMediaService.deleteVehicleImage(row.id, row.path)
+      if (previewIndex !== null) setPreviewIndex(null)
+      await loadImages()
+    } catch (err) {
+      console.error('Delete failed:', err)
+    }
+  }
+
+  async function handleReorder(category: string, from: number, to: number) {
+    if (from === to) return
+    const items = [...(byCategory[category] || [])]
+    const [moved] = items.splice(from, 1)
+    items.splice(to, 0, moved)
+    for (let i = 0; i < items.length; i++) {
+      await vehicleMediaService.updateVehicleImageOrder(items[i].id, i)
+    }
+    await loadImages()
+  }
+
+  async function handleMoveCategory(fromCat: string, fromIdx: number, toCat: string) {
+    const sourceItems = byCategory[fromCat] || []
+    const row = sourceItems[fromIdx]
+    if (!row) return
+
+    // Place at the end of the target category
+    const targetItems = byCategory[toCat] || []
+    const targetSortOrder = targetItems.length
+
+    // Update category + sort_order in DB
+    await vehicleMediaService.updateVehicleImageCategory(row.id, toCat, targetSortOrder)
+
+    // Reorder remaining items in the source category (fill the gap)
+    const remainingSource = sourceItems.filter((_, i) => i !== fromIdx)
+    for (let i = 0; i < remainingSource.length; i++) {
+      if (remainingSource[i].id !== row.id) {
+        await vehicleMediaService.updateVehicleImageOrder(remainingSource[i].id, i)
+      }
+    }
+
+    await loadImages()
+  }
+
+  function handleSetCover(row: VehicleImageRow) {
+    const items = byCategory['vehicle'] || []
+    const idx = items.findIndex((r) => r.id === row.id)
+    if (idx <= 0) return
+    handleReorder('vehicle', idx, 0)
+  }
+
+  async function downloadFile(url: string, filename: string) {
+    try {
+      const res = await fetch(url)
+      const blob = await res.blob()
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(link.href)
+    } catch (err) {
+      console.error('Download failed:', err)
+    }
+  }
+
+  function downloadOne(url: string, idx: number) {
+    const ext = url.split('.').pop()?.split('?')[0] || 'jpg'
+    downloadFile(url, `${vehicle.model}_${vehicle.plate}_${idx + 1}.${ext}`)
+  }
+
+  function downloadAll() {
+    imageRows.forEach((row, i) => {
+      setTimeout(() => downloadOne(row.url, i), i * 300)
+    })
+  }
+
+  return (
+    <div>
+      {/* Toolbar */}
+      <div className="mb-4 flex items-center justify-between">
+        <span className="text-sm text-slate-500">{imageRows.length} ảnh</span>
+        {imageRows.length > 0 && (
+          <button onClick={downloadAll} className="btn-secondary flex items-center gap-2">
+            <Download size={16} /> Tải tất cả
+          </button>
+        )}
+      </div>
+
+      {/* Category Sections */}
+      {CATEGORIES.map((cat) => {
+        const items = byCategory[cat.key] || []
+        return (
+          <div key={cat.key} className="mb-6">
+            {/* Section Header */}
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-semibold text-slate-800">{cat.title}</h3>
+                {cat.desc && <p className="mt-0.5 text-xs text-slate-400">{cat.desc}</p>}
+              </div>
+              <button
+                onClick={() => inputRefs.current[cat.key]?.click()}
+                className="btn-primary"
+                disabled={uploading === cat.key}
+              >
+                <ImagePlus size={16} />
+                {uploading === cat.key ? 'Đang tải...' : 'Tải ảnh lên'}
+              </button>
+              <input
+                ref={(el) => { inputRefs.current[cat.key] = el }}
+                type="file" accept="image/*" multiple
+                className="hidden"
+                onChange={(e) => {
+                  if (cat.key === 'song_nung' && e.target.files?.length) {
+                    // Store files as array (FileList is live — resets on value='')
+                    setExpiryModal({ files: Array.from(e.target.files), category: cat.key })
+                    setExpiryDate('')
+                    setRegExpiryDate('')
+                    e.target.value = ''
+                  } else {
+                    handleUpload(e.target.files, cat.key)
+                    e.target.value = ''
+                  }
+                }}
+              />
+            </div>
+
+            {/* Image Grid or Empty */}
+            {items.length === 0 ? (
+              <div
+                className="rounded-xl border border-dashed border-slate-200 transition-colors"
+                onDragOver={(e) => { e.preventDefault(); setOverIdx({ cat: cat.key, idx: 0 }) }}
+                onDragLeave={() => setOverIdx(null)}
+                onDrop={() => {
+                  if (dragIdx && dragIdx.cat !== cat.key) {
+                    handleMoveCategory(dragIdx.cat, dragIdx.idx, cat.key)
+                  }
+                  setDragIdx(null); setOverIdx(null)
+                }}
+              >
+                <EmptyState icon={<ImagePlus size={28} />} title="Chưa có ảnh" subtitle="" />
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7">
+                {items.map((row, idx) => (
+                  <div
+                    key={row.id}
+                    draggable
+                    onDragStart={() => setDragIdx({ cat: cat.key, idx })}
+                    onDragOver={(e) => { e.preventDefault(); setOverIdx({ cat: cat.key, idx }) }}
+                    onDragLeave={() => setOverIdx(null)}
+                    onDrop={() => {
+                      if (dragIdx) {
+                        if (dragIdx.cat === cat.key) {
+                          handleReorder(cat.key, dragIdx.idx, idx)
+                        } else {
+                          handleMoveCategory(dragIdx.cat, dragIdx.idx, cat.key)
+                        }
+                      }
+                      setDragIdx(null); setOverIdx(null)
+                    }}
+                    onDragEnd={() => { setDragIdx(null); setOverIdx(null) }}
+                    className={`group relative aspect-[4/3] cursor-grab overflow-hidden rounded-lg border bg-slate-50 ${
+                      cat.key === 'vehicle' && idx === 0 ? 'border-brand-400 ring-2 ring-brand-100' : 'border-slate-200'
+                    } ${overIdx?.cat === cat.key && overIdx.idx === idx && dragIdx?.cat === cat.key && dragIdx.idx !== idx ? 'scale-[0.98] border-brand-400' : ''} ${
+                      overIdx?.cat === cat.key && overIdx.idx === idx && dragIdx && dragIdx.cat !== cat.key ? 'scale-[0.98] border-violet-400 ring-2 ring-violet-100' : ''}`}
+                  >
+                    <img src={row.thumbnail || row.url} className="h-full w-full object-cover" draggable={false} loading="lazy" />
+                    {/* Top badges */}
+                    <div className="absolute left-1 top-1 flex items-center gap-1">
+                      <span className="rounded-md bg-slate-900/60 p-0.5 text-white"><GripVertical size={10} /></span>
+                      {cat.key === 'vehicle' && idx === 0 && (
+                        <span className="flex items-center gap-0.5 rounded-md bg-brand-600 px-1 py-0.5 text-[9px] font-semibold text-white">
+                          <Star size={8} /> Hiển thị
+                        </span>
+                      )}
+                      {cat.key === 'song_nung' && row.song_nung_expiry_date && (
+                        <span className={`flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[9px] font-semibold text-white ${new Date(row.song_nung_expiry_date) < new Date() ? 'bg-red-600' : 'bg-green-600'}`}>
+                          {new Date(row.song_nung_expiry_date) < new Date() ? 'HẾT HẠN' : 'Còn hạn'}
+                        </span>
+                      )}
+                    </div>
+                    {/* Hover controls */}
+                    <div className="absolute inset-x-1 bottom-1 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                      <button onClick={() => { setPreviewRows(items); setPreviewIndex(idx) }}
+                        className="flex-1 rounded-md bg-white/95 py-0.5 text-[9px] font-medium text-slate-700 shadow-sm">
+                        Xem
+                      </button>
+                      {cat.key === 'vehicle' && idx !== 0 && (
+                        <button onClick={() => handleSetCover(row)}
+                          className="rounded-md bg-white/95 px-1.5 py-0.5 text-[9px] font-medium text-brand-700 shadow-sm">
+                          Ảnh đại diện
+                        </button>
+                      )}
+                      {cat.key === 'song_nung' && (
+                        <button onClick={() => { setEditingExpiry(row); setEditExpiryDate(row.song_nung_expiry_date || ''); }}
+                          className="rounded-md bg-white/95 px-1.5 py-0.5 text-[9px] font-medium text-amber-700 shadow-sm">
+                          Hạn
+                        </button>
+                      )}
+                      <button onClick={() => downloadOne(row.url, idx)}
+                        className="rounded-md bg-slate-900/70 p-1 text-white">
+                        <Download size={10} />
+                      </button>
+                      <button onClick={() => handleDelete(row)}
+                        className="rounded-md bg-red-600/80 p-1 text-white">
+                        <Trash2 size={10} />
+                      </button>
+                    </div>
+                    {/* Song nung expiry date label */}
+                    {cat.key === 'song_nung' && row.song_nung_expiry_date && (
+                      <div className="absolute bottom-8 left-1 right-1 text-center">
+                        <span className="text-[9px] font-medium text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                          Hạn: {new Date(row.song_nung_expiry_date).toLocaleDateString('vi-VN')}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })}
+
+      {/* Preview Modal */}
+      {previewIndex !== null && previewRows[previewIndex] && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-black/95" onClick={() => setPreviewIndex(null)}>
+          <div className="flex shrink-0 items-center justify-between px-4 py-3 text-white" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              <button onClick={() => setPreviewIndex(null)} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20">
+                <X size={20} />
+              </button>
+              <span className="text-sm font-medium">{vehicle.plate} — {vehicle.model}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              {previewRows.length > 1 && <span className="text-xs text-white/60">{previewIndex + 1}/{previewRows.length}</span>}
+              <button onClick={() => downloadOne(previewRows[previewIndex].url, previewIndex)}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20" title="Tải ảnh">
+                <Download size={18} />
+              </button>
+            </div>
+          </div>
+          <div className="flex min-h-0 flex-1 items-center justify-center px-2" onClick={(e) => e.stopPropagation()}>
+            <img src={previewRows[previewIndex].url} className="max-h-full max-w-full object-contain select-none" draggable={false} />
+          </div>
+          {previewRows.length > 1 && (
+            <div className="flex shrink-0 items-center justify-center gap-6 px-4 py-4" onClick={(e) => e.stopPropagation()}>
+              <button disabled={previewIndex === 0} onClick={() => setPreviewIndex(previewIndex - 1)}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 disabled:opacity-30">
+                <ChevronLeft size={22} />
+              </button>
+              <span className="text-sm text-white/80">{previewIndex + 1}/{previewRows.length}</span>
+              <button disabled={previewIndex >= previewRows.length - 1} onClick={() => setPreviewIndex(previewIndex + 1)}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 disabled:opacity-30">
+                <ChevronRight size={22} />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Expiry date modal for song_nung upload */}
+      {expiryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setExpiryModal(null)}>
+          <div className="mx-4 w-full max-w-sm rounded-xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold text-slate-800">Thông tin Song nưng</h3>
+            <p className="mt-1 text-xs text-slate-500">Nhập ngày hết hạn</p>
+            <div className="mt-3 space-y-3">
+              <div>
+                <label className="text-xs font-medium text-slate-600">Ngày hết hạn Song nưng</label>
+                <input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} className="input mt-1 w-full" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-600">Ngày hết hạn đăng kiểm</label>
+                <input type="date" value={regExpiryDate} onChange={(e) => setRegExpiryDate(e.target.value)} className="input mt-1 w-full" />
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setExpiryModal(null)} className="btn-secondary px-4 py-2 text-sm">Hủy</button>
+              <button
+                onClick={async () => {
+                  if (expiryModal) {
+                    await handleUpload(expiryModal.files, expiryModal.category, expiryDate || null)
+                    // Update vehicle-level expiry dates
+                    if (vehicle?.id) {
+                      const patch: Partial<Vehicle> = {}
+                      if (expiryDate) patch.songNungExpiryDate = expiryDate
+                      if (regExpiryDate) patch.registrationExpiryDate = regExpiryDate
+                      if (Object.keys(patch).length > 0) {
+                        useStore.getState().updateVehicle(vehicle.id, patch)
+                      }
+                    }
+                    setExpiryModal(null)
+                  }
+                }}
+                className="btn-primary px-4 py-2 text-sm"
+              >
+                Lưu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit expiry date modal for song_nung */}
+      {editingExpiry && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setEditingExpiry(null)}>
+          <div className="mx-4 w-full max-w-sm rounded-xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-sm font-semibold text-slate-800">Sửa ngày hết hạn</h3>
+            <input
+              type="date"
+              value={editExpiryDate}
+              onChange={(e) => setEditExpiryDate(e.target.value)}
+              className="input mt-3 w-full"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setEditingExpiry(null)}
+                className="btn-secondary px-4 py-2 text-sm"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={async () => {
+                  if (editingExpiry) {
+                    await vehicleMediaService.updateVehicleImageExpiry(editingExpiry.id, editExpiryDate || null)
+                    setEditingExpiry(null)
+                    await loadImages()
+                  }
+                }}
+                className="btn-primary px-4 py-2 text-sm"
+              >
+                Lưu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

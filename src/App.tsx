@@ -119,6 +119,18 @@ export default function App() {
     initializeFromSupabase()
   }, [])
 
+  // Debug unhandled promise rejections — remove after finding M_ID root cause
+  useEffect(() => {
+    const handler = (event: PromiseRejectionEvent) => {
+      console.group('%c🔴 M_ID DEBUG — Unhandled Rejection', 'color:red;font-weight:bold')
+      console.error('Reason:', event.reason)
+      console.error('Stack:', (event.reason as Error)?.stack)
+      console.groupEnd()
+    }
+    window.addEventListener('unhandledrejection', handler)
+    return () => window.removeEventListener('unhandledrejection', handler)
+  }, [])
+
   return (
     <Routes>
       {/* ====== AUTH ROUTES ====== */}

@@ -50,7 +50,6 @@ async function run() {
   const { data: images, error } = await supabase
     .from('vehicle_images')
     .select('id, url, path')
-    .is('thumbnail', null)
     .order('created_at', { ascending: false });
 
   if (error) { console.error('Query failed:', error.message); return; }
@@ -66,31 +65,35 @@ async function run() {
     const dot = origPath.lastIndexOf('.');
     const thumbPath = dot === -1 ? origPath + '_thumb.jpg' : origPath.slice(0, dot) + '_thumb.jpg';
 
-    // Skip if thumb already exists in storage (check by trying to get it)
-    try {
-      const { data: existing } = await supabase.storage
-        .from('vehicle-images')
-        .list(thumbPath.substring(0, thumbPath.lastIndexOf('/')), { search: thumbPath.split('/').pop() });
-      if (existing && existing.length > 0) {
-        console.log(`  SKIP ${img.id} — thumbnail already exists in storage`);
-        // Update DB record with the thumbnail URL
-        const { data: urlData } = supabase.storage.from('vehicle-images').getPublicUrl(thumbPath);
-        await supabase.from('vehicle_images').update({ thumbnail: urlData.publicUrl }).eq('id', img.id);
-        done++;
-        continue;
-      }
-    } catch {}
-
     try {
       console.log(`  Processing ${img.id}...`);
       const origBuffer = await download(img.url);
       const origSize = (origBuffer.length / 1024).toFixed(0);
       console.log(`    Downloaded: ${origSize}KB`);
 
-      const thumbBuffer = await sharp(origBuffer)
-        .resize(600, undefined, { fit: 'inside', withoutEnlargement: true })
-        .jpeg({ quality: 75 })
-        .toBuffer();
+      // Determine orientation after applying EXIF rotation
+      const meta = await sharp(origBuffer).rotate().metadata();
+      const isPortrait = meta.height > meta.width;
+
+      let thumbBuffer;
+      if (isPortrait) {
+        // Portrait → center-crop to landscape 16:9 before resize
+        const cropH = Math.round(meta.width * 16 / 9);
+        const top = Math.max(0, Math.round((meta.height - cropH) / 2));
+        thumbBuffer = await sharp(origBuffer)
+          .rotate()
+          .extract({ left: 0, top, width: meta.width, height: Math.min(cropH, meta.height - top) })
+          .resize(800, 450)
+          .jpeg({ quality: 75 })
+          .toBuffer();
+      } else {
+        // Landscape → resize to fit 16:9 box
+        thumbBuffer = await sharp(origBuffer)
+          .rotate()
+          .resize(800, 450, { fit: 'inside', withoutEnlargement: true })
+          .jpeg({ quality: 75 })
+          .toBuffer();
+      }
 
       const thumbUrl = await uploadThumbnail(thumbPath, thumbBuffer);
       const thumbSize = (thumbBuffer.length / 1024).toFixed(0);

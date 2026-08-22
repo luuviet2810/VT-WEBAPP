@@ -9,6 +9,10 @@ export interface VehicleImageRow {
   bucket: string
   url: string
   thumbnail: string | null
+  category?: string
+  subtype?: string | null
+  resolved?: boolean
+  song_nung_expiry_date: string | null
   size_bytes: number | null
   mime_type: string | null
   sort_order: number
@@ -38,6 +42,10 @@ function mapImageRow(row: Record<string, unknown>): VehicleImageRow {
     bucket: row.bucket as string,
     url: row.url as string,
     thumbnail: row.thumbnail as string | null,
+    category: (row.category as string) ?? undefined,
+    subtype: (row.subtype as string) ?? null,
+    resolved: (row.resolved as boolean) ?? undefined,
+    song_nung_expiry_date: (row.song_nung_expiry_date as string) ?? null,
     size_bytes: row.size_bytes as number | null,
     mime_type: row.mime_type as string | null,
     sort_order: row.sort_order as number,
@@ -56,7 +64,9 @@ export async function addVehicleImage(
   sizeBytes?: number,
   mimeType?: string,
   sortOrder?: number,
-  thumbnail?: string | null
+  thumbnail?: string | null,
+  category?: string,
+  songNungExpiryDate?: string | null
 ): Promise<VehicleImageRow> {
   const { data, error } = await supabase
     .from('vehicle_images')
@@ -66,6 +76,8 @@ export async function addVehicleImage(
       bucket,
       url,
       thumbnail: thumbnail ?? null,
+      category: category ?? 'vehicle',
+      song_nung_expiry_date: songNungExpiryDate ?? null,
       size_bytes: sizeBytes ?? null,
       mime_type: mimeType ?? null,
       sort_order: sortOrder ?? 0,
@@ -119,6 +131,24 @@ export async function updateVehicleImageOrder(imageId: string, sortOrder: number
   const { error } = await supabase
     .from('vehicle_images')
     .update({ sort_order: sortOrder })
+    .eq('id', imageId)
+
+  if (error) throw error
+}
+
+export async function updateVehicleImageCategory(imageId: string, category: string, sortOrder: number): Promise<void> {
+  const { error } = await supabase
+    .from('vehicle_images')
+    .update({ category, sort_order: sortOrder })
+    .eq('id', imageId)
+
+  if (error) throw error
+}
+
+export async function updateVehicleImageExpiry(imageId: string, expiryDate: string | null): Promise<void> {
+  const { error } = await supabase
+    .from('vehicle_images')
+    .update({ song_nung_expiry_date: expiryDate })
     .eq('id', imageId)
 
   if (error) throw error

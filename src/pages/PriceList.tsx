@@ -148,7 +148,6 @@ export default function PriceList() {
                 <th className="px-3 py-3 whitespace-nowrap">Dung tích</th>
                 {canEdit && <th className="px-3 py-3 whitespace-nowrap">Giá nhập</th>}
                 <th className="px-3 py-3 whitespace-nowrap">Tình trạng</th>
-                <th className="px-3 py-3 whitespace-nowrap">Ảnh</th>
                 {canEdit && <th className="px-3 py-3" />}
               </tr>
             </thead>
@@ -270,17 +269,6 @@ function PriceRow({
             {STATUS_LABEL[vehicle.status]}
           </span>
         )}
-      </td>
-      <td className="px-3 py-2.5 whitespace-nowrap">
-        <div className="h-10 w-14 overflow-hidden rounded-lg bg-slate-100">
-          {vehicle.images[0] ? (
-            <img src={vehicle.images[0]} loading="lazy" className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-slate-300">
-              <Car size={16} />
-            </div>
-          )}
-        </div>
       </td>
       {canEdit && (
         <td className="px-3 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>

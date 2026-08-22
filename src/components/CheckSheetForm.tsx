@@ -1197,6 +1197,44 @@ export default function CheckSheetForm({
                     onChange={(p) => updateConSeongnyeong(p)}
                   />
 
+                  {/* Hạn Song nưng */}
+                  <div className="rounded-lg border border-slate-100 bg-slate-50/50 px-4 py-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-slate-700">Hạn Song nưng</span>
+                      <span className={`text-sm font-semibold ${
+                        !vehicle.songNungExpiryDate ? 'text-slate-400' :
+                        new Date(vehicle.songNungExpiryDate) < new Date() ? 'text-red-600' : 'text-green-600'
+                      }`}>
+                        {!vehicle.songNungExpiryDate ? 'Chưa có dữ liệu' :
+                         new Date(vehicle.songNungExpiryDate) < new Date() ? 'Hết hạn' : 'Còn hạn'}
+                      </span>
+                    </div>
+                    {vehicle.songNungExpiryDate && (
+                      <div className="mt-1 text-xs text-slate-500">
+                        Hạn: {new Date(vehicle.songNungExpiryDate).toLocaleDateString('vi-VN')}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Hạn đăng kiểm */}
+                  <div className="rounded-lg border border-slate-100 bg-slate-50/50 px-4 py-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-slate-700">Hạn đăng kiểm</span>
+                      <span className={`text-sm font-semibold ${
+                        !vehicle.registrationExpiryDate ? 'text-slate-400' :
+                        new Date(vehicle.registrationExpiryDate) < new Date() ? 'text-red-600' : 'text-green-600'
+                      }`}>
+                        {!vehicle.registrationExpiryDate ? 'Chưa có dữ liệu' :
+                         new Date(vehicle.registrationExpiryDate) < new Date() ? 'Hết hạn' : 'Còn hạn'}
+                      </span>
+                    </div>
+                    {vehicle.registrationExpiryDate && (
+                      <div className="mt-1 text-xs text-slate-500">
+                        Hạn: {new Date(vehicle.registrationExpiryDate).toLocaleDateString('vi-VN')}
+                      </div>
+                    )}
+                  </div>
+
                   {/* Dầu máy */}
                   <DauMayRow
                     label="Dầu máy"
