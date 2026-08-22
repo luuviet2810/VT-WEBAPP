@@ -19,6 +19,7 @@ import {
 } from '../types'
 import { generateTasks } from '../utils/taskRules'
 import { getAutoSyncPatch } from '../utils/ruleFieldMap'
+import { getThumbnailForUrl } from '../utils/thumbnailCache'
 import { getVehicleWorkflowStatus, WORKFLOW_STATUS_LABEL } from '../utils/vehicleWorkflow'
 import { taskCreated, taskCompleted, vehicleAdded } from '../utils/notificationTemplates'
 import { todayISO, uid } from '../utils/format'
@@ -249,7 +250,8 @@ export const useStore = create<StoreState>()(
               const file = new File([blob], 'image.jpg', { type: blob.type })
               const uploaded = await storageService.uploadVehicleImage(id, file)
               try {
-                await vehicleMediaService.addVehicleImage(id, uploaded.path, 'vehicle-images', uploaded.url, file.size, file.type, sortOrder++)
+                const thumbUrl = getThumbnailForUrl(uploaded.url)
+                await vehicleMediaService.addVehicleImage(id, uploaded.path, 'vehicle-images', uploaded.url, file.size, file.type, sortOrder++, thumbUrl)
               } catch (dbErr) {
                 await storageService.deleteVehicleImage(uploaded.url)
                 throw dbErr
@@ -264,7 +266,8 @@ export const useStore = create<StoreState>()(
             }
             const bucket = publicMatch[1]
             const path = publicMatch[2]
-            await vehicleMediaService.addVehicleImage(id, path, bucket, dataUrl, undefined, undefined, sortOrder++)
+            const thumbUrl = getThumbnailForUrl(dataUrl)
+            await vehicleMediaService.addVehicleImage(id, path, bucket, dataUrl, undefined, undefined, sortOrder++, thumbUrl)
           }
 
           const newSet = new Set(images)

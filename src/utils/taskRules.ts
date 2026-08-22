@@ -183,7 +183,7 @@ const ruleDashcamNone: Rule = {
 
 const ruleAcquySOCLow: Rule = {
   id: 'in_battery_soc_low',
-  title: 'Sạc pin',
+  title: 'Sạc ắc quy',
   description: 'SOC acquy đầu vào dưới 20%, cần sạc pin',
   priority: 'low',
   evaluate(ctx: RuleContext) {

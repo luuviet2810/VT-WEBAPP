@@ -55,7 +55,8 @@ export async function addVehicleImage(
   url: string,
   sizeBytes?: number,
   mimeType?: string,
-  sortOrder?: number
+  sortOrder?: number,
+  thumbnail?: string | null
 ): Promise<VehicleImageRow> {
   const { data, error } = await supabase
     .from('vehicle_images')
@@ -64,6 +65,7 @@ export async function addVehicleImage(
       path,
       bucket,
       url,
+      thumbnail: thumbnail ?? null,
       size_bytes: sizeBytes ?? null,
       mime_type: mimeType ?? null,
       sort_order: sortOrder ?? 0,

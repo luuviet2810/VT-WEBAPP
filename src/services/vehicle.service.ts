@@ -6,7 +6,7 @@ import { getVehicleImages, getVehicleDocuments } from './vehicleMedia.service'
 
 type VehicleRow = Record<string, unknown>
 
-function mapVehicleRow(v: VehicleRow, images: string[] = [], documents: string[] = []): Vehicle {
+function mapVehicleRow(v: VehicleRow, images: string[] = [], documents: string[] = [], thumbnails?: Record<string, string>): Vehicle {
   return {
     id: v.id as string,
     plate: v.plate as string,
@@ -23,6 +23,7 @@ function mapVehicleRow(v: VehicleRow, images: string[] = [], documents: string[]
     assigneeId: v.assignee_id as string | null,
     note: v.note as string | undefined,
     images,
+    thumbnails,
     documents,
     createdAt: v.created_at as string,
     updatedAt: v.updated_at as string,
@@ -47,17 +48,24 @@ export async function getVehicles(): Promise<Vehicle[]> {
 
   // Fetch all images and documents for these vehicles
   const [allImages, allDocs] = await Promise.all([
-    supabase.from('vehicle_images').select('vehicle_id, url, sort_order').order('sort_order', { ascending: true }).then(({ data: d }) => d ?? []),
+    supabase.from('vehicle_images').select('vehicle_id, url, thumbnail, sort_order').order('sort_order', { ascending: true }).then(({ data: d }) => d ?? []),
     supabase.from('vehicle_documents').select('vehicle_id, url, sort_order').order('sort_order', { ascending: true }).then(({ data: d }) => d ?? []),
   ])
 
   // Index by vehicle_id for O(1) lookup
   const imagesByVehicle: Record<string, string[]> = {}
+  const thumbnailsByVehicle: Record<string, Record<string, string>> = {}
   const docsByVehicle: Record<string, string[]> = {}
   for (const img of allImages) {
     const vid = img.vehicle_id as string
     if (!imagesByVehicle[vid]) imagesByVehicle[vid] = []
     imagesByVehicle[vid].push(img.url as string)
+    // Build thumbnail map: url → thumbnailUrl
+    const thumb = img.thumbnail as string | null
+    if (thumb) {
+      if (!thumbnailsByVehicle[vid]) thumbnailsByVehicle[vid] = {}
+      thumbnailsByVehicle[vid][img.url as string] = thumb
+    }
   }
   for (const doc of allDocs) {
     const vid = doc.vehicle_id as string
@@ -67,7 +75,7 @@ export async function getVehicles(): Promise<Vehicle[]> {
 
   return vehicleRows.map((v) => {
     const vid = v.id as string
-    return mapVehicleRow(v, imagesByVehicle[vid] ?? [], docsByVehicle[vid] ?? [])
+    return mapVehicleRow(v, imagesByVehicle[vid] ?? [], docsByVehicle[vid] ?? [], thumbnailsByVehicle[vid])
   })
 }
 

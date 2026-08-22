@@ -16,6 +16,8 @@ export interface Vehicle {
   assigneeId?: string | null
   note?: string
   images: string[]
+  /** Maps original image URL → thumbnail URL (if available) */
+  thumbnails?: Record<string, string>
   documents: string[]
   createdAt: string
   updatedAt: string
