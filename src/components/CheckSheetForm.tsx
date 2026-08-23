@@ -1,7 +1,7 @@
 // ====== CHECKSHEET FORM COMPONENT ======
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CheckCircle2, XCircle, Minus, StickyNote, Wrench, Plus, Minus as MinusIcon } from 'lucide-react'
+import { CheckCircle2, XCircle, Minus, StickyNote, Wrench, Plus, Minus as MinusIcon, X, ListChecks } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import * as checksheetService from '../services/checksheet.service'
 import { EMPTY_CHECK_SHEET } from '../services/checksheet.service'
@@ -192,6 +192,7 @@ export default function CheckSheetForm({
   // ====== STATE — initialized from existing sheet or defaults ======
   const [sheetId, setSheetId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [showTaskSummary, setShowTaskSummary] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [checkerId, setCheckerId] = useState(currentEmployeeId)
   const [checkDate, setCheckDate] = useState(new Date().toISOString().slice(0, 10))
@@ -1174,9 +1175,15 @@ export default function CheckSheetForm({
                   </div>
                   <ul className="space-y-1">
                     {issueLabels.map((label, i) => (
-                      <li key={i} className="flex items-center gap-2 text-sm text-blue-600">
-                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-blue-400" />
-                        {label.bold ? <strong>{label.text}</strong> : label.text}
+                      <li key={i}>
+                        <button
+                          type="button"
+                          onClick={() => setShowTaskSummary(true)}
+                          className="flex w-full items-center gap-2 rounded px-1 py-0.5 text-sm text-blue-600 hover:bg-blue-100/50 transition-colors text-left"
+                        >
+                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-blue-400" />
+                          {label.bold ? <strong>{label.text}</strong> : label.text}
+                        </button>
                       </li>
                     ))}
                   </ul>
@@ -1340,9 +1347,15 @@ export default function CheckSheetForm({
                   </div>
                   <ul className="space-y-1">
                     {outIssueLabels.map((label, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-red-600">
-                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-red-400" />
-                        {label.bold ? <strong>{label.text}</strong> : label.text}
+                      <li key={i}>
+                        <button
+                          type="button"
+                          onClick={() => setShowTaskSummary(true)}
+                          className="flex w-full items-start gap-2 rounded px-1 py-0.5 text-sm text-red-600 hover:bg-red-100/50 transition-colors text-left"
+                        >
+                          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-red-400" />
+                          {label.bold ? <strong>{label.text}</strong> : label.text}
+                        </button>
                       </li>
                     ))}
                   </ul>
@@ -1362,6 +1375,62 @@ export default function CheckSheetForm({
         </div>
       </div>
 
+      {/* Task Summary Modal */}
+      {showTaskSummary && (() => {
+        const vehicleTasks = tasks.filter((t) => t.vehicleId === vehicle.id)
+        const todoTasks = vehicleTasks.filter((t) => t.status === 'todo' && !t.deferred)
+        const deferredTasks = vehicleTasks.filter((t) => t.status === 'todo' && t.deferred)
+        const doingTasks = vehicleTasks.filter((t) => t.status === 'doing')
+        const doneTasks = vehicleTasks.filter((t) => t.status === 'done')
+
+        const sections = [
+          { label: 'Chưa làm', count: todoTasks.length, tasks: todoTasks, icon: '🔧', color: 'text-slate-600', bg: 'bg-slate-50' },
+          { label: 'Chưa cần làm ngay', count: deferredTasks.length, tasks: deferredTasks, icon: '📌', color: 'text-blue-600', bg: 'bg-blue-50' },
+          { label: 'Đang làm', count: doingTasks.length, tasks: doingTasks, icon: '🟡', color: 'text-orange-600', bg: 'bg-orange-50' },
+          { label: 'Đã làm', count: doneTasks.length, tasks: doneTasks, icon: '🟢', color: 'text-green-600', bg: 'bg-green-50' },
+        ]
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowTaskSummary(false)}>
+            <div className="mx-4 w-full max-w-lg rounded-xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between border-b px-5 py-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-800">Nhiệm vụ xe {vehicle.plate || '—'}</h3>
+                  <p className="mt-0.5 text-xs text-slate-500">{vehicle.model}</p>
+                </div>
+                <button onClick={() => setShowTaskSummary(false)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="max-h-[65vh] overflow-y-auto px-5 py-4 space-y-4">
+                {sections.map((section) => (
+                  <div key={section.label}>
+                    <div className={`flex items-center justify-between rounded-lg px-3 py-2 ${section.bg}`}>
+                      <span className={`text-sm font-semibold ${section.color}`}>
+                        {section.icon} {section.label}
+                      </span>
+                      <span className={`text-sm font-bold ${section.color}`}>{section.count}</span>
+                    </div>
+                    {section.tasks.length > 0 && (
+                      <div className="mt-1.5 space-y-1 pl-3">
+                        {section.tasks.map((t) => (
+                          <div key={t.id} className="flex items-center gap-2 rounded px-2 py-1 text-sm text-slate-700 hover:bg-slate-50">
+                            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300" />
+                            {t.title}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {vehicleTasks.length === 0 && (
+                  <div className="py-8 text-center text-sm text-slate-400">Chưa có nhiệm vụ nào</div>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </>
   )
 }

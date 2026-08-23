@@ -658,8 +658,8 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
             <div className="flex items-center gap-3">
               {previewRows.length > 1 && <span className="text-xs text-white/60">{previewIndex + 1}/{previewRows.length}</span>}
               <button onClick={() => downloadOne(previewRows[previewIndex].url, previewIndex)}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20" title="Tải ảnh">
-                <Download size={18} />
+                className="flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20 transition-colors" title="Tải ảnh">
+                <Download size={14} /> Tải ảnh
               </button>
             </div>
           </div>
