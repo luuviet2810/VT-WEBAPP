@@ -53,6 +53,7 @@ const VehicleCard = memo(function VehicleCard({
   onTaskClick,
   onPreviewIn,
   onPreviewOut,
+  onNoteClick,
 }: {
   vehicle: Vehicle
   positionName: string | null
@@ -63,6 +64,7 @@ const VehicleCard = memo(function VehicleCard({
   onTaskClick: (id: string) => void
   onPreviewIn: (id: string) => void
   onPreviewOut: (id: string) => void
+  onNoteClick?: (id: string) => void
 }) {
   // [PERF] card render counter
   if (DEV_DISABLE_IMAGES) {
@@ -106,6 +108,19 @@ const VehicleCard = memo(function VehicleCard({
             <div className="mt-0.5 truncate text-xs text-slate-500">{v.yardPosition || '—'}</div>
           </div>
         </div>
+
+        {/* Note link */}
+        {v.note && (
+          <div className="mt-1.5 px-1">
+            <button
+              onClick={(e) => { e.preventDefault(); onNoteClick?.(v.id) }}
+              className="flex items-center gap-1 text-xs text-slate-400 hover:text-brand-600 transition-colors"
+            >
+              <StickyNote size={12} />
+              Xem ghi chú
+            </button>
+          </div>
+        )}
 
         {/* Quick Actions — icon only, 3 equal columns */}
         <div className="mt-2 grid min-w-0 grid-cols-3 gap-1.5 border-t border-slate-100 pt-2">
@@ -167,6 +182,7 @@ export default function VehicleList() {
   const [previewSheet, setPreviewSheet] = useState<CheckSheet | null>(null)
   const [previewType, setPreviewType] = useState<'in' | 'out'>('in')
   const [selectedTaskVehicleId, setSelectedTaskVehicleId] = useState<string | null>(null)
+  const [notePreviewVehicleId, setNotePreviewVehicleId] = useState<string | null>(null)
   const toggleTaskChecklistItem = useStore((s) => s.toggleTaskChecklistItem)
   const updateTask = useStore((s) => s.updateTask)
   const deleteTask = useStore((s) => s.deleteTask)
@@ -216,6 +232,7 @@ export default function VehicleList() {
   const handleTaskClick = useCallback((id: string) => setSelectedTaskVehicleId(id), [])
   const handlePreviewIn = useCallback((id: string) => handleOpenPreview(id, 'in'), [])
   const handlePreviewOut = useCallback((id: string) => handleOpenPreview(id, 'out'), [])
+  const handleNoteClick = useCallback((id: string) => setNotePreviewVehicleId(id), [])
 
   // Build group for TaskDrawer
   const taskDrawerGroup = useMemo<VehicleGroup | null>(() => {
@@ -330,6 +347,7 @@ export default function VehicleList() {
                 onTaskClick={handleTaskClick}
                 onPreviewIn={handlePreviewIn}
                 onPreviewOut={handlePreviewOut}
+                onNoteClick={handleNoteClick}
               />
             )
           })}
@@ -372,6 +390,30 @@ export default function VehicleList() {
         vehicles={vehicles.map((v) => ({ id: v.id, plate: v.plate }))}
         positionName={taskDrawerGroup?.positionName ?? null}
       />
+
+      {/* Note Preview Modal */}
+      {notePreviewVehicleId && (() => {
+        const v = vehicles.find((x) => x.id === notePreviewVehicleId)
+        if (!v || !v.note) return null
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setNotePreviewVehicleId(null)}>
+            <div className="mx-4 w-full max-w-md rounded-xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between border-b px-5 py-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-800">Ghi chú xe</h3>
+                  <p className="mt-0.5 text-xs text-slate-500">{v.model} - {v.plate || '—'}</p>
+                </div>
+                <button onClick={() => setNotePreviewVehicleId(null)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="max-h-[60vh] overflow-y-auto whitespace-pre-wrap px-5 py-4 text-sm text-slate-700 leading-relaxed">
+                {v.note}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
@@ -463,6 +505,22 @@ function CheckSheetPreview({ sheet, mode, employees, vehicleId }: { sheet: Check
     const c = classifyStatus(i.status)
     return c === 'bad' || c === 'install'
   }).slice(0, 5)
+
+  // Expiry info helpers
+  function expiryStatus(dateStr: string | null | undefined): { label: string; color: string; dot: string } {
+    if (!dateStr) return { label: 'Chưa cập nhật', color: '#94a3b8', dot: '#94a3b8' }
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const expiry = new Date(dateStr)
+    expiry.setHours(0, 0, 0, 0)
+    if (expiry < today) return { label: 'Đã hết hạn', color: '#dc2626', dot: '#dc2626' }
+    return { label: 'Còn hạn', color: '#16a34a', dot: '#16a34a' }
+  }
+
+  function formatDate(dateStr: string | null | undefined): string {
+    if (!dateStr) return '—'
+    return new Date(dateStr).toLocaleDateString('vi-VN')
+  }
 
   // UI grouping (presentation only — no data change)
   // Export-specific grouping (not used by live preview)
@@ -583,6 +641,26 @@ function CheckSheetPreview({ sheet, mode, employees, vehicleId }: { sheet: Check
         ))}
       </div>
 
+      {/* Expiry info */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-center">
+          <div className="text-xs font-semibold text-slate-600">Hạn Song nưng</div>
+          <div className="mt-1 text-sm font-medium text-slate-800">{formatDate(vehicle?.songNungExpiryDate)}</div>
+          <div className="mt-0.5 flex items-center justify-center gap-1.5">
+            <span className="inline-block h-2 w-2 rounded-full" style={{ background: expiryStatus(vehicle?.songNungExpiryDate).dot }} />
+            <span className="text-xs font-medium" style={{ color: expiryStatus(vehicle?.songNungExpiryDate).color }}>{expiryStatus(vehicle?.songNungExpiryDate).label}</span>
+          </div>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-center">
+          <div className="text-xs font-semibold text-slate-600">Hạn đăng kiểm</div>
+          <div className="mt-1 text-sm font-medium text-slate-800">{formatDate(vehicle?.registrationExpiryDate)}</div>
+          <div className="mt-0.5 flex items-center justify-center gap-1.5">
+            <span className="inline-block h-2 w-2 rounded-full" style={{ background: expiryStatus(vehicle?.registrationExpiryDate).dot }} />
+            <span className="text-xs font-medium" style={{ color: expiryStatus(vehicle?.registrationExpiryDate).color }}>{expiryStatus(vehicle?.registrationExpiryDate).label}</span>
+          </div>
+        </div>
+      </div>
+
       {/* All inspection items — flat list */}
       <div className="divide-y divide-slate-50 rounded-2xl border border-slate-200/80 bg-white shadow-sm">
         {items.map((item) => {
@@ -671,6 +749,20 @@ function CheckSheetPreview({ sheet, mode, employees, vehicleId }: { sheet: Check
               <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 1, fontWeight: 500 }}>{s.label}</div>
             </div>
           ))}
+        </div>
+
+        {/* ===== EXPIRY INFO ===== */}
+        <div style={{ display: 'flex', gap: 16, marginBottom: 14, padding: '8px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 4, fontSize: 11, textAlign: 'center' }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ color: '#64748b', fontWeight: 600, marginBottom: 2 }}>Hạn Song nưng</div>
+            <div style={{ color: '#334155', fontWeight: 500 }}>{formatDate(vehicle?.songNungExpiryDate)}</div>
+            <div style={{ color: expiryStatus(vehicle?.songNungExpiryDate).color, fontWeight: 600, marginTop: 1 }}>{expiryStatus(vehicle?.songNungExpiryDate).label}</div>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ color: '#64748b', fontWeight: 600, marginBottom: 2 }}>Hạn đăng kiểm</div>
+            <div style={{ color: '#334155', fontWeight: 500 }}>{formatDate(vehicle?.registrationExpiryDate)}</div>
+            <div style={{ color: expiryStatus(vehicle?.registrationExpiryDate).color, fontWeight: 600, marginTop: 1 }}>{expiryStatus(vehicle?.registrationExpiryDate).label}</div>
+          </div>
         </div>
 
         {/* ===== 2-COLUMN SECTIONS — auto-balanced ===== */}

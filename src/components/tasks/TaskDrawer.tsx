@@ -3,6 +3,7 @@ import { X, Plus, Trash2 } from 'lucide-react'
 import type { Task, TaskChecklistItem, TaskPriority, TaskStatus } from '../../types'
 import type { VehicleGroup } from './VehicleTaskCard'
 import TaskRow from './TaskRow'
+import TaskPreviewModal from './TaskPreviewModal'
 import { uid } from '../../utils/format'
 
 type Props = {
@@ -25,6 +26,7 @@ export default function TaskDrawer({ open, onClose, selectedVehicleId, groups, o
   const [priority, setPriority] = useState<TaskPriority>('medium')
   const [status, setStatus] = useState<TaskStatus>('todo')
   const [saving, setSaving] = useState(false)
+  const [previewTask, setPreviewTask] = useState<Task | null>(null)
   const panelRef = useRef<HTMLDivElement>(null)
 
   const currentGroup = useMemo(
@@ -114,6 +116,7 @@ export default function TaskDrawer({ open, onClose, selectedVehicleId, groups, o
                 onToggleChecklist={onToggleChecklist}
                 onUpdateTask={onUpdateTask}
                 onDeleteTask={onDeleteTask}
+                onPreview={setPreviewTask}
               />
             ))}
           </div>
@@ -177,6 +180,16 @@ export default function TaskDrawer({ open, onClose, selectedVehicleId, groups, o
           </div>
         </div>
       </div>
+
+      {/* Task Preview Modal */}
+      {previewTask && (
+        <TaskPreviewModal
+          task={previewTask}
+          onClose={() => setPreviewTask(null)}
+          vehiclePlate={vehicle?.plate}
+          vehicleModel={vehicle?.model}
+        />
+      )}
     </div>
   )
 }

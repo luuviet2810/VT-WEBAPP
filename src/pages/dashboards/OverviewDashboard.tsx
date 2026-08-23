@@ -226,8 +226,11 @@ function TaskOverviewSection() {
 // ====== ERROR IMAGE CARD ======
 
 function ErrorImageCard() {
-  const [data, setData] = useState<{ vehicles: number; images: number } | null>(null)
+  const vehicles = useStore((s) => s.vehicles)
+  const navigate = useNavigate()
+  const [data, setData] = useState<{ vehicles: { vehicleId: string; count: number }[]; totalImages: number } | null>(null)
   const [loading, setLoading] = useState(true)
+  const [modalOpen, setModalOpen] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -239,8 +242,16 @@ function ErrorImageCard() {
         .eq('category', 'error')
         .eq('resolved', false)
       if (!cancelled && !error && images) {
-        const uniqueVehicles = new Set(images.map((i) => i.vehicle_id)).size
-        setData({ vehicles: uniqueVehicles, images: images.length })
+        // Group by vehicle_id
+        const map = new Map<string, number>()
+        for (const img of images) {
+          map.set(img.vehicle_id, (map.get(img.vehicle_id) || 0) + 1)
+        }
+        const vehiclesList = Array.from(map.entries()).map(([vehicleId, count]) => ({ vehicleId, count }))
+        setData({
+          vehicles: vehiclesList,
+          totalImages: images.length,
+        })
       }
       if (!cancelled) setLoading(false)
     }
@@ -251,18 +262,68 @@ function ErrorImageCard() {
   if (loading || !data) return null
 
   return (
-    <div className="card flex flex-col justify-between p-4">
-      <div>
-        <div className="flex items-center justify-between">
-          <Camera size={20} className="text-red-500" />
+    <>
+      <div className="card flex flex-col justify-between p-4">
+        <div>
+          <div className="flex items-center justify-between">
+            <Camera size={20} className="text-red-500" />
+          </div>
+          <div className="mt-2 text-2xl font-bold text-red-500">{data.vehicles.length}</div>
+          <div className="mt-0.5 text-xs text-slate-500">{data.vehicles.length} xe · {data.totalImages} ảnh lỗi</div>
         </div>
-        <div className="mt-2 text-2xl font-bold text-red-500">{data.vehicles}</div>
-        <div className="mt-0.5 text-xs text-slate-500">{data.vehicles === 1 ? 'xe' : 'xe'} · {data.images} ảnh lỗi</div>
+        {data.vehicles.length > 0 && (
+          <button onClick={() => setModalOpen(true)} className="mt-3 self-start text-xs font-medium text-brand-600 hover:text-brand-700">
+            Xem ảnh lỗi →
+          </button>
+        )}
       </div>
-      <Link to="/xe" className="mt-3 self-start text-xs font-medium text-brand-600 hover:text-brand-700">
-        Xem ảnh lỗi →
-      </Link>
-    </div>
+
+      {/* Error Image Detail Modal */}
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setModalOpen(false)}>
+          <div className="mx-4 flex max-h-[70vh] w-full max-w-xl flex-col rounded-xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex shrink-0 items-center justify-between border-b px-5 py-3">
+              <h3 className="text-sm font-semibold text-slate-800">Ảnh lỗi xe</h3>
+              <button onClick={() => setModalOpen(false)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+                ✕
+              </button>
+            </div>
+            <div className="overflow-y-auto px-5 py-3">
+              <p className="mb-3 text-xs text-slate-500">{data.vehicles.length} xe có ảnh lỗi</p>
+              <div className="space-y-2">
+                {data.vehicles.map((item) => {
+                  const v = vehicles.find((x) => x.id === item.vehicleId)
+                  if (!v) return null
+                  return (
+                    <div key={item.vehicleId} className="flex items-center gap-3 rounded-lg border border-slate-100 px-3 py-2.5">
+                      {v.images[0] ? (
+                        <div className="h-10 w-14 shrink-0 overflow-hidden rounded-md bg-slate-100">
+                          <img src={v.images[0]} className="h-full w-full object-cover" loading="lazy" />
+                        </div>
+                      ) : (
+                        <div className="flex h-10 w-14 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-300">
+                          <Camera size={14} />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-slate-800">{v.model} - {v.plate || '—'}</div>
+                        <div className="text-xs text-slate-500">Ảnh lỗi: {item.count}</div>
+                      </div>
+                      <button
+                        onClick={() => navigate(`/xe/${item.vehicleId}`)}
+                        className="shrink-0 text-xs font-medium text-brand-600 hover:text-brand-700"
+                      >
+                        Chi tiết →
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 

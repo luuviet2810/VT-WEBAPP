@@ -8,9 +8,10 @@ type Props = {
   onToggleChecklist: (taskId: string, itemId: string) => void
   onUpdateTask: (id: string, patch: { title?: string; checklist?: Task['checklist']; status?: Task['status'] }) => void
   onDeleteTask: (id: string) => void
+  onPreview?: (task: Task) => void
 }
 
-const TaskRow = memo(function TaskRow({ task, onToggleChecklist, onUpdateTask, onDeleteTask }: Props) {
+const TaskRow = memo(function TaskRow({ task, onToggleChecklist, onUpdateTask, onDeleteTask, onPreview }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
 
@@ -42,7 +43,7 @@ const TaskRow = memo(function TaskRow({ task, onToggleChecklist, onUpdateTask, o
           className="h-4 w-4 rounded border-slate-300 text-brand-600"
         />
       </div>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 cursor-pointer" onClick={() => onPreview?.(task)}>
         {editingId === task.id ? (
           <div className="flex items-center gap-2">
             <input

@@ -115,6 +115,10 @@ export default function VehicleDetailTabs({ vehicle, tab, onTabChange }: Props) 
         </select>
       </div>
       <div>
+        <label className="label">Giá bán</label>
+        <input className="input" placeholder="VNĐ" defaultValue={vehicle.sellPrice ?? ''} onBlur={(e) => patch({ sellPrice: e.target.value ? Number(e.target.value) : undefined })} />
+      </div>
+      <div>
         <label className="label">Vị trí xe</label>
         <select className="input" defaultValue={vehicle.positionId ?? ''} onChange={(e) => patch({ positionId: e.target.value || '00000000-0000-0000-0000-000000000001' })}>
           <option value="">— Chưa phân bổ —</option>
@@ -340,58 +344,80 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
   }, [imageRows])
 
   async function handleUpload(files: FileList | File[] | null, category: string, expiryDate?: string | null) {
-    if (!files || !files.length || !vehicle?.id) {
-      console.warn('[upload] No files or vehicle ID', { files: !!files, length: files?.length, vehicleId: vehicle?.id })
-      return
-    }
+    if (!files || !files.length || !vehicle?.id) return
     setUploading(category)
+    const fileArray = Array.from(files)
+    const tempRows: VehicleImageRow[] = fileArray.map((f, i) => ({
+      id: 'temp_' + Date.now() + '_' + i,
+      vehicle_id: vehicle.id,
+      path: '',
+      bucket: 'vehicle-images',
+      url: URL.createObjectURL(f),
+      thumbnail: null,
+      category,
+      subtype: null,
+      resolved: false,
+      song_nung_expiry_date: category === 'song_nung' ? (expiryDate ?? null) : null,
+      size_bytes: f.size,
+      mime_type: f.type,
+      sort_order: imageRows.length + i,
+      created_at: new Date().toISOString(),
+    }))
+
+    // Show thumbnails immediately
+    setImageRows((prev) => [...prev, ...tempRows])
+
     try {
-      let sortOrder = imageRows.length
-      for (const file of Array.from(files)) {
-        console.log('[upload] Starting upload for', file.name, 'category:', category)
-        const result = await storageService.uploadVehicleImage(vehicle.id, file)
-        console.log('[upload] Storage upload OK:', result.url)
-        let thumbUrl: string | null = null
+      // Upload with limited concurrency (3 at a time)
+      const CONCURRENCY = 3
+      const uploadOne = async (file: File, tempRow: VehicleImageRow) => {
         try {
-          const { resizeImage } = await import('../utils/imageResize')
-          const thumbBlob = await resizeImage(file, 600, 0.75)
-          const thumbFile = new File([thumbBlob], 'thumb_' + file.name, { type: 'image/jpeg' })
-          const thumbResult = await storageService.uploadVehicleImage(vehicle.id, thumbFile)
-          thumbUrl = thumbResult.url
-        } catch (thumbErr) {
-          console.warn('[upload] Thumbnail creation failed:', thumbErr)
-        }
-        try {
+          const result = await storageService.uploadVehicleImage(vehicle.id, file)
+          let thumbUrl: string | null = null
+          try {
+            const { resizeImage } = await import('../utils/imageResize')
+            const thumbBlob = await resizeImage(file, 600, 0.75)
+            const thumbFile = new File([thumbBlob], 'thumb_' + file.name, { type: 'image/jpeg' })
+            const thumbResult = await storageService.uploadVehicleImage(vehicle.id, thumbFile)
+            thumbUrl = thumbResult.url
+          } catch { /* thumbnail failure is non-critical */ }
           const dbRow = await vehicleMediaService.addVehicleImage(
             vehicle.id, result.path, 'vehicle-images', result.url,
-            file.size, file.type, sortOrder, thumbUrl, category,
+            file.size, file.type, tempRow.sort_order, thumbUrl, category,
             category === 'song_nung' ? (expiryDate ?? null) : undefined
           )
-          console.log('[upload] DB insert OK:', dbRow.id, 'category:', dbRow.category)
-        } catch (dbErr) {
-          console.error('[upload] DB insert FAILED:', dbErr)
-          // Clean up storage on DB failure
-          try { await storageService.deleteVehicleImage(result.url) } catch {}
-          throw dbErr
+          // Replace temp row with real row
+          setImageRows((prev) => prev.map((r) => (r.id === tempRow.id ? dbRow : r)))
+          URL.revokeObjectURL(tempRow.url)
+        } catch (err) {
+          console.error('[upload] Failed:', file.name, err)
+          // Remove failed temp row
+          setImageRows((prev) => prev.filter((r) => r.id !== tempRow.id))
         }
-        sortOrder++
       }
-      await loadImages()
-      console.log('[upload] Upload complete, images reloaded')
+
+      // Process in batches
+      for (let i = 0; i < fileArray.length; i += CONCURRENCY) {
+        const batch = fileArray.slice(i, i + CONCURRENCY)
+        await Promise.all(batch.map((f, bi) => uploadOne(f, tempRows[i + bi])))
+      }
     } catch (err) {
-      console.error('[upload] Upload failed:', err)
+      console.error('[upload] Batch failed:', err)
     } finally {
       setUploading(null)
     }
   }
 
   async function handleDelete(row: VehicleImageRow) {
+    // Optimistic: remove from UI immediately
+    setImageRows((prev) => prev.filter((r) => r.id !== row.id))
+    if (previewIndex !== null) setPreviewIndex(null)
     try {
       await vehicleMediaService.deleteVehicleImage(row.id, row.path)
-      if (previewIndex !== null) setPreviewIndex(null)
-      await loadImages()
     } catch (err) {
       console.error('Delete failed:', err)
+      // Rollback on failure
+      setImageRows((prev) => [...prev, row])
     }
   }
 
@@ -400,10 +426,18 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
     const items = [...(byCategory[category] || [])]
     const [moved] = items.splice(from, 1)
     items.splice(to, 0, moved)
+
+    // Optimistic UI: update local state immediately
+    const updatedRows = imageRows.map((r) => {
+      const idx = items.findIndex((i) => i.id === r.id)
+      return idx >= 0 ? { ...r, sort_order: idx } : r
+    })
+    setImageRows(updatedRows)
+
+    // Persist in background
     for (let i = 0; i < items.length; i++) {
-      await vehicleMediaService.updateVehicleImageOrder(items[i].id, i)
+      vehicleMediaService.updateVehicleImageOrder(items[i].id, i).catch(console.error)
     }
-    await loadImages()
   }
 
   async function handleMoveCategory(fromCat: string, fromIdx: number, toCat: string) {

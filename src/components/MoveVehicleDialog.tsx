@@ -52,6 +52,10 @@ export default function MoveVehicleDialog({ open, vehicle: v, onClose }: Props) 
     setLoadingId(targetPosId)
     await new Promise((r) => setTimeout(r, 200))
     try {
+      // Clear yard sub-position when moving out of "Trong bãi lớn"
+      if (v.yardPosition) {
+        updateVehicle(v.id, { yardPosition: undefined })
+      }
       moveVehicle(v.id, targetPosId)
     } catch {}
     setLoadingId(null)
