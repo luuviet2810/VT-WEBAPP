@@ -1,7 +1,7 @@
 // ====== CHECKSHEET FORM COMPONENT ======
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CheckCircle2, XCircle, Minus, StickyNote, Wrench, Plus, Minus as MinusIcon } from 'lucide-react'
+import { CheckCircle2, XCircle, Minus, StickyNote, Wrench, Plus, Minus as MinusIcon, X } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import * as checksheetService from '../services/checksheet.service'
 import { EMPTY_CHECK_SHEET } from '../services/checksheet.service'
@@ -192,6 +192,7 @@ export default function CheckSheetForm({
   // ====== STATE — initialized from existing sheet or defaults ======
   const [sheetId, setSheetId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [previewTask, setPreviewTask] = useState<string | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [checkerId, setCheckerId] = useState(currentEmployeeId)
   const [checkDate, setCheckDate] = useState(new Date().toISOString().slice(0, 10))
@@ -1174,9 +1175,15 @@ export default function CheckSheetForm({
                   </div>
                   <ul className="space-y-1">
                     {issueLabels.map((label, i) => (
-                      <li key={i} className="flex items-center gap-2 text-sm text-blue-600">
-                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-blue-400" />
-                        {label.bold ? <strong>{label.text}</strong> : label.text}
+                      <li key={i}>
+                        <button
+                          type="button"
+                          onClick={() => setPreviewTask(label.bold ? label.text : `Cần xử lý: ${label.text}`)}
+                          className="flex w-full items-center gap-2 rounded px-1 py-0.5 text-sm text-blue-600 hover:bg-blue-100/50 transition-colors text-left"
+                        >
+                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-blue-400" />
+                          {label.bold ? <strong>{label.text}</strong> : label.text}
+                        </button>
                       </li>
                     ))}
                   </ul>
@@ -1340,9 +1347,15 @@ export default function CheckSheetForm({
                   </div>
                   <ul className="space-y-1">
                     {outIssueLabels.map((label, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-red-600">
-                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-red-400" />
-                        {label.bold ? <strong>{label.text}</strong> : label.text}
+                      <li key={i}>
+                        <button
+                          type="button"
+                          onClick={() => setPreviewTask(label.bold ? label.text : `Cần xử lý: ${label.text}`)}
+                          className="flex w-full items-start gap-2 rounded px-1 py-0.5 text-sm text-red-600 hover:bg-red-100/50 transition-colors text-left"
+                        >
+                          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-red-400" />
+                          {label.bold ? <strong>{label.text}</strong> : label.text}
+                        </button>
                       </li>
                     ))}
                   </ul>
@@ -1362,6 +1375,38 @@ export default function CheckSheetForm({
         </div>
       </div>
 
+      {/* Task Preview Modal */}
+      {previewTask && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setPreviewTask(null)}>
+          <div className="mx-4 w-full max-w-md rounded-xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b px-5 py-3">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-800">Nhiệm vụ</h3>
+                <p className="mt-0.5 text-xs text-slate-500">{vehicle.plate} · {vehicle.model}</p>
+              </div>
+              <button onClick={() => setPreviewTask(null)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="px-5 py-4">
+              <div className="rounded-lg bg-blue-50 px-4 py-3">
+                <div className="text-xs font-medium text-blue-500 uppercase tracking-wide">Nhiệm vụ</div>
+                <div className="mt-1 text-base font-semibold text-slate-800">{previewTask}</div>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <div>
+                  <div className="text-xs font-medium text-slate-500">Trạng thái</div>
+                  <div className="mt-0.5 text-sm font-medium text-slate-700">Chưa làm</div>
+                </div>
+                <div>
+                  <div className="text-xs font-medium text-slate-500">Nguồn</div>
+                  <div className="mt-0.5 text-sm font-medium text-blue-600">🤖 Auto · CheckSheet</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

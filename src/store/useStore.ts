@@ -1027,6 +1027,11 @@ export const useStore = create<StoreState>()(
         documents: [] as string[],
         createdAt: (row.created_at as string) ?? new Date().toISOString(),
         updatedAt: (row.updated_at as string) ?? new Date().toISOString(),
+        soldDate: (row.sold_date as string) ?? undefined,
+        yardPosition: (row.yard_position as string) ?? undefined,
+        imagesDeletedAt: (row.images_deleted_at as string) ?? undefined,
+        songNungExpiryDate: (row.song_nung_expiry_date as string) ?? undefined,
+        registrationExpiryDate: (row.registration_expiry_date as string) ?? undefined,
       }
       set((s) => {
         const idx = s.vehicles.findIndex((x) => x.id === v.id)

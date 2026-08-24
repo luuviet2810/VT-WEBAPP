@@ -137,7 +137,7 @@ export default function VehicleDetailTabs({ vehicle, tab, onTabChange }: Props) 
       </div>
       <div>
         <label className="label">Hạn Song nưng</label>
-        <input className="input" type="date" defaultValue={vehicle.songNungExpiryDate ?? ''} onBlur={(e) => patch({ songNungExpiryDate: e.target.value || null })} />
+        <input className="input" type="date" value={vehicle.songNungExpiryDate ?? ''} onChange={(e) => patch({ songNungExpiryDate: e.target.value || null })} />
         {vehicle.songNungExpiryDate && (
           <span className={`mt-1 inline-flex items-center gap-1 text-xs font-medium ${new Date(vehicle.songNungExpiryDate) < new Date() ? 'text-red-600' : 'text-green-600'}`}>
             <span className={`inline-block h-1.5 w-1.5 rounded-full ${new Date(vehicle.songNungExpiryDate) < new Date() ? 'bg-red-600' : 'bg-green-600'}`} />
@@ -147,7 +147,7 @@ export default function VehicleDetailTabs({ vehicle, tab, onTabChange }: Props) 
       </div>
       <div>
         <label className="label">Hạn đăng kiểm</label>
-        <input className="input" type="date" defaultValue={vehicle.registrationExpiryDate ?? ''} onBlur={(e) => patch({ registrationExpiryDate: e.target.value || null })} />
+        <input className="input" type="date" value={vehicle.registrationExpiryDate ?? ''} onChange={(e) => patch({ registrationExpiryDate: e.target.value || null })} />
         {vehicle.registrationExpiryDate && (
           <span className={`mt-1 inline-flex items-center gap-1 text-xs font-medium ${new Date(vehicle.registrationExpiryDate) < new Date() ? 'text-red-600' : 'text-green-600'}`}>
             <span className={`inline-block h-1.5 w-1.5 rounded-full ${new Date(vehicle.registrationExpiryDate) < new Date() ? 'bg-red-600' : 'bg-green-600'}`} />

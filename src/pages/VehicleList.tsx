@@ -109,9 +109,9 @@ const VehicleCard = memo(function VehicleCard({
           </div>
         </div>
 
-        {/* Note link */}
-        {v.note && (
-          <div className="mt-1.5 px-1">
+        {/* Note link — fixed height area to keep card layout stable */}
+        <div className="h-5 px-1 flex items-center">
+          {v.note ? (
             <button
               onClick={(e) => { e.preventDefault(); onNoteClick?.(v.id) }}
               className="flex items-center gap-1 text-xs text-slate-400 hover:text-brand-600 transition-colors"
@@ -119,8 +119,8 @@ const VehicleCard = memo(function VehicleCard({
               <StickyNote size={12} />
               Xem ghi chú
             </button>
-          </div>
-        )}
+          ) : null}
+        </div>
 
         {/* Quick Actions — icon only, 3 equal columns */}
         <div className="mt-2 grid min-w-0 grid-cols-3 gap-1.5 border-t border-slate-100 pt-2">
