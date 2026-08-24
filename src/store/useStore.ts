@@ -686,7 +686,14 @@ export const useStore = create<StoreState>()(
       }
 
       for (const gen of generated) {
-        const match = existingByRuleId.get(gen.ruleId)
+        // Re-check existence RIGHT BEFORE creating — handles race condition
+        // where a concurrent generateTasksFromSheet call may have already
+        // created a task for this ruleId after we built existingByRuleId above.
+        let match = existingByRuleId.get(gen.ruleId)
+        if (!match) {
+          // Re-check with latest Zustand state (handles overlapping calls)
+          match = get().tasks.find((t) => t.vehicleId === sheet.vehicleId && t.ruleId === gen.ruleId)
+        }
 
         if (!match) {
           try {
