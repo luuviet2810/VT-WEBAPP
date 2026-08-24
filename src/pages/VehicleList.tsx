@@ -2,15 +2,13 @@
 
 import { memo, useMemo, useState, useRef, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Car, LogIn, LogOut, Fuel, Monitor, Camera, AlertCircle, Wrench, CheckCircle2, XCircle, Minus, StickyNote, ExternalLink, X, ChevronLeft, ChevronRight, Download } from 'lucide-react'
+import { Car, LogIn, LogOut, Fuel, Monitor, Camera, AlertCircle, Wrench, CheckCircle2, XCircle, Minus, StickyNote, ExternalLink, X, ChevronLeft, ChevronRight, Download, ListChecks } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import { Badge, EmptyState, Modal } from '../components/ui'
 import VehicleFilterBar from '../components/VehicleFilterBar'
 import { formatCurrency } from '../utils/format'
 import { VehicleStatus, FuelLevel, CheckSheet, Vehicle } from '../types'
 import { classifyStatus, statusLabel } from '../utils/statusClassification'
-import TaskDrawer from '../components/tasks/TaskDrawer'
-import type { VehicleGroup } from '../components/tasks/VehicleTaskCard'
 
 const STATUS_LABEL: Record<VehicleStatus, string> = {
   available: 'Chưa bán',
@@ -181,12 +179,8 @@ export default function VehicleList() {
   })
   const [previewSheet, setPreviewSheet] = useState<CheckSheet | null>(null)
   const [previewType, setPreviewType] = useState<'in' | 'out'>('in')
-  const [selectedTaskVehicleId, setSelectedTaskVehicleId] = useState<string | null>(null)
+  const [taskSummaryVehicleId, setTaskSummaryVehicleId] = useState<string | null>(null)
   const [notePreviewVehicleId, setNotePreviewVehicleId] = useState<string | null>(null)
-  const toggleTaskChecklistItem = useStore((s) => s.toggleTaskChecklistItem)
-  const updateTask = useStore((s) => s.updateTask)
-  const deleteTask = useStore((s) => s.deleteTask)
-  const addTask = useStore((s) => s.addTask)
 
   const filtered = useMemo(() => {
     const q = filters.query.trim().toLowerCase()
@@ -229,31 +223,12 @@ export default function VehicleList() {
   }
 
   // Stable callbacks for VehicleCard memo
-  const handleTaskClick = useCallback((id: string) => setSelectedTaskVehicleId(id), [])
+  const handleTaskClick = useCallback((id: string) => setTaskSummaryVehicleId(id), [])
   const handlePreviewIn = useCallback((id: string) => handleOpenPreview(id, 'in'), [])
   const handlePreviewOut = useCallback((id: string) => handleOpenPreview(id, 'out'), [])
   const handleNoteClick = useCallback((id: string) => setNotePreviewVehicleId(id), [])
 
   // Build group for TaskDrawer
-  const taskDrawerGroup = useMemo<VehicleGroup | null>(() => {
-    if (!selectedTaskVehicleId) return null
-    const v = vehicles.find((x) => x.id === selectedTaskVehicleId)
-    if (!v) return null
-    const vehicleTasks = tasks.filter((t) => t.vehicleId === v.id)
-    const total = vehicleTasks.length
-    const done = vehicleTasks.filter((t) => t.status === 'done').length
-    const pos = positions.find((p) => p.id === v.positionId)
-    return {
-      vehicleId: v.id,
-      vehicle: { plate: v.plate, model: v.model, positionId: v.positionId, images: v.images },
-      positionName: pos?.name ?? null,
-      tasks: vehicleTasks,
-      total,
-      done,
-      section: 'todo' as const,
-    }
-  }, [selectedTaskVehicleId, vehicles, tasks, positions])
-
   // [PERF] render counter + reason tracker
   gVlRender++
   const renderStart = performance.now()
@@ -274,7 +249,6 @@ export default function VehicleList() {
   check('filters', filters)
   check('previewSheet', previewSheet ? previewSheet?.id : null)
   check('previewType', previewType)
-  check('selectedTaskVehicleId', selectedTaskVehicleId)
 
   if (gVlRender <= 100) {
     const nowMs = performance.now()
@@ -377,19 +351,61 @@ export default function VehicleList() {
         )}
       </Modal>
 
-      <TaskDrawer
-        open={!!selectedTaskVehicleId && !!taskDrawerGroup}
-        onClose={() => setSelectedTaskVehicleId(null)}
-        selectedVehicleId={selectedTaskVehicleId}
-        groups={taskDrawerGroup ? [taskDrawerGroup] : []}
-        onToggleChecklist={toggleTaskChecklistItem}
-        onUpdateTask={updateTask}
-        onDeleteTask={deleteTask}
-        onAddTask={addTask}
-        employees={employees.map((e) => ({ id: e.id, name: e.name }))}
-        vehicles={vehicles.map((v) => ({ id: v.id, plate: v.plate }))}
-        positionName={taskDrawerGroup?.positionName ?? null}
-      />
+      {/* Task Summary Modal */}
+      {taskSummaryVehicleId && (() => {
+        const v = vehicles.find((x) => x.id === taskSummaryVehicleId)
+        if (!v) return null
+        const vehicleTasks = tasks.filter((t) => t.vehicleId === v.id)
+        const todoTasks = vehicleTasks.filter((t) => t.status === 'todo' && !t.deferred)
+        const deferredTasks = vehicleTasks.filter((t) => t.status === 'todo' && t.deferred)
+        const doingTasks = vehicleTasks.filter((t) => t.status === 'doing')
+        const doneTasks = vehicleTasks.filter((t) => t.status === 'done')
+        const sections = [
+          { label: 'Chưa làm', count: todoTasks.length, tasks: todoTasks, icon: '🔧', color: 'text-slate-600', bg: 'bg-slate-50' },
+          { label: 'Chưa cần làm ngay', count: deferredTasks.length, tasks: deferredTasks, icon: '📌', color: 'text-blue-600', bg: 'bg-blue-50' },
+          { label: 'Đang làm', count: doingTasks.length, tasks: doingTasks, icon: '🟡', color: 'text-orange-600', bg: 'bg-orange-50' },
+          { label: 'Đã làm', count: doneTasks.length, tasks: doneTasks, icon: '🟢', color: 'text-green-600', bg: 'bg-green-50' },
+        ]
+        const pos = positions.find((p) => p.id === v.positionId)
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setTaskSummaryVehicleId(null)}>
+            <div className="mx-4 w-full max-w-lg rounded-xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between border-b px-5 py-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-800">Nhiệm vụ xe {v.plate || '—'}</h3>
+                  <p className="mt-0.5 text-xs text-slate-500">{v.model} · {pos?.name || '—'}</p>
+                </div>
+                <button onClick={() => setTaskSummaryVehicleId(null)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="max-h-[65vh] overflow-y-auto space-y-4 px-5 py-4">
+                {sections.map((s) => (
+                  <div key={s.label}>
+                    <div className={`flex items-center justify-between rounded-lg px-3 py-2 ${s.bg}`}>
+                      <span className={`text-sm font-semibold ${s.color}`}>{s.icon} {s.label}</span>
+                      <span className={`text-sm font-bold ${s.color}`}>{s.count}</span>
+                    </div>
+                    {s.tasks.length > 0 && (
+                      <div className="mt-1.5 space-y-1 pl-3">
+                        {s.tasks.map((t) => (
+                          <div key={t.id} className="flex items-center gap-2 rounded px-2 py-1 text-sm text-slate-700 hover:bg-slate-50">
+                            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300" />
+                            {t.title}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {vehicleTasks.length === 0 && (
+                  <div className="py-8 text-center text-sm text-slate-400">Chưa có nhiệm vụ nào</div>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Note Preview Modal */}
       {notePreviewVehicleId && (() => {
