@@ -463,11 +463,28 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
     await loadImages()
   }
 
-  function handleSetCover(row: VehicleImageRow) {
-    const items = byCategory['vehicle'] || []
-    const idx = items.findIndex((r) => r.id === row.id)
-    if (idx <= 0) return
-    handleReorder('vehicle', idx, 0)
+  async function handleSetCover(row: VehicleImageRow) {
+    // Find which category this image is currently in
+    let fromCat = ''
+    let fromIdx = -1
+    for (const cat of CATEGORIES) {
+      const items = byCategory[cat.key] || []
+      const idx = items.findIndex((r) => r.id === row.id)
+      if (idx >= 0) { fromCat = cat.key; fromIdx = idx; break }
+    }
+    if (fromIdx < 0) return
+
+    if (fromCat !== 'vehicle') {
+      // Move to vehicle category first
+      await handleMoveCategory(fromCat, fromIdx, 'vehicle')
+    }
+
+    // Promote to position 0 in vehicle category
+    const vehicleItems = byCategory['vehicle'] || []
+    const pos = vehicleItems.findIndex((r) => r.id === row.id)
+    if (pos > 0) {
+      handleReorder('vehicle', pos, 0)
+    }
   }
 
   async function downloadFile(url: string, filename: string) {
@@ -608,7 +625,7 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
                         className="flex-1 rounded-md bg-white/95 py-0.5 text-[9px] font-medium text-slate-700 shadow-sm">
                         Xem
                       </button>
-                      {cat.key === 'vehicle' && idx !== 0 && (
+                      {!(cat.key === 'vehicle' && idx === 0) && (
                         <button onClick={() => handleSetCover(row)}
                           className="rounded-md bg-white/95 px-1.5 py-0.5 text-[9px] font-medium text-brand-700 shadow-sm">
                           Ảnh đại diện

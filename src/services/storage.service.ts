@@ -134,8 +134,11 @@ export async function uploadExteriorPhoto(
 
 function safeStorageKey(fileName: string, seed: string): string {
   const ext = fileName.includes('.') ? `.${fileName.split('.').pop()}` : ''
+  // Include original file basename to guarantee uniqueness when multiple files
+  // share the same extension and are uploaded in the same millisecond batch.
+  const base = fileName.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 40)
   const sanitized = seed.replace(/[^a-zA-Z0-9._-]/g, '')
-  return `${sanitized}${ext}`
+  return `${sanitized}_${base}${ext}`
 }
 
 function extractStoragePath(url: string, bucket: string): string | null {
