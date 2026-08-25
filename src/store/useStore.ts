@@ -377,6 +377,11 @@ export const useStore = create<StoreState>()(
 
         // Telegram: notify on vehicle sold or ready status changes
         if (patch.status === 'sold') {
+          // Delete all tasks for this vehicle — sold cars don't need open tasks
+          const vehicleTasks = get().tasks.filter((t) => t.vehicleId === id)
+          Promise.all(vehicleTasks.map((t) => get().deleteTask(t.id))).catch((err) => {
+            console.error('[STORE] Failed to delete tasks for sold vehicle:', err)
+          })
           dispatchVehicleSold(after!).catch((err) => {
             console.error('[STORE] Telegram dispatchVehicleSold failed:', err)
           })
