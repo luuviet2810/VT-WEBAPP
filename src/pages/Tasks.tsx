@@ -464,27 +464,21 @@ export default function Tasks() {
   // Filtered tasks
   const filtered = useMemo(() => searchFiltered.filter((t) => assigneeFilter === 'all' || t.assigneeId === assigneeFilter), [searchFiltered, assigneeFilter])
 
-  // Sort: priority (high→low), then deadline (overdue→today→tomorrow→future→none), then creation order
+  // Sort: priority (high→low), then title (A→Z), then plate number (numeric low→high)
   const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 0, medium: 1, low: 2 }
-  function deadlineOrder(t: Task): number {
-    if (!t.dueDate) return 999
-    const now = new Date()
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
-    const due = new Date(t.dueDate).getTime()
-    const diff = due - today
-    if (diff < 0) return diff // overdue, oldest first
-    if (diff < 86400000) return 0 // today
-    if (diff < 172800000) return 1 // tomorrow
-    return 1 + Math.floor(diff / 86400000) // future days
-  }
   const sortTasks = (list: Task[]) => [...list].sort((a, b) => {
-    const pa = PRIORITY_ORDER[a.priority] ?? 2
-    const pb = PRIORITY_ORDER[b.priority] ?? 2
+    const pa = PRIORITY_ORDER[a.priority] ?? 9
+    const pb = PRIORITY_ORDER[b.priority] ?? 9
     if (pa !== pb) return pa - pb
-    const da = deadlineOrder(a)
-    const db = deadlineOrder(b)
-    if (da !== db) return da - db
-    return a.createdAt.localeCompare(b.createdAt) // stable: creation order
+    const titleCmp = (a.title || '').localeCompare(b.title || '')
+    if (titleCmp !== 0) return titleCmp
+    // Sort by plate number as numeric tiebreaker
+    const plateA = a.vehicleId ? vehiclesMap.get(a.vehicleId) ?? '' : ''
+    const plateB = b.vehicleId ? vehiclesMap.get(b.vehicleId) ?? '' : ''
+    const numA = parseInt(plateA, 10)
+    const numB = parseInt(plateB, 10)
+    if (!isNaN(numA) && !isNaN(numB)) return numA - numB
+    return plateA.localeCompare(plateB)
   })
 
   const todoTasks = useMemo(() => sortTasks(filtered.filter((t) => t.status === 'todo' && !t.deferred)), [filtered])

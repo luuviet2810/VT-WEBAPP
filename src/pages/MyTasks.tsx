@@ -37,19 +37,25 @@ export default function MyTasks() {
   const assignedTasks = allTasks.filter((t) => t.assigneeId === currentEmployeeId)
   const generalTasks = allTasks.filter((t) => !t.assigneeId)
   
-  // Sort: incomplete first, then by due date
-  const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2, urgent: 0 }
+  // Sort: incomplete first, then by priority, then by title, then by plate number
+  const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 0, medium: 1, low: 2 }
+  const vehiclesMap = new Map(vehicles.map((v) => [v.id, v.plate]))
   const sortTasks = (taskList: typeof tasks) => [...taskList].sort((a, b) => {
     if (a.status !== b.status) {
       return a.status === 'done' ? 1 : -1
     }
-    const pa = PRIORITY_ORDER[a.priority] ?? 2
-    const pb = PRIORITY_ORDER[b.priority] ?? 2
+    const pa = PRIORITY_ORDER[a.priority] ?? 9
+    const pb = PRIORITY_ORDER[b.priority] ?? 9
     if (pa !== pb) return pa - pb
-    if (a.dueDate && b.dueDate) {
-      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
-    }
-    return 0
+    const titleCmp = (a.title || '').localeCompare(b.title || '')
+    if (titleCmp !== 0) return titleCmp
+    // Sort by plate number (numeric) as tiebreaker
+    const plateA = a.vehicleId ? vehiclesMap.get(a.vehicleId) ?? '' : ''
+    const plateB = b.vehicleId ? vehiclesMap.get(b.vehicleId) ?? '' : ''
+    const numA = parseInt(plateA, 10)
+    const numB = parseInt(plateB, 10)
+    if (!isNaN(numA) && !isNaN(numB)) return numA - numB
+    return plateA.localeCompare(plateB)
   })
 
   const sortedAssigned = sortTasks(assignedTasks)

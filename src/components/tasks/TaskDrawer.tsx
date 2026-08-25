@@ -58,7 +58,16 @@ export default function TaskDrawer({ open, onClose, selectedVehicleId, groups, o
   if (!open || !currentGroup) return null
 
   const vehicle = currentGroup.vehicle
-  const sorted = [...tasks].sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''))
+  const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 0, medium: 1, low: 2 }
+  const sorted = [...tasks].sort((a, b) => {
+    const pa = PRIORITY_ORDER[a.priority] ?? 9
+    const pb = PRIORITY_ORDER[b.priority] ?? 9
+    if (pa !== pb) return pa - pb
+    const titleCmp = (a.title || '').localeCompare(b.title || '')
+    if (titleCmp !== 0) return titleCmp
+    // All tasks in this drawer share the same vehicle plate
+    return 0
+  })
 
   function handleAdd() {
     const nextTitle = title.trim()
