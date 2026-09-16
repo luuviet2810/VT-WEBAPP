@@ -68,6 +68,8 @@ function mapRow(row: Record<string, unknown>): CheckSheet {
     inputDieuHoa: row.input_dieu_hoa as CheckSheet['inputDieuHoa'],
     inputSuoiGhe: row.input_suoi_ghe as CheckSheet['inputSuoiGhe'],
     inputTireState: row.input_tire_state as CheckSheet['inputTireState'],
+    inputTireInflated: row.input_tire_inflated as CheckSheet['inputTireInflated'],
+    outputTireInflated: row.output_tire_inflated as CheckSheet['outputTireInflated'],
     inputNotes: row.input_notes as string | undefined,
     outCheck: row.out_check as CheckSheet['outCheck'],
     outNotes: row.out_notes as string | undefined,
@@ -140,6 +142,8 @@ export async function createCheckSheet(
     input_dieu_hoa: sheet.inputDieuHoa,
     input_suoi_ghe: sheet.inputSuoiGhe,
     input_tire_state: sheet.inputTireState,
+    input_tire_inflated: sheet.inputTireInflated,
+    output_tire_inflated: sheet.outputTireInflated,
     input_notes: sheet.inputNotes,
     out_check: sheet.outCheck,
     out_notes: sheet.outNotes,
@@ -190,6 +194,8 @@ export async function updateCheckSheet(
   if (patch.inputDieuHoa !== undefined) updateData.input_dieu_hoa = patch.inputDieuHoa
   if (patch.inputSuoiGhe !== undefined) updateData.input_suoi_ghe = patch.inputSuoiGhe
   if (patch.inputTireState !== undefined) updateData.input_tire_state = patch.inputTireState
+  if (patch.inputTireInflated !== undefined) updateData.input_tire_inflated = patch.inputTireInflated
+  if (patch.outputTireInflated !== undefined) updateData.output_tire_inflated = patch.outputTireInflated
   if (patch.inputNotes !== undefined) updateData.input_notes = patch.inputNotes
   if (patch.outCheck !== undefined) updateData.out_check = patch.outCheck
   if (patch.outNotes !== undefined) updateData.out_notes = patch.outNotes
@@ -285,6 +291,8 @@ export async function getOrCreateCheckSheet(
     inputDieuHoa: undefined as any,
     inputSuoiGhe: undefined as any,
     inputTireState: undefined as any,
+    inputTireInflated: undefined,
+    outputTireInflated: undefined,
     inputNotes: undefined,
     outCheck: EMPTY_CHECK_SHEET.outCheck,
     outNotes: undefined,

@@ -31,6 +31,7 @@ import {
   SensorState,
   SuoiGheItem,
   SuoiGheStatus,
+  TireInflatedStatus,
   Vehicle,
   CameraState,
 } from '../types'
@@ -95,6 +96,12 @@ const SUOI_GHE_OPTIONS: { value: SuoiGheStatus; label: string }[] = [
   { value: 'good', label: 'Tốt' },
   { value: 'broken', label: 'Hỏng nút' },
   { value: 'none', label: 'Không có' },
+]
+
+// Bơm lốp chưa? options — 'not_yet' được classifyStatus coi là lỗi ('bad')
+const TIRE_INFLATED_OPTIONS: { value: TireInflatedStatus; label: string }[] = [
+  { value: 'ok', label: 'OK' },
+  { value: 'not_yet', label: 'Chưa' },
 ]
 
 // 12 hạng mục kiểm tra đầu ra - chỉ các item generic (OK/Lỗi/Không có)
@@ -227,6 +234,10 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
   // ====== TIRE STATE (Đầu vào) ======
   const [inputTireState, setInputTireState] = useState<CheckOutItem>({ status: '' as CheckOutStatus })
 
+  // ====== BƠM LỐP CHƯA? — Đầu vào & Đầu ra lưu độc lập ======
+  const [inputTireInflated, setInputTireInflated] = useState<TireInflatedStatus | undefined>(undefined)
+  const [outputTireInflated, setOutputTireInflated] = useState<TireInflatedStatus | undefined>(undefined)
+
   // ====== ĐIỀU HÒA & SƯỞI GHẾ STATE (Đầu vào) ======
   const [inputDieuHoa, setInputDieuHoa] = useState<DieuHoaItem>({ status: '' as DieuHoaStatus })
   const [inputSuoiGhe, setInputSuoiGhe] = useState<SuoiGheItem>({ status: '' as SuoiGheStatus })
@@ -270,6 +281,8 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
       inputDieuHoa,
       inputSuoiGhe,
       inputTireState,
+      inputTireInflated,
+      outputTireInflated,
       inputNotes,
       outCheck,
       outNotes,
@@ -319,6 +332,8 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
           setInputSuoiGhe({ status: '' as SuoiGheStatus })
           setInputTireState({ status: '' as CheckOutStatus })
           setOutTireState({ status: '' as CheckOutStatus })
+          setInputTireInflated(undefined)
+          setOutputTireInflated(undefined)
           setInputNotes('')
           setSongNungResultStatus(undefined)
           setUndercarriageStatus(undefined)
@@ -349,6 +364,8 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
           setInputSuoiGhe(sheet.inputSuoiGhe ?? { status: '' as SuoiGheStatus })
           setInputTireState(sheet.inputTireState ?? { status: '' as CheckOutStatus })
           setOutTireState(sheet.outTireState ?? { status: '' as CheckOutStatus })
+          setInputTireInflated(sheet.inputTireInflated ?? undefined)
+          setOutputTireInflated(sheet.outputTireInflated ?? undefined)
           setInputNotes(sheet.inputNotes ?? '')
           setSongNungResultStatus(sheet.songNungResultStatus ?? undefined)
           setUndercarriageStatus(sheet.undercarriageStatus ?? undefined)
@@ -392,10 +409,11 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
       inputDieuHoa,
       inputSuoiGhe,
       inputTireState,
+      inputTireInflated,
       inputNotes,
     }
     if (type === 'out') {
-      return { ...base, outCheck, outNotes, acquySOH, acquySOC, outTireState, outKeyType, outSmartkeyStatus }
+      return { ...base, outCheck, outNotes, acquySOH, acquySOC, outTireState, outputTireInflated, outKeyType, outSmartkeyStatus }
     }
     return { ...base, inputAcquySOH, inputAcquySOC, songNungResultStatus, undercarriageStatus, keyType, smartkeyStatus }
   }
@@ -423,7 +441,7 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current)
     }
-  }, [sheetId, checkerId, checkDate, fuelLevel, screen, rearCamera, hipass, rearSensor, dashcam, interior, exterior, inputDieuHoa, inputSuoiGhe, inputTireState, inputNotes, outCheck, outNotes, inputAcquySOH, inputAcquySOC, acquySOH, acquySOC, songNungResultStatus, undercarriageStatus, keyType, smartkeyStatus, outKeyType, outSmartkeyStatus])
+  }, [sheetId, checkerId, checkDate, fuelLevel, screen, rearCamera, hipass, rearSensor, dashcam, interior, exterior, inputDieuHoa, inputSuoiGhe, inputTireState, inputTireInflated, outputTireInflated, inputNotes, outCheck, outNotes, inputAcquySOH, inputAcquySOC, acquySOH, acquySOC, songNungResultStatus, undercarriageStatus, keyType, smartkeyStatus, outKeyType, outSmartkeyStatus])
 
   // ====== SUMMARY COUNTS ======
   const summaryCounts = useMemo(() => {
@@ -476,6 +494,11 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
       if (tl === 'ok') ok++
       else if (tl === 'bad') error++
       else if (tl === 'install') { error++; none++ }
+
+      // Bơm lốp chưa? (Đầu vào) — 'not_yet' tính là lỗi
+      const ti = classifyStatus(inputTireInflated)
+      if (ti === 'ok') ok++
+      else if (ti === 'bad') error++
 
       // Số lượng chìa (Đầu vào) — chỉ smartkey/both mới có
       if (keyType === 'smartkey' || keyType === 'both') {
@@ -537,6 +560,11 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
         else if (c === 'install') { error++; none++ }
       })
 
+      // Bơm lốp chưa? (Đầu ra) — 'not_yet' tính là lỗi
+      const oti = classifyStatus(outputTireInflated)
+      if (oti === 'ok') ok++
+      else if (oti === 'bad') error++
+
       // Số lượng chìa (Đầu ra)
       if (outKeyType === 'smartkey' || outKeyType === 'both') {
         if (outSmartkeyStatus === 'one' || outSmartkeyStatus === 'two') ok++
@@ -553,7 +581,7 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
 
       return { ok, error, none, noteCount: outNotes ? 1 : 0 }
     }
-  }, [type, screen, rearCamera, rearSensor, dashcam, interior, exterior, outCheck, outNotes, inputDieuHoa, inputSuoiGhe, inputTireState, fuelLevel, inputAcquySOC, keyType, smartkeyStatus, outKeyType, outSmartkeyStatus, songNungResultStatus, undercarriageStatus])
+  }, [type, screen, rearCamera, rearSensor, dashcam, interior, exterior, outCheck, outNotes, inputDieuHoa, inputSuoiGhe, inputTireState, inputTireInflated, outputTireInflated, fuelLevel, inputAcquySOC, keyType, smartkeyStatus, outKeyType, outSmartkeyStatus, songNungResultStatus, undercarriageStatus])
 
   // Paint count
   const paintCount = useMemo(() => {
@@ -786,11 +814,14 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
     if (inputTireState.status === 'error') labels.push({ text: 'Lốp hơi mòn', bold: true })
     if (inputTireState.status === 'none') labels.push({ text: 'Lốp mòn lắm', bold: true })
 
+    // Bơm lốp chưa? (Đầu vào) — "Chưa" → rule engine tạo task "Bơm lốp"
+    if (inputTireInflated === 'not_yet') labels.push({ text: 'Chưa bơm lốp', bold: true })
+
     // SOC ắc quy < 50%
     if ((inputAcquySOC ?? 100) < 50) labels.push({ text: 'Ắc quy yếu', bold: true })
 
     return labels
-  }, [type, screen, rearCamera, rearSensor, dashcam, inputDieuHoa, inputSuoiGhe, interior, exterior, fuelLevel, inputTireState, inputAcquySOC])
+  }, [type, screen, rearCamera, rearSensor, dashcam, inputDieuHoa, inputSuoiGhe, interior, exterior, fuelLevel, inputTireState, inputTireInflated, inputAcquySOC])
 
   // Issue labels cho Đầu ra
   const outIssueLabels = useMemo(() => {
@@ -836,8 +867,13 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
     if (outTireState.status === 'none') {
       labels.push({ text: 'Lốp mòn lắm', bold: true })
     }
+
+    // Bơm lốp chưa? (Đầu ra) — "Chưa" → rule engine tạo task "Bơm lốp"
+    if (outputTireInflated === 'not_yet') {
+      labels.push({ text: 'Chưa bơm lốp', bold: true })
+    }
     return labels
-  }, [type, outCheck, outTireState])
+  }, [type, outCheck, outTireState, outputTireInflated])
 
   function scrollToExterior() {
     exteriorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -1136,6 +1172,7 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
                 <DieuHoaRow label="Điều hòa" entry={inputDieuHoa} onChange={(p) => setInputDieuHoa((prev) => ({ ...prev, ...p }))} />
                 <SuoiGheRow label="Sưởi ghế" entry={inputSuoiGhe} onChange={(p) => setInputSuoiGhe((prev) => ({ ...prev, ...p }))} />
                 <TireCheckRow label="Tình trạng lốp" entry={inputTireState} onChange={(p) => setInputTireState((prev) => ({ ...prev, ...p }))} />
+                <OptionRow label="Bơm lốp chưa?" value={inputTireInflated} onChange={(v) => setInputTireInflated(v as TireInflatedStatus)} options={TIRE_INFLATED_OPTIONS} />
               </div>
 
               {/* Battery Check - Đầu vào */}
@@ -1314,6 +1351,14 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
                     label="Tình trạng lốp"
                     entry={outTireState}
                     onChange={(p) => setOutTireState((prev) => ({ ...prev, ...p }))}
+                  />
+
+                  {/* Bơm lốp chưa? - Đầu ra (lưu độc lập với Đầu vào) */}
+                  <OptionRow
+                    label="Bơm lốp chưa?"
+                    value={outputTireInflated}
+                    onChange={(v) => setOutputTireInflated(v as TireInflatedStatus)}
+                    options={TIRE_INFLATED_OPTIONS}
                   />
                 </div>
               </CollapsibleCard>

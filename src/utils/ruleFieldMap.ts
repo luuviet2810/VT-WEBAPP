@@ -33,6 +33,7 @@ const RULE_FIELD_MAP: Record<string, SheetMapper> = {
   in_dashcam_none: () => ({ dashcam: 'good' }),
   in_battery_soc_low: () => null,
   in_tire_bad: () => ({ inputTireState: { status: 'ok' } as CheckOutItem }),
+  in_tire_not_inflated: () => ({ inputTireInflated: 'ok' }),
   in_screen_broken: () => ({ screen: 'normal' }),
   in_paint_needed: () => null,
   in_fuel_empty: () => ({ fuelLevel: 'full' }),
@@ -55,6 +56,7 @@ const RULE_FIELD_MAP: Record<string, SheetMapper> = {
   out_suoi_ghe_broken: (s) => patchOutCheck(s, { suoiGhe: { status: 'good' } }),
   out_con_seongnyeong_can_repair: (s) => patchOutCheck(s, { conSeongnyeong: { status: 'con' } }),
   out_tire_bad: (s) => patchOutCheck(s, { tinhTrangLop: { status: 'ok' } as CheckOutItem }),
+  out_tire_not_inflated: () => ({ outputTireInflated: 'ok' }),
 
   // ===== GENERIC OUTPUT RULES =====
   out_check_camHanhTrinh: (s) => patchOutCheck(s, { camHanhTrinh: { status: 'ok' } }),

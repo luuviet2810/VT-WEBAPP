@@ -126,7 +126,7 @@ export default function PhotoUploader({
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7">
           {images.map((src, idx) => (
             <div
-              key={`${idx}-${src.slice(0, 24)}`}
+              key={src}
               draggable
               onDragStart={() => setDragIdx(idx)}
               onDragOver={(e) => {

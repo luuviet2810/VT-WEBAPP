@@ -285,11 +285,16 @@ function FullscreenSheet({ title, vehicle, onBack, children }: { title: string; 
 
 // ====== CATEGORIZED PHOTO VIEWER ======
 
+/** Local row type — `clientKey` keeps the React key stable when a temp
+ *  (optimistic blob) row is swapped for the real DB row, so the <img>
+ *  element is NOT remounted (no flash) when the upload finishes. */
+type ViewerRow = VehicleImageRow & { clientKey?: string }
+
 function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
-  const [imageRows, setImageRows] = useState<VehicleImageRow[]>([])
+  const [imageRows, setImageRows] = useState<ViewerRow[]>([])
   const [uploading, setUploading] = useState<string | null>(null)
   const [previewIndex, setPreviewIndex] = useState<number | null>(null)
-  const [previewRows, setPreviewRows] = useState<VehicleImageRow[]>([])
+  const [previewRows, setPreviewRows] = useState<ViewerRow[]>([])
   const [dragIdx, setDragIdx] = useState<{ cat: string; idx: number } | null>(null)
   const [overIdx, setOverIdx] = useState<{ cat: string; idx: number } | null>(null)
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({})
@@ -314,7 +319,14 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
     if (!vehicle?.id) return
     try {
       const rows = await vehicleMediaService.getVehicleImages(vehicle.id)
-      setImageRows(rows)
+      // Preserve clientKey of rows already on screen so React keys stay
+      // stable across reloads (prevents <img> remount / flicker).
+      setImageRows((prev) =>
+        rows.map((r) => {
+          const old = prev.find((p) => p.id === r.id)
+          return old?.clientKey ? { ...r, clientKey: old.clientKey } : r
+        })
+      )
       syncVehicleImages(rows)
     } catch (err) {
       console.error('Failed to load images:', err)
@@ -322,15 +334,21 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
   }
 
   function syncVehicleImages(rows: VehicleImageRow[]) {
-    const vehicleUrls = rows
+    const vehicleRows = rows
       .filter((r) => r.category === 'vehicle' || !r.category)
       .sort((a, b) => a.sort_order - b.sort_order)
-      .map((r) => r.url)
-    useStore.getState().setVehicleImages(vehicle.id, vehicleUrls)
+    const vehicleUrls = vehicleRows.map((r) => r.url)
+    // Keep the url → thumbnail map fresh so list cards can render the small
+    // thumbnail instead of falling back to the full-size cover image.
+    const thumbs: Record<string, string> = {}
+    for (const r of vehicleRows) {
+      if (r.thumbnail) thumbs[r.url] = r.thumbnail
+    }
+    useStore.getState().setVehicleImages(vehicle.id, vehicleUrls, thumbs)
   }
 
   const byCategory = useMemo(() => {
-    const map: Record<string, VehicleImageRow[]> = {}
+    const map: Record<string, ViewerRow[]> = {}
     for (const cat of CATEGORIES) map[cat.key] = []
     for (const row of imageRows) {
       const cat = row.category || 'vehicle'
@@ -347,8 +365,9 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
     if (!files || !files.length || !vehicle?.id) return
     setUploading(category)
     const fileArray = Array.from(files)
-    const tempRows: VehicleImageRow[] = fileArray.map((f, i) => ({
+    const tempRows: ViewerRow[] = fileArray.map((f, i) => ({
       id: 'temp_' + Date.now() + '_' + i,
+      clientKey: 'ck_' + Date.now() + '_' + i,
       vehicle_id: vehicle.id,
       path: '',
       bucket: 'vehicle-images',
@@ -370,7 +389,7 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
     try {
       // Upload with limited concurrency (3 at a time)
       const CONCURRENCY = 3
-      const uploadOne = async (file: File, tempRow: VehicleImageRow) => {
+      const uploadOne = async (file: File, tempRow: ViewerRow) => {
         try {
           const result = await storageService.uploadVehicleImage(vehicle.id, file)
           let thumbUrl: string | null = null
@@ -386,8 +405,9 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
             file.size, file.type, tempRow.sort_order, thumbUrl, category,
             category === 'song_nung' ? (expiryDate ?? null) : undefined
           )
-          // Replace temp row with real row
-          setImageRows((prev) => prev.map((r) => (r.id === tempRow.id ? dbRow : r)))
+          // Replace temp row with real row — keep clientKey so the tile's
+          // React key (and therefore the <img> element) is NOT remounted.
+          setImageRows((prev) => prev.map((r) => (r.id === tempRow.id ? { ...dbRow, clientKey: tempRow.clientKey } : r)))
           URL.revokeObjectURL(tempRow.url)
         } catch (err) {
           console.error('[upload] Failed:', file.name, err)
@@ -401,6 +421,11 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
         const batch = fileArray.slice(i, i + CONCURRENCY)
         await Promise.all(batch.map((f, bi) => uploadOne(f, tempRows[i + bi])))
       }
+
+      // One sync at the end of the batch (NOT per file): refresh rows for
+      // this vehicle only and push urls + thumbnail map into the global
+      // store so VehicleList/PriceList covers update without a full refetch.
+      await loadImages()
     } catch (err) {
       console.error('[upload] Batch failed:', err)
     } finally {
@@ -408,16 +433,22 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
     }
   }
 
-  async function handleDelete(row: VehicleImageRow) {
+  async function handleDelete(row: ViewerRow) {
     // Optimistic: remove from UI immediately
-    setImageRows((prev) => prev.filter((r) => r.id !== row.id))
+    const before = imageRows
+    const remaining = before.filter((r) => r.id !== row.id)
+    setImageRows(remaining)
+    // Keep the global store in sync right away (cover image in lists) —
+    // don't rely solely on the realtime DELETE echo.
+    syncVehicleImages(remaining)
     if (previewIndex !== null) setPreviewIndex(null)
     try {
       await vehicleMediaService.deleteVehicleImage(row.id, row.path)
     } catch (err) {
       console.error('Delete failed:', err)
       // Rollback on failure
-      setImageRows((prev) => [...prev, row])
+      setImageRows(before)
+      syncVehicleImages(before)
     }
   }
 
@@ -433,6 +464,9 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
       return idx >= 0 ? { ...r, sort_order: idx } : r
     })
     setImageRows(updatedRows)
+    // Reflect the new order (esp. cover = first 'vehicle' image) in the
+    // global store immediately — setVehicleImages no-ops if nothing changed.
+    syncVehicleImages(updatedRows)
 
     // Persist in background
     for (let i = 0; i < items.length; i++) {
@@ -583,7 +617,7 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7">
                 {items.map((row, idx) => (
                   <div
-                    key={row.id}
+                    key={row.clientKey ?? row.id}
                     draggable
                     onDragStart={() => setDragIdx({ cat: cat.key, idx })}
                     onDragOver={(e) => { e.preventDefault(); setOverIdx({ cat: cat.key, idx }) }}

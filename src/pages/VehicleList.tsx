@@ -436,6 +436,10 @@ export default function VehicleList() {
 
 // ====== UNIFIED CHECKSHEET PREVIEW ======
 
+// A4 portrait at 96dpi (210×297mm) — used to size the Đầu ra JPG export
+const A4_WIDTH_PX = 794
+const A4_HEIGHT_PX = 1123
+
 function CheckSheetPreview({ sheet, mode, employees, vehicleId }: { sheet: CheckSheet; mode: 'in' | 'out'; employees: { id: string; name: string }[]; vehicleId: string }) {
   const navigate = useNavigate()
   const exportRef = useRef<HTMLDivElement>(null)
@@ -460,6 +464,7 @@ function CheckSheetPreview({ sheet, mode, employees, vehicleId }: { sheet: Check
         { label: 'Điều hòa', status: sheet.inputDieuHoa?.status },
         { label: 'Sưởi ghế', status: sheet.inputSuoiGhe?.status },
         { label: 'Tình trạng lốp', status: sheet.inputTireState?.status },
+        { label: 'Bơm lốp chưa?', status: sheet.inputTireInflated },
         { label: 'Song nưng', status: sheet.songNungResultStatus },
         { label: 'Kiểm tra gầm', status: sheet.undercarriageStatus },
         ...Object.entries(sheet.interior || {}).map(([key, val]) => ({ label: seatLabels[key] || key, status: (val as any)?.condition })),
@@ -486,6 +491,7 @@ function CheckSheetPreview({ sheet, mode, employees, vehicleId }: { sheet: Check
           { label: 'Ghế chỉnh điện', status: oc?.gheChinhDien?.status },
           { label: 'Tình trạng lốp', status: oc?.tinhTrangLop?.status },
           { label: 'Lốp xe', status: sheet.outTireState?.status },
+          { label: 'Bơm lốp chưa?', status: sheet.outputTireInflated },
           { label: 'Ắc quy SOH', status: sheet.acquySOH != null ? String(sheet.acquySOH) : null },
           { label: 'Ắc quy SOC', status: sheet.acquySOC != null ? String(sheet.acquySOC) : null },
           { label: 'Chìa khóa', status: sheet.outKeyType },
@@ -539,14 +545,23 @@ function CheckSheetPreview({ sheet, mode, employees, vehicleId }: { sheet: Check
   }
 
   // UI grouping (presentation only — no data change)
-  // Export-specific grouping (not used by live preview)
-  const EXPORT_GROUP_MAP: Record<string, string[]> = {
+  // Export-specific grouping (not used by live preview) — per mode so the
+  // JPG sections match the actual checklist of each checksheet type.
+  const IN_EXPORT_GROUP_MAP: Record<string, string[]> = {
     'Nhiên liệu & Song nưng & Kiểm tra gầm': ['Nhiên liệu', 'Song nưng', 'Kiểm tra gầm'],
     'Hệ thống điện & giải trí': ['Màn hình', 'Camera lùi', 'Hi-Pass', 'Camera hành trình', 'Ắc quy SOH', 'Ắc quy SOC'],
     'An toàn & hỗ trợ lái': ['Cảm biến lùi', 'Điều hòa', 'Sưởi ghế', 'Chìa khóa', 'Số lượng chìa'],
     'Nội thất': Object.values(seatLabels),
-    'Ngoại thất & thân vỏ': [...Object.values(spotLabels), 'Tình trạng lốp'],
+    'Ngoại thất & thân vỏ': [...Object.values(spotLabels), 'Tình trạng lốp', 'Bơm lốp chưa?'],
   }
+  const OUT_EXPORT_GROUP_MAP: Record<string, string[]> = {
+    'Song nưng & gầm': ['Còn Song nưng không?', 'Song nưng', 'Kiểm tra gầm'],
+    'Dầu máy & nước làm mát': ['Dầu máy', 'Nước làm mát'],
+    'Hệ thống điện & giải trí': ['Cam hành trình', 'Màn hình, Bluetooth', 'Camera lùi', 'Đèn (Pha, Cốt, Cảnh báo, Phanh)', 'Ắc quy SOH', 'Ắc quy SOC'],
+    'Thân xe & nội thất': ['Motor gương, nút bấm', 'Điều hòa', 'Sưởi ghế', 'Cửa sổ', 'Ghế chỉnh điện', 'Chìa khóa', 'Số lượng chìa'],
+    'Lốp': ['Tình trạng lốp', 'Lốp xe', 'Bơm lốp chưa?'],
+  }
+  const EXPORT_GROUP_MAP = mode === 'in' ? IN_EXPORT_GROUP_MAP : OUT_EXPORT_GROUP_MAP
   const allExportLabels = new Set(Object.values(EXPORT_GROUP_MAP).flat())
   const leftoverItems = items.filter((i) => !allExportLabels.has(i.label) && i.label !== 'Hi-Pass')
   const exportGrouped = Object.entries(EXPORT_GROUP_MAP).map(([groupName, labels]) => {
@@ -578,10 +593,32 @@ function CheckSheetPreview({ sheet, mode, employees, vehicleId }: { sheet: Check
         allowTaint: false,
         backgroundColor: '#ffffff',
       })
-      const blob = await new Promise<Blob>((resolve) => canvas.toBlob((b) => resolve(b!), 'image/jpeg', 0.9))
+      // Đầu ra: compose onto an exact A4-portrait canvas (210×297mm).
+      // Content shorter than A4 → white margin at the bottom; content taller
+      // → scaled down to fit so nothing is cut off. Đầu vào: unchanged.
+      let outCanvas = canvas
+      if (mode === 'out') {
+        const EXPORT_SCALE = 2
+        const targetW = A4_WIDTH_PX * EXPORT_SCALE   // 1588
+        const targetH = A4_HEIGHT_PX * EXPORT_SCALE  // 2246
+        const a4 = document.createElement('canvas')
+        a4.width = targetW
+        a4.height = targetH
+        const ctx = a4.getContext('2d')
+        if (ctx) {
+          ctx.fillStyle = '#ffffff'
+          ctx.fillRect(0, 0, targetW, targetH)
+          const fit = Math.min(targetW / canvas.width, targetH / canvas.height)
+          const drawW = Math.round(canvas.width * fit)
+          const drawH = Math.round(canvas.height * fit)
+          ctx.drawImage(canvas, Math.round((targetW - drawW) / 2), 0, drawW, drawH)
+          outCanvas = a4
+        }
+      }
+      const blob = await new Promise<Blob>((resolve) => outCanvas.toBlob((b) => resolve(b!), 'image/jpeg', 0.9))
       const plate = vehicle?.plate || 'unknown'
       const date = sheet.checkDate || new Date().toISOString().slice(0, 10)
-      const filename = `VTAUTO_CheckSheet_Input_${plate}_${date}.jpg`
+      const filename = `VTAUTO_CheckSheet_${mode === 'in' ? 'Input' : 'Output'}_${plate}_${date}.jpg`
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
@@ -599,38 +636,9 @@ function CheckSheetPreview({ sheet, mode, employees, vehicleId }: { sheet: Check
     }
   }
 
-  if (mode === 'out') {
-    return (
-      <div className="space-y-5">
-        <div className="grid grid-cols-4 gap-2">
-          <SummaryPill value={ok} label="OK" color="#34c759" />
-          <SummaryPill value={bad} label="Hỏng" color="#ff3b30" />
-          <SummaryPill value={install} label="Cần lắp" color="#ff9500" />
-          <SummaryPill value={unchecked} label="Chưa check" color="#94a3b8" />
-        </div>
-        <div className="divide-y divide-slate-100 rounded-xl border border-slate-200">
-          {items.map((item) => {
-            const d = itemDisplay(item)
-            return (
-              <div key={item.label} className="flex items-center justify-between px-4 py-2.5">
-                <div className="flex items-center gap-2.5">
-                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: d.dotColor }} />
-                  <span className="text-sm text-slate-700">{item.label}</span>
-                </div>
-                <span className="text-sm font-medium" style={{ color: d.textColor }}>{d.display}</span>
-              </div>
-            )
-          })}
-        </div>
-        <div className="flex justify-end">
-          <button type="button" onClick={() => navigate(`/xe/${vehicleId}?tab=checksheet`)} className="btn-primary">
-            <ExternalLink size={15} /> Xem chi tiết
-          </button>
-        </div>
-      </div>
-    )
-  }
-
+  // Unified layout for BOTH modes ('in' and 'out') — same summary cards,
+  // same item rows, same export mechanism. Only the data source (items),
+  // export section grouping, title and filename differ by mode.
   return (
     <div className="space-y-6">
       {/* Export button */}
@@ -716,8 +724,10 @@ function CheckSheetPreview({ sheet, mode, employees, vehicleId }: { sheet: Check
         </button>
       </div>
 
-      {/* Hidden export layout — captured by html2canvas for JPG download */}
-      <div ref={exportRef} style={{ position: 'fixed', left: '-9999px', top: 0, width: 800, padding: '20px 24px', background: '#ffffff', fontFamily: 'system-ui, -apple-system, sans-serif', zIndex: -1, color: '#1e293b' }}>
+      {/* Hidden export layout — captured by html2canvas for JPG download.
+          Đầu ra: A4 portrait proportions (794×1123 CSS px, flex column so the
+          footer sits at the page bottom). Đầu vào: original 800px flow layout. */}
+      <div ref={exportRef} style={{ position: 'fixed', left: '-9999px', top: 0, width: mode === 'out' ? A4_WIDTH_PX : 800, minHeight: mode === 'out' ? A4_HEIGHT_PX : undefined, display: mode === 'out' ? 'flex' : 'block', flexDirection: 'column', padding: '20px 24px', background: '#ffffff', fontFamily: 'system-ui, -apple-system, sans-serif', zIndex: -1, color: '#1e293b' }}>
         {/* ===== HEADER ===== */}
         <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #1e293b', paddingBottom: 8, marginBottom: 12 }}>
           <div>
@@ -729,8 +739,8 @@ function CheckSheetPreview({ sheet, mode, employees, vehicleId }: { sheet: Check
 
         {/* ===== TITLE ===== */}
         <div style={{ textAlign: 'center', marginBottom: 14 }}>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#1e293b' }}>CheckSheet Đầu vào</div>
-          <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>Vehicle Input Inspection</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#1e293b' }}>{mode === 'in' ? 'CheckSheet Đầu vào' : 'CheckSheet Đầu ra'}</div>
+          <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>{mode === 'in' ? 'Vehicle Input Inspection' : 'Vehicle Output Inspection'}</div>
         </div>
 
         {/* ===== VEHICLE INFO ===== */}
@@ -858,19 +868,10 @@ function CheckSheetPreview({ sheet, mode, employees, vehicleId }: { sheet: Check
         )}
 
         {/* ===== FOOTER ===== */}
-        <div style={{ marginTop: 16, borderTop: '1px solid #e2e8f0', paddingTop: 8, textAlign: 'center', fontSize: 9, color: '#94a3b8' }}>
+        <div style={{ marginTop: mode === 'out' ? 'auto' : 16, paddingTop: 8, borderTop: '1px solid #e2e8f0', textAlign: 'center', fontSize: 9, color: '#94a3b8' }}>
           VTAUTO — Xe cũ tại Hàn Quốc
         </div>
       </div>
-    </div>
-  )
-}
-
-function SummaryPill({ value, label, color }: { value: number; label: string; color: string }) {
-  return (
-    <div className="rounded-xl p-3 text-center" style={{ background: `${color}1a` }}>
-      <div className="text-lg font-bold" style={{ color }}>{value}</div>
-      <div className="text-[10px] font-medium mt-0.5" style={{ color, opacity: 0.7 }}>{label}</div>
     </div>
   )
 }

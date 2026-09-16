@@ -213,6 +213,9 @@ export type DieuHoaStatus = 'good' | 'need_gas'
 // Sưởi ghế: good | broken | none
 export type SuoiGheStatus = 'good' | 'broken' | 'none'
 
+// Bơm lốp chưa?: ok (OK/Bình thường) | not_yet (Chưa — lỗi)
+export type TireInflatedStatus = 'ok' | 'not_yet'
+
 export interface ConSeongnyeongItem {
   status: ConSeongnyeongStatus
 }
@@ -270,6 +273,7 @@ export interface CheckSheet {
   inputDieuHoa?: DieuHoaItem
   inputSuoiGhe?: SuoiGheItem
   inputTireState?: CheckOutItem
+  inputTireInflated?: TireInflatedStatus
   inputAcquySOH?: number
   inputAcquySOC?: number
   acquySOH?: number
@@ -278,6 +282,7 @@ export interface CheckSheet {
   outCheck?: CheckOutCheck
   outNotes?: string
   outTireState?: CheckOutItem
+  outputTireInflated?: TireInflatedStatus
   outKeyType?: 'smartkey' | 'mechanical' | 'both'
   outSmartkeyStatus?: 'one' | 'two' | 'damaged'
   // Ghi chú đầu vào

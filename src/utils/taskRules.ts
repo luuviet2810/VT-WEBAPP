@@ -205,6 +205,19 @@ const ruleTireBad: Rule = {
   },
 }
 
+// ====== BƠM LỐP CHƯA? RULES ======
+
+const ruleInputTireNotInflated: Rule = {
+  id: 'in_tire_not_inflated',
+  title: 'Bơm lốp',
+  description: 'Lốp xe chưa được bơm (kiểm tra đầu vào), cần bơm lốp',
+  priority: 'low',
+  evaluate(ctx: RuleContext) {
+    if (ctx.sheet.type !== 'in') return false
+    return ctx.sheet.inputTireInflated === 'not_yet'
+  },
+}
+
 // ====== SCREEN RULES ======
 
 const ruleScreenBroken: Rule = {
@@ -381,6 +394,17 @@ const ruleOutTireBad: Rule = {
   },
 }
 
+const ruleOutputTireNotInflated: Rule = {
+  id: 'out_tire_not_inflated',
+  title: 'Bơm lốp',
+  description: 'Lốp xe chưa được bơm (kiểm tra đầu ra), cần bơm lốp',
+  priority: 'low',
+  evaluate(ctx: RuleContext) {
+    if (ctx.sheet.type !== 'out') return false
+    return ctx.sheet.outputTireInflated === 'not_yet'
+  },
+}
+
 // ====== OUT CHECK GENERIC ITEMS ======
 
 function buildOutCheckGenericRules(): Rule[] {
@@ -424,6 +448,7 @@ const ALL_RULES: Rule[] = [
   ruleDashcamNone,
   ruleAcquySOCLow,
   ruleTireBad,
+  ruleInputTireNotInflated,
   ruleScreenBroken,
   rulePaintNeeded,
   ruleFuelEmpty,
@@ -441,6 +466,7 @@ const ALL_RULES: Rule[] = [
   ruleOutSuoiGheBroken,
   ruleOutConSeongnyeongCanRepair,
   ruleOutTireBad,
+  ruleOutputTireNotInflated,
   ruleOutSmartkeyDamaged,
   // Đầu ra generic
   ...OUT_CHECK_GENERIC_RULES,

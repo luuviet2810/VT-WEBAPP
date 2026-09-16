@@ -131,7 +131,7 @@ interface StoreState {
 
   addVehicle: (v: Partial<Vehicle>) => Promise<Vehicle>
   updateVehicle: (id: string, patch: Partial<Vehicle>) => Promise<void>
-  setVehicleImages: (id: string, images: string[]) => void
+  setVehicleImages: (id: string, images: string[], thumbnails?: Record<string, string>) => void
   deleteVehicle: (id: string) => Promise<void>
   moveVehicle: (id: string, toPositionId: string) => Promise<void>
   loadVehicleTimeline: (vehicleId: string) => Promise<void>
@@ -273,11 +273,14 @@ export const useStore = create<StoreState>()(
 
           const newSet = new Set(images)
           const toRemove = beforeImages.filter((url) => !newSet.has(url))
-          for (const url of toRemove) {
+          if (toRemove.length > 0) {
+            // Single fetch for all removals (was N+1 — one query per removed URL)
             const existingImages = await vehicleMediaService.getVehicleImages(id)
-            const match = existingImages.find((img) => img.url === url)
-            if (match) {
-              await vehicleMediaService.deleteVehicleImage(match.id, match.path)
+            for (const url of toRemove) {
+              const match = existingImages.find((img) => img.url === url)
+              if (match) {
+                await vehicleMediaService.deleteVehicleImage(match.id, match.path)
+              }
             }
           }
 
@@ -393,8 +396,25 @@ export const useStore = create<StoreState>()(
       }
     },
 
-    setVehicleImages: (id, images) => {
-      set((s) => ({ vehicles: s.vehicles.map((v) => (v.id === id ? { ...v, images } : v)) }))
+    setVehicleImages: (id, images, thumbnails) => {
+      set((s) => {
+        const idx = s.vehicles.findIndex((v) => v.id === id)
+        if (idx < 0) return {}
+        const current = s.vehicles[idx]
+        // No-op guard: identical content must keep identical references,
+        // so subscribing lists (VehicleList/PriceList/...) don't re-render.
+        const sameImages =
+          current.images.length === images.length &&
+          current.images.every((u, i) => u === images[i])
+        const thumbEntries = thumbnails ? Object.entries(thumbnails) : []
+        const needsThumb = thumbEntries.some(([u, t]) => current.thumbnails?.[u] !== t)
+        if (sameImages && !needsThumb) return {}
+        const next = [...s.vehicles]
+        const v: Vehicle = { ...current, images }
+        if (needsThumb) v.thumbnails = { ...current.thumbnails, ...thumbnails }
+        next[idx] = v
+        return { vehicles: next }
+      })
     },
 
     deleteVehicle: async (id) => {

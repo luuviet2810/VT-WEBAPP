@@ -20,18 +20,25 @@ import type { RealtimeStoreActions } from '../types/realtime'
 
 const imageIdToInfo = new Map<string, { vehicleId: string; url: string; isDoc: boolean; category?: string }>()
 
-function handleImageUpsert(vehicleId: string, imageId: string, url: string, category?: string) {
+function handleImageUpsert(vehicleId: string, imageId: string, url: string, category?: string, thumbnail?: string | null) {
   imageIdToInfo.set(imageId, { vehicleId, url, isDoc: false, category })
   // Only 'vehicle' category images go into vehicle.images (for cover/thumbnail)
   if (category && category !== 'vehicle') return
   useStore.setState((s) => {
     const idx = s.vehicles.findIndex((v) => v.id === vehicleId)
     if (idx < 0) return {}
+    const current = s.vehicles[idx]
+    const hasUrl = current.images.includes(url)
+    const needsThumb = !!thumbnail && current.thumbnails?.[url] !== thumbnail
+    // No-op guard: realtime echoes of our own optimistic updates (INSERT after
+    // updateVehicle, sort_order UPDATEs when reordering) must NOT create new
+    // references — otherwise every subscriber of s.vehicles re-renders and
+    // image tiles flicker on each echo.
+    if (hasUrl && !needsThumb) return {}
     const vehicles = [...s.vehicles]
-    const v = { ...vehicles[idx] }
-    if (!v.images.includes(url)) {
-      v.images = [...v.images, url]
-    }
+    const v = { ...current }
+    if (!hasUrl) v.images = [...v.images, url]
+    if (needsThumb) v.thumbnails = { ...v.thumbnails, [url]: thumbnail! }
     vehicles[idx] = v
     return { vehicles }
   })
@@ -44,8 +51,11 @@ function handleImageDelete(imageId: string) {
   useStore.setState((s) => {
     const idx = s.vehicles.findIndex((v) => v.id === info.vehicleId)
     if (idx < 0) return {}
+    const current = s.vehicles[idx]
+    // No-op guard: URL already removed locally (optimistic delete) — don't churn references
+    if (!current.images.includes(info.url)) return {}
     const vehicles = [...s.vehicles]
-    const v = { ...vehicles[idx] }
+    const v = { ...current }
     v.images = v.images.filter((u) => u !== info.url)
     vehicles[idx] = v
     return { vehicles }
@@ -57,11 +67,12 @@ function handleDocUpsert(vehicleId: string, docId: string, url: string) {
   useStore.setState((s) => {
     const idx = s.vehicles.findIndex((v) => v.id === vehicleId)
     if (idx < 0) return {}
+    const current = s.vehicles[idx]
+    // No-op guard: echo of an optimistic update — nothing changed
+    if (current.documents.includes(url)) return {}
     const vehicles = [...s.vehicles]
-    const v = { ...vehicles[idx] }
-    if (!v.documents.includes(url)) {
-      v.documents = [...v.documents, url]
-    }
+    const v = { ...current }
+    v.documents = [...v.documents, url]
     vehicles[idx] = v
     return { vehicles }
   })
@@ -74,8 +85,10 @@ function handleDocDelete(docId: string) {
   useStore.setState((s) => {
     const idx = s.vehicles.findIndex((v) => v.id === info.vehicleId)
     if (idx < 0) return {}
+    const current = s.vehicles[idx]
+    if (!current.documents.includes(info.url)) return {}
     const vehicles = [...s.vehicles]
-    const v = { ...vehicles[idx] }
+    const v = { ...current }
     v.documents = v.documents.filter((u) => u !== info.url)
     vehicles[idx] = v
     return { vehicles }
@@ -117,8 +130,8 @@ export function useRealtimeSync(): void {
         }
       },
       upsertVehicleImage: (row) => {
-        const r = row as { id: string; vehicle_id: string; url: string; category?: string }
-        handleImageUpsert(r.vehicle_id, r.id, r.url, r.category)
+        const r = row as { id: string; vehicle_id: string; url: string; category?: string; thumbnail?: string | null }
+        handleImageUpsert(r.vehicle_id, r.id, r.url, r.category, r.thumbnail)
       },
       deleteVehicleImage: (id) => handleImageDelete(id),
       upsertVehicleDoc: (row) => {

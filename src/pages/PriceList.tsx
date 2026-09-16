@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { memo, useCallback, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowUpDown, Car, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useStore } from '../store/useStore'
@@ -88,18 +88,28 @@ export default function PriceList() {
     }
   }
 
-  function handleDelete(id: string) {
+  // Stable id-based handlers so memo(PriceRow) can skip re-renders when the
+  // vehicles array gets a new identity but the row's vehicle object did not
+  // (e.g. realtime echo of an image upload on another vehicle).
+  const handleEditRow = useCallback((id: string) => {
+    setEditVehicleId(id)
+    setModalOpen(true)
+  }, [])
+  const handleDeleteRow = useCallback((id: string) => {
     if (confirm('Xoá xe này khỏi hệ thống?')) deleteVehicle(id)
-  }
+  }, [deleteVehicle])
+  const handleStatusChangeRow = useCallback((id: string, status: VehicleStatus) => {
+    if (status === 'sold') {
+      setConfirmSoldId(id)
+      setPendingStatus(status)
+    } else {
+      updateVehicle(id, { status })
+    }
+  }, [updateVehicle])
 
   function openAddModal() {
     if (!canEdit) return
     setEditVehicleId(null)
-    setModalOpen(true)
-  }
-
-  function openEditModal(id: string) {
-    setEditVehicleId(id)
     setModalOpen(true)
   }
 
@@ -157,16 +167,9 @@ export default function PriceList() {
                   key={v.id}
                   vehicle={v}
                   canEdit={canEdit}
-                  onEdit={() => openEditModal(v.id)}
-                  onDelete={() => handleDelete(v.id)}
-                  onStatusChange={(status) => {
-                    if (status === 'sold') {
-                      setConfirmSoldId(v.id)
-                      setPendingStatus(status)
-                    } else {
-                      updateVehicle(v.id, { status })
-                    }
-                  }}
+                  onEdit={handleEditRow}
+                  onDelete={handleDeleteRow}
+                  onStatusChange={handleStatusChangeRow}
                 />
               ))}
             </tbody>
@@ -220,7 +223,10 @@ function Th({ label, onClick, sortKey, sortAsc, current }: { label: string; onCl
   )
 }
 
-function PriceRow({
+// Memoized row — combined with stable id-based callbacks above, a new
+// vehicles array identity (e.g. image upload on ONE vehicle) no longer
+// re-renders every row of the table.
+const PriceRow = memo(function PriceRow({
   vehicle,
   canEdit,
   onEdit,
@@ -229,16 +235,16 @@ function PriceRow({
 }: {
   vehicle: Vehicle
   canEdit: boolean
-  onEdit: () => void
-  onDelete: () => void
-  onStatusChange: (status: VehicleStatus) => void
+  onEdit: (id: string) => void
+  onDelete: (id: string) => void
+  onStatusChange: (id: string, status: VehicleStatus) => void
 }) {
   return (
     <tr
       className={`border-b border-slate-50 transition-colors duration-150 last:border-0 hover:bg-slate-50/70 ${
         canEdit ? 'cursor-pointer' : ''
       }`}
-      onClick={canEdit ? onEdit : undefined}
+      onClick={canEdit ? () => onEdit(vehicle.id) : undefined}
     >
       <td className="px-3 py-2.5 font-medium text-slate-800 whitespace-nowrap">{vehicle.model}</td>
       <td className="px-3 py-2.5 font-medium text-brand-600 whitespace-nowrap">{vehicle.plate || '—'}</td>
@@ -254,7 +260,7 @@ function PriceRow({
           <select
             className="cursor-pointer rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs transition-colors hover:border-brand-400 focus:border-brand-500 focus:outline-none"
             value={vehicle.status}
-            onChange={(e) => onStatusChange(e.target.value as VehicleStatus)}
+            onChange={(e) => onStatusChange(vehicle.id, e.target.value as VehicleStatus)}
           >
             <option value="available">Chưa bán</option>
             <option value="deposited">Đã cọc</option>
@@ -275,14 +281,14 @@ function PriceRow({
           <div className="flex items-center gap-1">
             <button
               className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-brand-600 active:scale-95"
-              onClick={onEdit}
+              onClick={() => onEdit(vehicle.id)}
               title="Chỉnh sửa"
             >
               <Pencil size={15} />
             </button>
             <button
               className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 active:scale-95"
-              onClick={onDelete}
+              onClick={() => onDelete(vehicle.id)}
               title="Xoá"
             >
               <Trash2 size={15} />
@@ -292,4 +298,4 @@ function PriceRow({
       )}
     </tr>
   )
-}
+})
