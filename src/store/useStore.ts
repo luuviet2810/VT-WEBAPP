@@ -202,6 +202,7 @@ export const useStore = create<StoreState>()(
       const created = await vehicleService.createVehicle({
         plate: v.plate || '',
         model: v.model || '',
+        brand: v.brand,
         year: v.year,
         fuelType: v.fuelType,
         displacement: v.displacement,
@@ -1042,6 +1043,7 @@ export const useStore = create<StoreState>()(
         id: row.id as string,
         plate: (row.plate as string) || '',
         model: (row.model as string) || '',
+        brand: (row.brand as string) ?? undefined,
         year: (row.year as number) ?? undefined,
         fuelType: fuelTypeVal,
         displacement: (row.displacement as string) ?? undefined,
@@ -1064,6 +1066,8 @@ export const useStore = create<StoreState>()(
         imagesDeletedAt: (row.images_deleted_at as string) ?? undefined,
         songNungExpiryDate: (row.song_nung_expiry_date as string) ?? undefined,
         registrationExpiryDate: (row.registration_expiry_date as string) ?? undefined,
+        isPublic: Boolean(row.is_public),
+        options: (row.options as string[]) ?? undefined,
       }
       set((s) => {
         const idx = s.vehicles.findIndex((x) => x.id === v.id)

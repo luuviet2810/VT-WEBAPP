@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:public": "vite --mode publicweb",
     "build": "tsc -b && vite build",
+    "build:public": "tsc -b && vite build --mode publicweb",
     "preview": "vite preview",
     "audit:mobile": "playwright test --project=iphone-13-pro --project=galaxy-s25-ultra --project=iphone-16-pro-max",
     "audit:desktop": "playwright test --project=desktop-chrome",

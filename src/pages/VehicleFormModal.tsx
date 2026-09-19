@@ -28,6 +28,7 @@ export default function VehicleFormModal({
   const [form, setForm] = useState({
     plate: '',
     model: '',
+    brand: '',
     year: '',
     fuelType: '' as FuelType | '',
     displacement: '',
@@ -48,6 +49,7 @@ export default function VehicleFormModal({
     setForm({
       plate: '',
       model: '',
+      brand: '',
       year: '',
       fuelType: '',
       displacement: '',
@@ -77,6 +79,7 @@ export default function VehicleFormModal({
         setForm({
           plate: v.plate,
           model: v.model,
+          brand: v.brand ?? '',
           year: v.year?.toString() ?? '',
           fuelType: v.fuelType ?? '',
           displacement: v.displacement ? (v.displacement.includes('L') ? v.displacement : `${v.displacement}L`) : '',
@@ -99,6 +102,7 @@ export default function VehicleFormModal({
     const data = {
       plate: form.plate.trim(),
       model: form.model.trim(),
+      brand: form.brand.trim() || undefined,
       year: form.year ? Number(form.year) : undefined,
       fuelType: (form.fuelType as FuelType) || undefined,
       displacement: form.displacement.replace(/L$/, '') || undefined,
@@ -175,6 +179,10 @@ export default function VehicleFormModal({
                 <div>
                   <label className="label">Dòng xe *</label>
                   <input className="input" placeholder="VD: Kia K5" value={form.model} onChange={(e) => set('model', e.target.value)} />
+                </div>
+                <div>
+                  <label className="label">Hãng xe</label>
+                  <input className="input" placeholder="VD: Hyundai" value={form.brand} onChange={(e) => set('brand', e.target.value)} />
                 </div>
                 <div>
                   <label className="label">Năm</label>

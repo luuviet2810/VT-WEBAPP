@@ -4,6 +4,7 @@ export interface Vehicle {
   id: string
   plate: string // 4 số cuối biển số
   model: string // Dòng xe
+  brand?: string // Hãng xe (Hyundai, Kia, ...) — dùng cho Public Web
   year?: number
   fuelType?: 'gasoline' | 'diesel' | 'lpg' | 'hybrid'
   displacement?: string
@@ -26,6 +27,24 @@ export interface Vehicle {
   imagesDeletedAt?: string
   songNungExpiryDate?: string | null
   registrationExpiryDate?: string | null
+  /** "Hiển thị trên website" — Admin toggle for the future Public Web.
+   *  OFF only hides the vehicle publicly; Admin data is untouched. */
+  isPublic?: boolean
+  /** Selected equipment — array of vehicle_option_defs.key. NULL/undefined
+   *  for vehicles that have no options chosen (no fake data). */
+  options?: string[]
+}
+
+/** Master catalog row for vehicle equipment options ("Option xe").
+ *  Stored in table vehicle_option_defs — single source of truth for
+ *  both Admin UI and the future Public Web. */
+export interface VehicleOptionDef {
+  id: string
+  groupKey: string
+  groupLabel: string
+  key: string
+  label: string
+  sortOrder: number
 }
 
 export interface Position {

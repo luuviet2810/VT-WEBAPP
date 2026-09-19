@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { ArrowLeft, Clock, Download, FileText, Image as ImageIcon, Info, LogIn, LogOut, ImagePlus, Star, Trash2, GripVertical, X, ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
+import { ArrowLeft, Clock, Download, FileText, Image as ImageIcon, Info, LogIn, LogOut, ImagePlus, Star, Trash2, GripVertical, X, ChevronLeft, ChevronRight, Calendar, SlidersHorizontal } from 'lucide-react'
 import { Modal, EmptyState, Tabs } from '../components/ui'
 import PhotoUploader from '../components/PhotoUploader'
 import CheckSheetForm from '../components/CheckSheetForm'
@@ -7,8 +7,9 @@ import { useStore } from '../store/useStore'
 import { formatDateTime } from '../utils/format'
 import * as vehicleMediaService from '../services/vehicleMedia.service'
 import * as storageService from '../services/storage.service'
+import { getVehicleOptionDefs } from '../services/vehicleOption.service'
 import type { VehicleImageRow } from '../services/vehicleMedia.service'
-import type { Vehicle } from '../types'
+import type { Vehicle, VehicleOptionDef } from '../types'
 
 interface Props {
   vehicle: Vehicle
@@ -19,6 +20,7 @@ interface Props {
 export const VEHICLE_DETAIL_TABS = [
   { key: 'info', label: 'Thông tin', icon: <Info size={15} /> },
   { key: 'photos', label: 'Ảnh', icon: <ImageIcon size={15} /> },
+  { key: 'options', label: 'Option xe', icon: <SlidersHorizontal size={15} /> },
   { key: 'checkin', label: 'Đầu vào', icon: <LogIn size={15} /> },
   { key: 'checkout', label: 'Đầu ra', icon: <LogOut size={15} /> },
   { key: 'docs', label: 'Giấy tờ', icon: <FileText size={15} /> },
@@ -70,6 +72,29 @@ export default function VehicleDetailTabs({ vehicle, tab, onTabChange }: Props) 
 
   const infoFields = (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      {/* Public Web visibility switch — prominent, top of the info tab */}
+      <div className="sm:col-span-2">
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3">
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-slate-800">🌐 Hiển thị trên website</div>
+            <div className="mt-0.5 text-xs text-slate-500">
+              {vehicle.isPublic
+                ? 'BẬT — xe sẽ xuất hiện trên Public Web (khi chưa bán)'
+                : 'TẮT — xe ẩn trên Public Web, dữ liệu Admin giữ nguyên'}
+            </div>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={!!vehicle.isPublic}
+            aria-label="Hiển thị trên website"
+            onClick={() => patch({ isPublic: !vehicle.isPublic })}
+            className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${vehicle.isPublic ? 'bg-green-500' : 'bg-slate-300'}`}
+          >
+            <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all ${vehicle.isPublic ? 'left-[22px]' : 'left-0.5'}`} />
+          </button>
+        </div>
+      </div>
       <div>
         <label className="label">Biển số (4 số cuối)</label>
         <input className="input" defaultValue={vehicle.plate} onBlur={(e) => patch({ plate: e.target.value })} />
@@ -77,6 +102,10 @@ export default function VehicleDetailTabs({ vehicle, tab, onTabChange }: Props) 
       <div>
         <label className="label">Dòng xe</label>
         <input className="input" defaultValue={vehicle.model} onBlur={(e) => patch({ model: e.target.value })} />
+      </div>
+      <div>
+        <label className="label">Hãng xe</label>
+        <input className="input" placeholder="VD: Hyundai" defaultValue={vehicle.brand ?? ''} onBlur={(e) => patch({ brand: e.target.value || undefined })} />
       </div>
       <div>
         <label className="label">Năm</label>
@@ -178,6 +207,12 @@ export default function VehicleDetailTabs({ vehicle, tab, onTabChange }: Props) 
         {tab === 'photos' && (
           <div className="flex flex-1 flex-col">
             <CategorizedPhotoViewer vehicle={vehicle} />
+          </div>
+        )}
+
+        {tab === 'options' && (
+          <div className="flex flex-1 flex-col">
+            <VehicleOptionsTab vehicle={vehicle} />
           </div>
         )}
 
@@ -304,9 +339,12 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
   const [editingExpiry, setEditingExpiry] = useState<VehicleImageRow | null>(null)
   const [editExpiryDate, setEditExpiryDate] = useState('')
 
+  // Display order per product spec — "Ảnh trên website" (Public Web) first.
+  // 'website' reuses the existing category/sort_order/thumbnail mechanism.
   const CATEGORIES = [
-    { key: 'error', title: 'Ảnh lỗi xe', desc: null },
+    { key: 'website', title: 'Ảnh trên website', desc: 'Khách sẽ thấy trên Public Web — Ảnh đầu tiên = ảnh đại diện website' },
     { key: 'documents', title: 'Ảnh giấy tờ', desc: 'Song nưng, Đăng ký, Uỷ quyền' },
+    { key: 'error', title: 'Ảnh lỗi xe', desc: null },
     { key: 'song_nung', title: 'Ảnh Song nưng', desc: null },
     { key: 'vehicle', title: 'Ảnh xe', desc: null },
   ]
@@ -508,6 +546,15 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
     }
     if (fromIdx < 0) return
 
+    if (fromCat === 'website') {
+      // Website cover = first image of the 'website' group — reorder WITHIN
+      // the group only; never move it into the internal 'vehicle' group.
+      if (fromIdx > 0) {
+        handleReorder('website', fromIdx, 0)
+      }
+      return
+    }
+
     if (fromCat !== 'vehicle') {
       // Move to vehicle category first
       await handleMoveCategory(fromCat, fromIdx, 'vehicle')
@@ -634,7 +681,7 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
                     }}
                     onDragEnd={() => { setDragIdx(null); setOverIdx(null) }}
                     className={`group relative aspect-[4/3] cursor-grab overflow-hidden rounded-lg border bg-slate-50 ${
-                      cat.key === 'vehicle' && idx === 0 ? 'border-brand-400 ring-2 ring-brand-100' : 'border-slate-200'
+                      (cat.key === 'vehicle' || cat.key === 'website') && idx === 0 ? 'border-brand-400 ring-2 ring-brand-100' : 'border-slate-200'
                     } ${overIdx?.cat === cat.key && overIdx.idx === idx && dragIdx?.cat === cat.key && dragIdx.idx !== idx ? 'scale-[0.98] border-brand-400' : ''} ${
                       overIdx?.cat === cat.key && overIdx.idx === idx && dragIdx && dragIdx.cat !== cat.key ? 'scale-[0.98] border-violet-400 ring-2 ring-violet-100' : ''}`}
                   >
@@ -642,9 +689,9 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
                     {/* Top badges */}
                     <div className="absolute left-1 top-1 flex items-center gap-1">
                       <span className="rounded-md bg-slate-900/60 p-0.5 text-white"><GripVertical size={10} /></span>
-                      {cat.key === 'vehicle' && idx === 0 && (
+                      {(cat.key === 'vehicle' || cat.key === 'website') && idx === 0 && (
                         <span className="flex items-center gap-0.5 rounded-md bg-brand-600 px-1 py-0.5 text-[9px] font-semibold text-white">
-                          <Star size={8} /> Hiển thị
+                          <Star size={8} /> {cat.key === 'website' ? 'Đại diện web' : 'Hiển thị'}
                         </span>
                       )}
                       {cat.key === 'song_nung' && row.song_nung_expiry_date && (
@@ -659,10 +706,10 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
                         className="flex-1 rounded-md bg-white/95 py-0.5 text-[9px] font-medium text-slate-700 shadow-sm">
                         Xem
                       </button>
-                      {!(cat.key === 'vehicle' && idx === 0) && (
+                      {!((cat.key === 'vehicle' || cat.key === 'website') && idx === 0) && (
                         <button onClick={() => handleSetCover(row)}
                           className="rounded-md bg-white/95 px-1.5 py-0.5 text-[9px] font-medium text-brand-700 shadow-sm">
-                          Ảnh đại diện
+                          {cat.key === 'website' ? 'Ảnh đại diện web' : 'Ảnh đại diện'}
                         </button>
                       )}
                       {cat.key === 'song_nung' && (
@@ -809,6 +856,103 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
             </div>
           </div>
         </div>
+      )}
+    </div>
+  )
+}
+
+// ====== VEHICLE OPTIONS TAB ("Option xe") ======
+
+/**
+ * Per-vehicle equipment checkboxes. The catalog (groups/labels) is read
+ * from table vehicle_option_defs — nothing is hard-coded here so the
+ * future Public Web can render labels from the same source.
+ * Selections are stored per vehicle in vehicles.options (JSONB array of
+ * vehicle_option_defs.key) via the existing updateVehicle flow.
+ */
+function VehicleOptionsTab({ vehicle }: { vehicle: Vehicle }) {
+  const updateVehicle = useStore((s) => s.updateVehicle)
+  const [defs, setDefs] = useState<VehicleOptionDef[] | null>(null)
+  const [loadError, setLoadError] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    getVehicleOptionDefs()
+      .then((rows) => { if (!cancelled) setDefs(rows) })
+      .catch((err) => {
+        console.error('[VehicleOptionsTab] Failed to load option defs:', err)
+        if (!cancelled) setLoadError(true)
+      })
+    return () => { cancelled = true }
+  }, [])
+
+  const selected = vehicle.options ?? []
+
+  // Group defs by catalog order
+  const groups: { key: string; label: string; defs: VehicleOptionDef[] }[] = []
+  for (const def of defs ?? []) {
+    let g = groups.find((x) => x.key === def.groupKey)
+    if (!g) {
+      g = { key: def.groupKey, label: def.groupLabel, defs: [] }
+      groups.push(g)
+    }
+    g.defs.push(def)
+  }
+
+  function toggle(key: string) {
+    const next = selected.includes(key)
+      ? selected.filter((k) => k !== key)
+      : [...selected, key]
+    updateVehicle(vehicle.id, { options: next })
+  }
+
+  if (loadError) {
+    return (
+      <div className="card p-5 text-sm text-red-600">
+        Không tải được danh sách option. Kiểm tra kết nối rồi mở lại tab này.
+      </div>
+    )
+  }
+  if (!defs) {
+    return <div className="card p-5 text-sm text-slate-400">Đang tải danh sách option...</div>
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3 text-xs text-slate-500">
+        Tick các trang bị của xe — lựa chọn được lưu riêng cho từng xe và sẽ hiển thị trên Public Web sau này.
+        {selected.length > 0 && (
+          <span className="ml-1 font-semibold text-brand-600">Đang chọn: {selected.length}</span>
+        )}
+      </div>
+      {groups.map((g) => (
+        <div key={g.key}>
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">{g.label}</div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {g.defs.map((def) => {
+              const checked = selected.includes(def.key)
+              return (
+                <label
+                  key={def.key}
+                  className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-colors ${
+                    checked ? 'border-brand-400 bg-brand-50' : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    className="h-5 w-5 shrink-0 accent-brand-600"
+                    checked={checked}
+                    onChange={() => toggle(def.key)}
+                  />
+                  <span className={`text-sm ${checked ? 'font-semibold text-brand-700' : 'text-slate-700'}`}>{def.label}</span>
+                </label>
+              )
+            })}
+          </div>
+        </div>
+      ))}
+      {groups.length === 0 && (
+        <EmptyState icon={<SlidersHorizontal size={30} />} title="Chưa có option nào" subtitle="Chạy migration 031 để seed danh sách option." />
       )}
     </div>
   )

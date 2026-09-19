@@ -11,6 +11,7 @@ function mapVehicleRow(v: VehicleRow, images: string[] = [], documents: string[]
     id: v.id as string,
     plate: v.plate as string,
     model: v.model as string,
+    brand: (v.brand as string) ?? undefined,
     year: v.year as number | undefined,
     fuelType: (v.fuel_type as Vehicle['fuelType']) ?? undefined,
     displacement: v.displacement as string | undefined,
@@ -32,6 +33,8 @@ function mapVehicleRow(v: VehicleRow, images: string[] = [], documents: string[]
     imagesDeletedAt: v.images_deleted_at as string | undefined,
     songNungExpiryDate: v.song_nung_expiry_date as string | null | undefined,
     registrationExpiryDate: v.registration_expiry_date as string | null | undefined,
+    isPublic: (v.is_public as boolean) ?? false,
+    options: (v.options as string[]) ?? undefined,
   }
 }
 
@@ -48,9 +51,12 @@ export async function getVehicles(): Promise<Vehicle[]> {
 
   const vehicleRows = data as VehicleRow[]
 
-  // Fetch all images and documents for these vehicles
+  // Fetch all images and documents for these vehicles.
+  // Only the internal 'vehicle' category (or legacy NULL) belongs in
+  // vehicle.images — other categories (website/error/song_nung/documents)
+  // are managed separately and must not leak into the Admin cover image.
   const [allImages, allDocs] = await Promise.all([
-    supabase.from('vehicle_images').select('vehicle_id, url, thumbnail, sort_order').order('sort_order', { ascending: true }).then(({ data: d }) => d ?? []),
+    supabase.from('vehicle_images').select('vehicle_id, url, thumbnail, sort_order').or('category.eq.vehicle,category.is.null').order('sort_order', { ascending: true }).then(({ data: d }) => d ?? []),
     supabase.from('vehicle_documents').select('vehicle_id, url, sort_order').order('sort_order', { ascending: true }).then(({ data: d }) => d ?? []),
   ])
 
@@ -135,6 +141,7 @@ export async function createVehicle(vehicle: Omit<Vehicle, 'id' | 'createdAt' | 
   const payload = {
     plate: vehicle.plate,
     model: vehicle.model,
+    brand: vehicle.brand,
     year: vehicle.year,
     fuel_type: vehicle.fuelType,
     displacement: vehicle.displacement,
@@ -169,6 +176,7 @@ export async function updateVehicle(id: string, patch: Partial<Vehicle>): Promis
 
   if (patch.plate !== undefined) updateData.plate = patch.plate
   if (patch.model !== undefined) updateData.model = patch.model
+  if (patch.brand !== undefined) updateData.brand = patch.brand
   if (patch.year !== undefined) updateData.year = patch.year
   if (patch.fuelType !== undefined) updateData.fuel_type = patch.fuelType
   if (patch.displacement !== undefined) updateData.displacement = patch.displacement
@@ -185,6 +193,8 @@ export async function updateVehicle(id: string, patch: Partial<Vehicle>): Promis
   if (patch.imagesDeletedAt !== undefined) updateData.images_deleted_at = patch.imagesDeletedAt
   if (patch.songNungExpiryDate !== undefined) updateData.song_nung_expiry_date = patch.songNungExpiryDate
   if (patch.registrationExpiryDate !== undefined) updateData.registration_expiry_date = patch.registrationExpiryDate
+  if (patch.isPublic !== undefined) updateData.is_public = patch.isPublic
+  if (patch.options !== undefined) updateData.options = patch.options
   // NOTE: images and documents are NOT columns in vehicles table
 
   updateData.updated_at = new Date().toISOString()
