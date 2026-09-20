@@ -1,6 +1,6 @@
 // ====== SIDEBAR CONFIGURATION BY ROLE ======
 
-import { Home, Car, DollarSign, CheckSquare, MapPin, Clock, Users, Settings, User, ClipboardList, Archive } from 'lucide-react'
+import { Home, Car, DollarSign, CheckSquare, MapPin, Clock, Users, Settings, User, ClipboardList, Archive, Globe2 } from 'lucide-react'
 import { UserRole } from './roles'
 
 export interface MenuItem {
@@ -26,6 +26,7 @@ export const SIDEBAR_CONFIG: Record<UserRole, SidebarConfig> = {
       { key: 'tasks', label: 'Nhiệm vụ', icon: <CheckSquare size={18} />, path: '/nhiem-vu' },
       { key: 'positions', label: 'Vị trí xe', icon: <MapPin size={18} />, path: '/vi-tri' },
       { key: 'sold', label: 'Xe đã bán', icon: <Archive size={18} />, path: '/xe-da-ban' },
+      { key: 'preweb', label: 'Pre-Web', icon: <Globe2 size={18} />, path: '/pre-web' },
       { key: 'attendance', label: 'Chấm công', icon: <Clock size={18} />, path: '/cham-cong' },
       { key: 'employees', label: 'Nhân viên', icon: <Users size={18} />, path: '/nhan-vien' },
     ],

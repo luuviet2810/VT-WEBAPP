@@ -34,6 +34,7 @@ function mapVehicleRow(v: VehicleRow, images: string[] = [], documents: string[]
     songNungExpiryDate: v.song_nung_expiry_date as string | null | undefined,
     registrationExpiryDate: v.registration_expiry_date as string | null | undefined,
     isPublic: (v.is_public as boolean) ?? false,
+    publicSortOrder: (v.public_sort_order as number) ?? null,
     options: (v.options as string[]) ?? undefined,
   }
 }
@@ -194,6 +195,7 @@ export async function updateVehicle(id: string, patch: Partial<Vehicle>): Promis
   if (patch.songNungExpiryDate !== undefined) updateData.song_nung_expiry_date = patch.songNungExpiryDate
   if (patch.registrationExpiryDate !== undefined) updateData.registration_expiry_date = patch.registrationExpiryDate
   if (patch.isPublic !== undefined) updateData.is_public = patch.isPublic
+  if (patch.publicSortOrder !== undefined) updateData.public_sort_order = patch.publicSortOrder
   if (patch.options !== undefined) updateData.options = patch.options
   // NOTE: images and documents are NOT columns in vehicles table
 

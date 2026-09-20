@@ -30,6 +30,9 @@ export interface Vehicle {
   /** "Hiển thị trên website" — Admin toggle for the future Public Web.
    *  OFF only hides the vehicle publicly; Admin data is untouched. */
   isPublic?: boolean
+  /** Thứ tự hiển thị riêng trên Public Web (NULL = cuối danh sách).
+   *  Độc lập với created_at/updated_at/vị trí bãi. */
+  publicSortOrder?: number | null
   /** Selected equipment — array of vehicle_option_defs.key. NULL/undefined
    *  for vehicles that have no options chosen (no fake data). */
   options?: string[]

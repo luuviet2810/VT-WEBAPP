@@ -2,13 +2,14 @@
 
 import { memo, useMemo, useState, useRef, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Car, LogIn, LogOut, Fuel, Monitor, Camera, AlertCircle, Wrench, CheckCircle2, XCircle, Minus, StickyNote, ExternalLink, X, ChevronLeft, ChevronRight, Download, ListChecks } from 'lucide-react'
+import { Car, LogIn, LogOut, Fuel, Monitor, Camera, AlertCircle, Wrench, CheckCircle2, XCircle, Minus, StickyNote, ExternalLink, X, ChevronLeft, ChevronRight, Download, ListChecks, Globe, EyeOff, Loader2 } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import { Badge, EmptyState, Modal } from '../components/ui'
 import VehicleFilterBar from '../components/VehicleFilterBar'
 import { formatCurrency } from '../utils/format'
 import { VehicleStatus, FuelLevel, CheckSheet, Vehicle } from '../types'
 import { classifyStatus, statusLabel } from '../utils/statusClassification'
+import * as vehicleMediaService from '../services/vehicleMedia.service'
 
 const STATUS_LABEL: Record<VehicleStatus, string> = {
   available: 'Chưa bán',
@@ -48,10 +49,12 @@ const VehicleCard = memo(function VehicleCard({
   hasOut,
   pendingCount,
   highPriorityPending,
+  publicPending,
   onTaskClick,
   onPreviewIn,
   onPreviewOut,
   onNoteClick,
+  onTogglePublic,
 }: {
   vehicle: Vehicle
   positionName: string | null
@@ -59,10 +62,12 @@ const VehicleCard = memo(function VehicleCard({
   hasOut: boolean
   pendingCount: number
   highPriorityPending: boolean
+  publicPending: boolean
   onTaskClick: (id: string) => void
   onPreviewIn: (id: string) => void
   onPreviewOut: (id: string) => void
   onNoteClick?: (id: string) => void
+  onTogglePublic: (id: string) => void
 }) {
   // [PERF] card render counter
   if (DEV_DISABLE_IMAGES) {
@@ -76,7 +81,7 @@ const VehicleCard = memo(function VehicleCard({
   return (
     <Link key={v.id} to={`/xe/${v.id}`} className="card group overflow-hidden transition-transform hover:-translate-y-0.5 text-sm">
       {/* Vehicle Image — click navigates to Vehicle Detail */}
-      <div className="aspect-[4/2.2] w-full overflow-hidden bg-slate-100">
+      <div className="relative aspect-[4/2.2] w-full overflow-hidden bg-slate-100">
         {!DEV_DISABLE_IMAGES && v.images[0] ? (
           <img src={v.thumbnails?.[v.images[0]] ?? v.images[0]} alt={v.model} className="h-full w-full object-cover" loading="lazy" decoding="async" />
         ) : (
@@ -84,6 +89,32 @@ const VehicleCard = memo(function VehicleCard({
             <Car size={24} />
           </div>
         )}
+        {/* Public Web toggle — overlay góc trên phải, không đổi layout card */}
+        <button
+          type="button"
+          title={v.isPublic ? 'Đang hiển thị trên website' : 'Đưa xe lên website'}
+          aria-label={v.isPublic ? 'Đang hiển thị trên website' : 'Đưa xe lên website'}
+          aria-pressed={!!v.isPublic}
+          disabled={publicPending}
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            onTogglePublic(v.id)
+          }}
+          className={`absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full shadow-md transition-colors disabled:cursor-wait disabled:opacity-70 ${
+            v.isPublic
+              ? 'bg-green-500 text-white hover:bg-green-600'
+              : 'bg-slate-900/55 text-slate-200 hover:bg-slate-900/75'
+          }`}
+        >
+          {publicPending ? (
+            <Loader2 size={15} className="animate-spin" />
+          ) : v.isPublic ? (
+            <Globe size={15} />
+          ) : (
+            <EyeOff size={15} />
+          )}
+        </button>
       </div>
 
       {/* Vehicle Info — 2-column layout */}
@@ -179,6 +210,59 @@ export default function VehicleList() {
   })
   const [previewSheet, setPreviewSheet] = useState<CheckSheet | null>(null)
   const [previewType, setPreviewType] = useState<'in' | 'out'>('in')
+
+  // ====== PUBLIC WEB TOGGLE (nút trên mỗi card) ======
+  const updateVehicle = useStore((s) => s.updateVehicle)
+  const [pendingPublicId, setPendingPublicId] = useState<string | null>(null)
+  const pendingPublicRef = useRef<string | null>(null)
+  const [toast, setToast] = useState<{ kind: 'success' | 'error'; text: string } | null>(null)
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const showToast = useCallback((kind: 'success' | 'error', text: string) => {
+    setToast({ kind, text })
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => setToast(null), 2600)
+  }, [])
+
+  // Bật/tắt vehicles.is_public qua store action hiện có (optimistic update +
+  // persist Supabase qua vehicleService.updateVehicle — không state riêng lẻ).
+  // Trước khi BẬT: bắt buộc xe có ít nhất 1 ảnh category 'website'.
+  // TẮT: luôn cho phép.
+  const handleTogglePublic = useCallback(async (id: string) => {
+    if (pendingPublicRef.current) return
+    const v = useStore.getState().vehicles.find((x) => x.id === id)
+    if (!v) return
+    const next = !v.isPublic
+
+    pendingPublicRef.current = id
+    setPendingPublicId(id)
+    try {
+      if (next) {
+        const rows = await vehicleMediaService.getVehicleImages(id)
+        if (!rows.some((r) => r.category === 'website')) {
+          showToast('error', 'Xe chưa có ảnh trên website. Hãy thêm ảnh trước khi đăng.')
+          return
+        }
+      }
+      await updateVehicle(id, { isPublic: next })
+      const after = useStore.getState().vehicles.find((x) => x.id === id)
+      if (after?.isPublic === next) {
+        showToast(
+          'success',
+          next
+            ? `Đã đăng ${v.model} (${v.plate || '—'}) lên website`
+            : `Đã ẩn ${v.model} (${v.plate || '—'}) khỏi website`
+        )
+      }
+      // Nếu lưu thất bại: store đã tự rollback + thông báo lỗi riêng
+    } catch (err) {
+      console.error('[VehicleList] Toggle is_public failed:', err)
+      showToast('error', 'Không thể cập nhật hiển thị website. Vui lòng thử lại.')
+    } finally {
+      pendingPublicRef.current = null
+      setPendingPublicId(null)
+    }
+  }, [showToast, updateVehicle])
   const [taskSummaryVehicleId, setTaskSummaryVehicleId] = useState<string | null>(null)
   const [notePreviewVehicleId, setNotePreviewVehicleId] = useState<string | null>(null)
 
@@ -318,10 +402,12 @@ export default function VehicleList() {
                 hasOut={!!latestOut}
                 pendingCount={pendingCount}
                 highPriorityPending={highPriorityPending}
+                publicPending={pendingPublicId === v.id}
                 onTaskClick={handleTaskClick}
                 onPreviewIn={handlePreviewIn}
                 onPreviewOut={handlePreviewOut}
                 onNoteClick={handleNoteClick}
+                onTogglePublic={handleTogglePublic}
               />
             )
           })}
@@ -430,6 +516,17 @@ export default function VehicleList() {
           </div>
         )
       })()}
+
+      {/* Toast cho toggle "Hiển thị trên website" (pattern toast hiện có của project) */}
+      {toast && (
+        <div
+          className={`fixed bottom-4 right-4 z-50 rounded-lg px-4 py-3 text-sm text-white shadow-lg ${
+            toast.kind === 'success' ? 'bg-slate-800' : 'bg-red-600'
+          }`}
+        >
+          {toast.text}
+        </div>
+      )}
     </div>
   )
 }

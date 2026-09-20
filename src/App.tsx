@@ -11,6 +11,7 @@ import VehicleList from './pages/VehicleList'
 import PriceList from './pages/PriceList'
 import SoldVehicles from './pages/SoldVehicles'
 import VehicleDetail from './pages/VehicleDetail'
+import PreWeb from './pages/PreWeb'
 import Tasks from './pages/Tasks'
 import TaskDetail from './pages/TaskDetail'
 import Positions from './pages/Positions'
@@ -196,6 +197,16 @@ export default function App() {
           <RoleGuard allowedRoles={['admin']}>
             <MainLayout>
               <SoldVehicles />
+            </MainLayout>
+          </RoleGuard>
+        }
+      />
+      <Route
+        path="/pre-web"
+        element={
+          <RoleGuard allowedRoles={['admin']}>
+            <MainLayout>
+              <PreWeb />
             </MainLayout>
           </RoleGuard>
         }

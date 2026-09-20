@@ -23,6 +23,7 @@ export interface PublicVehicle {
   color?: string | null
   sellPrice?: number | null
   options?: string[] | null
+  publicSortOrder?: number | null
   updatedAt: string
 }
 
@@ -47,6 +48,7 @@ function mapVehicle(r: Row): PublicVehicle {
     color: (r.color as string) ?? null,
     sellPrice: (r.sell_price as number) ?? null,
     options: (r.options as string[]) ?? null,
+    publicSortOrder: (r.public_sort_order as number) ?? null,
     updatedAt: (r.updated_at as string) ?? '',
   }
 }
@@ -62,10 +64,12 @@ function mapImage(r: Row): PublicVehicleImage {
 }
 
 export async function getPublicVehicles(): Promise<PublicVehicle[]> {
+  // Thứ tự website = public_sort_order ASC, xe NULL xếp cuối.
+  // KHÔNG dùng updated_at làm thứ tự chính.
   const { data, error } = await supabase
     .from('public_vehicles')
     .select('*')
-    .order('updated_at', { ascending: false })
+    .order('public_sort_order', { ascending: true, nullsFirst: false })
   if (error) throw error
   return ((data ?? []) as Row[]).map(mapVehicle)
 }
