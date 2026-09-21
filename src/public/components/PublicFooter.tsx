@@ -1,21 +1,60 @@
+import logo from '../../assets/logo-vtauto.png'
+import { Facebook, MessageCircle, MessageSquare, Music2, Phone } from 'lucide-react'
 import { SITE_CONFIG } from '../contactConfig'
 
-/** Footer tối giản theo spec. */
+/**
+ * Footer Public Web — cùng logo asset với Header.
+ * Link xây dựng từ SITE_CONFIG; mục nào chưa có URL thật ('')
+ * thì tự ẩn, không render link giả.
+ */
 export default function PublicFooter() {
+  const contactLinks = [
+    { key: 'phone', icon: <Phone size={13} />, label: SITE_CONFIG.phoneDisplay, href: `tel:${SITE_CONFIG.phoneRaw}` },
+    { key: 'kakao', icon: <MessageSquare size={13} />, label: 'KakaoTalk', href: SITE_CONFIG.kakao },
+    { key: 'tiktok', icon: <Music2 size={13} />, label: `TikTok: ${SITE_CONFIG.tiktokDisplay}`, href: SITE_CONFIG.tiktok },
+    { key: 'facebook', icon: <Facebook size={13} />, label: 'Facebook', href: SITE_CONFIG.facebook },
+    { key: 'messenger', icon: <MessageCircle size={13} />, label: 'Messenger', href: SITE_CONFIG.messenger },
+  ].filter((l) => !!l.href)
+
   return (
     <footer className="mt-auto border-t border-slate-200 bg-white pb-24 pt-8">
-      <div className="mx-auto max-w-3xl space-y-2 px-4 text-center">
-        <div className="text-base font-extrabold tracking-wide text-slate-900">{SITE_CONFIG.name}</div>
-        <div className="text-[10px] font-medium uppercase tracking-[0.15em] text-slate-400">{SITE_CONFIG.tagline}</div>
-        <div className="pt-2 text-xs text-slate-500">{SITE_CONFIG.address}</div>
-        <div className="text-xs text-slate-500">
-          <a href={`tel:${SITE_CONFIG.phoneRaw}`} className="font-medium text-brand-600">{SITE_CONFIG.phoneDisplay}</a>
-          {' · '}
-          <a href={SITE_CONFIG.facebook} target="_blank" rel="noreferrer" className="font-medium text-brand-600">Facebook</a>
-          {' · '}
-          <a href={SITE_CONFIG.kakao} target="_blank" rel="noreferrer" className="font-medium text-brand-600">KakaoTalk</a>
+      <div className="mx-auto max-w-3xl space-y-4 px-4 text-center">
+        {/* Logo — cùng asset với Header (ảnh đã chứa tagline) */}
+        <img
+          src={logo}
+          alt={`${SITE_CONFIG.name} — ${SITE_CONFIG.tagline}`}
+          className="mx-auto h-12 w-auto max-w-full object-contain"
+          draggable={false}
+        />
+
+        {/* Địa chỉ văn phòng */}
+        <div className="space-y-1">
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Địa chỉ văn phòng</div>
+          {SITE_CONFIG.addresses.map((a) => (
+            <div key={a} className="break-words text-xs text-slate-600">📍 {a}</div>
+          ))}
         </div>
-        <div className="pt-3 text-[11px] text-slate-400">{SITE_CONFIG.copyright}</div>
+
+        {/* Liên hệ */}
+        <div className="space-y-1.5">
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Liên hệ</div>
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5">
+            {contactLinks.map((l) => (
+              <a
+                key={l.key}
+                href={l.href}
+                target={l.href.startsWith('tel:') ? undefined : '_blank'}
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-600 hover:underline"
+              >
+                {l.icon}
+                {l.label}
+              </a>
+            ))}
+          </div>
+        </div>
+
+        <div className="pt-2 text-[11px] text-slate-400">{SITE_CONFIG.copyright}</div>
       </div>
     </footer>
   )

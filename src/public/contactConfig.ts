@@ -2,29 +2,35 @@
  * ============================================================
  * CẤU HÌNH SITE & LIÊN HỆ — PUBLIC WEB
  * ============================================================
- * Đây là NƠI DUY NHẤT cần sửa khi đổi thông tin liên hệ.
- * Mọi component (header, footer, contact bubble) đều đọc từ file này.
+ * NƠI DUY NHẤT sửa thông tin liên hệ. Mọi component
+ * (Header, Footer, ContactBubble) đều đọc từ file này.
+ *
+ * Link nào để '' (chưa có URL thật) sẽ TỰ ẨN khỏi Footer/Bubble —
+ * không publish link giả.
  */
 export const SITE_CONFIG = {
   name: 'VT AUTO',
   tagline: 'XE CŨ TẠI HÀN QUỐC',
   slogan: 'Kiểm tra kỹ – Bán xe chất lượng',
 
-  // Địa chỉ văn phòng (hiển thị ở footer) — SỬA TẠI ĐÂY
-  address: 'Địa chỉ văn phòng — cập nhật trong src/public/contactConfig.ts',
+  // Địa chỉ văn phòng
+  addresses: [
+    'CS1: 대전광역시 유성구 유성대로 510, 339호',
+    'CS2: 경기 수원시 권선구 세화로 49, 8호',
+  ],
 
-  // Số điện thoại — SỬA TẠI ĐÂY (phoneRaw dùng cho link tel:)
-  phoneDisplay: '010-0000-0000',
-  phoneRaw: '+821000000000',
+  // Phone / Kakao
+  phoneDisplay: '010-2592-5885 (Tiến)',
+  phoneRaw: '+821025925885',
 
-  // Messenger — SỬA TẠI ĐÂY (link m.me/...)
-  messenger: 'https://m.me/vtauto',
+  // TikTok
+  tiktok: 'https://www.tiktok.com/@viettienauto',
+  tiktokDisplay: '@viettienauto',
 
-  // Facebook — SỬA TẠI ĐÂY
-  facebook: 'https://www.facebook.com/vtauto',
+  // TODO: dán URL chính xác vào đây — khi còn '', link tự ẩn
+  facebook: '',
+  messenger: '',
+  kakao: '',
 
-  // KakaoTalk — SỬA TẠI ĐÂY (link open.kakao.com/o/...)
-  kakao: 'https://open.kakao.com/o/vtauto',
-
-  copyright: `© 2026 VT AUTO`,
+  copyright: '© 2026 VT AUTO',
 }
