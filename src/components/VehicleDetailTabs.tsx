@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { ArrowLeft, Clock, Download, FileText, Image as ImageIcon, Info, LogIn, LogOut, ImagePlus, Star, Trash2, GripVertical, X, ChevronLeft, ChevronRight, Calendar, SlidersHorizontal } from 'lucide-react'
-import { Modal, EmptyState, Tabs } from '../components/ui'
+import { ArrowLeft, Clock, Download, FileText, Image as ImageIcon, Info, LogIn, LogOut, ImagePlus, Star, Trash2, GripVertical, X, ChevronLeft, ChevronRight, Calendar, SlidersHorizontal, Pencil, Check, Plus } from 'lucide-react'
+import { Modal, EmptyState, Tabs, ConfirmDialog } from '../components/ui'
 import PhotoUploader from '../components/PhotoUploader'
 import CheckSheetForm from '../components/CheckSheetForm'
 import { useStore } from '../store/useStore'
+import { useAuthStore } from '../store/useAuthStore'
 import { formatDateTime } from '../utils/format'
 import * as vehicleMediaService from '../services/vehicleMedia.service'
 import * as storageService from '../services/storage.service'
-import { getVehicleOptionDefs } from '../services/vehicleOption.service'
+import * as vehicleOptionService from '../services/vehicleOption.service'
 import type { VehicleImageRow } from '../services/vehicleMedia.service'
 import type { Vehicle, VehicleOptionDef } from '../types'
 
@@ -872,12 +873,28 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
  */
 function VehicleOptionsTab({ vehicle }: { vehicle: Vehicle }) {
   const updateVehicle = useStore((s) => s.updateVehicle)
+  const vehicles = useStore((s) => s.vehicles)
+  const isAdmin = useAuthStore((s) => s.currentUser?.role === 'admin')
+
   const [defs, setDefs] = useState<VehicleOptionDef[] | null>(null)
   const [loadError, setLoadError] = useState(false)
+  const [editMode, setEditMode] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [msg, setMsg] = useState<{ kind: 'success' | 'error'; text: string } | null>(null)
+  // Option mới đang gõ (local-only, chưa vào DB cho tới khi Enter/blur)
+  const [draft, setDraft] = useState<{ groupKey: string; label: string } | null>(null)
+  const draftRef = useRef<HTMLInputElement | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<VehicleOptionDef | null>(null)
+
+  async function refreshDefs() {
+    const rows = await vehicleOptionService.getVehicleOptionDefs()
+    setDefs(rows)
+  }
 
   useEffect(() => {
     let cancelled = false
-    getVehicleOptionDefs()
+    vehicleOptionService
+      .getVehicleOptionDefs()
       .then((rows) => { if (!cancelled) setDefs(rows) })
       .catch((err) => {
         console.error('[VehicleOptionsTab] Failed to load option defs:', err)
@@ -885,6 +902,11 @@ function VehicleOptionsTab({ vehicle }: { vehicle: Vehicle }) {
       })
     return () => { cancelled = true }
   }, [])
+
+  // Auto-focus input khi bắt đầu thêm option
+  useEffect(() => {
+    if (draft) requestAnimationFrame(() => draftRef.current?.focus())
+  }, [draft?.groupKey])
 
   const selected = vehicle.options ?? []
 
@@ -906,6 +928,72 @@ function VehicleOptionsTab({ vehicle }: { vehicle: Vehicle }) {
     updateVehicle(vehicle.id, { options: next })
   }
 
+  /** Chạy mutation catalog: chặn thoát Edit Mode khi đang lưu, toast lỗi giữ nguyên dữ liệu */
+  async function runSave(fn: () => Promise<unknown>, okText?: string) {
+    setSaving(true)
+    setMsg(null)
+    try {
+      await fn()
+      if (okText) setMsg({ kind: 'success', text: okText })
+    } catch (err) {
+      console.error('[VehicleOptionsTab] save failed:', err)
+      setMsg({ kind: 'error', text: 'Không thể lưu thay đổi option — dữ liệu giữ nguyên, thử lại.' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // ===== Đổi tên inline: Enter hoặc blur =====
+  function commitRename(def: VehicleOptionDef, raw: string) {
+    const label = raw.trim()
+    if (!label || label === def.label) return
+    runSave(async () => {
+      await vehicleOptionService.updateOptionDefLabel(def.id, label)
+      await refreshDefs()
+    })
+  }
+
+  // ===== Thêm option vào cuối nhóm =====
+  function nextSortOf(groupKey: string): number {
+    const inGroup = (defs ?? []).filter((d) => d.groupKey === groupKey)
+    return inGroup.reduce((m, d) => Math.max(m, d.sortOrder), 0) + 1
+  }
+
+  function commitDraft() {
+    if (!draft) return
+    const label = draft.label.trim()
+    const groupKey = draft.groupKey
+    const groupLabel = groups.find((g) => g.key === groupKey)?.label ?? groupKey
+    setDraft(null)
+    if (!label) return // Escape / blur rỗng → huỷ, không ghi DB
+    runSave(async () => {
+      await vehicleOptionService.createOptionDef(groupKey, groupLabel, label, nextSortOf(groupKey))
+      await refreshDefs()
+    }, `Đã thêm option "${label}"`)
+  }
+
+  // ===== Xoá option: confirm + dọn key khỏi vehicles đang dùng =====
+  const usingCount = deleteTarget
+    ? vehicles.filter((v) => v.options?.includes(deleteTarget.key)).length
+    : 0
+
+  function confirmDelete() {
+    if (!deleteTarget) return
+    const target = deleteTarget
+    setDeleteTarget(null)
+    runSave(async () => {
+      await vehicleOptionService.deleteOptionDef(target.id)
+      // Dỡ key khỏi các xe đang chọn (đã xác nhận rõ ràng, không âm thầm)
+      const affected = vehicles.filter((v) => v.options?.includes(target.key))
+      await Promise.all(
+        affected.map((v) =>
+          updateVehicle(v.id, { options: (v.options ?? []).filter((k) => k !== target.key) })
+        )
+      )
+      await refreshDefs()
+    }, `Đã xoá option "${target.label}"`)
+  }
+
   if (loadError) {
     return (
       <div className="card p-5 text-sm text-red-600">
@@ -919,23 +1007,66 @@ function VehicleOptionsTab({ vehicle }: { vehicle: Vehicle }) {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3 text-xs text-slate-500">
-        Tick các trang bị của xe — lựa chọn được lưu riêng cho từng xe và sẽ hiển thị trên Public Web sau này.
-        {selected.length > 0 && (
-          <span className="ml-1 font-semibold text-brand-600">Đang chọn: {selected.length}</span>
+      {/* Header: thông tin + nút Chỉnh sửa / Hoàn tất (chỉ Admin) */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3 text-xs text-slate-500">
+          Tick các trang bị của xe — lựa chọn được lưu riêng cho từng xe và hiển thị trên Public Web.
+          {selected.length > 0 && (
+            <span className="ml-1 font-semibold text-brand-600">Đang chọn: {selected.length}</span>
+          )}
+        </div>
+        {isAdmin && (
+          <button
+            type="button"
+            className="btn-secondary flex shrink-0 items-center gap-1.5"
+            disabled={saving}
+            onClick={() => { setEditMode((m) => !m); setDraft(null); setMsg(null) }}
+          >
+            {editMode ? <Check size={15} /> : <Pencil size={15} />}
+            {editMode ? 'Hoàn tất' : 'Chỉnh sửa'}
+          </button>
         )}
       </div>
+
+      {msg && (
+        <div className={`rounded-lg px-3 py-2 text-xs font-medium ${msg.kind === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+          {msg.text}
+        </div>
+      )}
+
       {groups.map((g) => (
         <div key={g.key}>
           <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">{g.label}</div>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {g.defs.map((def) => {
               const checked = selected.includes(def.key)
+              if (!editMode) {
+                // NORMAL MODE: chỉ checkbox + tên
+                return (
+                  <label
+                    key={def.key}
+                    className={`flex min-h-[46px] cursor-pointer items-center gap-3 rounded-xl border px-4 py-2.5 transition-colors ${
+                      checked ? 'border-brand-400 bg-brand-50' : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="h-5 w-5 shrink-0 accent-brand-600"
+                      checked={checked}
+                      onChange={() => toggle(def.key)}
+                    />
+                    <span className={`min-w-0 truncate text-sm ${checked ? 'font-semibold text-brand-700' : 'text-slate-700'}`}>
+                      {def.label}
+                    </span>
+                  </label>
+                )
+              }
+              // EDIT MODE: checkbox + input inline + nút X
               return (
-                <label
+                <div
                   key={def.key}
-                  className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-colors ${
-                    checked ? 'border-brand-400 bg-brand-50' : 'border-slate-200 bg-white hover:border-slate-300'
+                  className={`flex min-h-[46px] items-center gap-2 rounded-xl border px-3 py-2 ${
+                    checked ? 'border-brand-400 bg-brand-50' : 'border-slate-200 bg-white'
                   }`}
                 >
                   <input
@@ -944,16 +1075,78 @@ function VehicleOptionsTab({ vehicle }: { vehicle: Vehicle }) {
                     checked={checked}
                     onChange={() => toggle(def.key)}
                   />
-                  <span className={`text-sm ${checked ? 'font-semibold text-brand-700' : 'text-slate-700'}`}>{def.label}</span>
-                </label>
+                  <input
+                    key={`${def.id}:${def.label}`}
+                    defaultValue={def.label}
+                    className="input min-w-0 flex-1 px-2 py-1 text-sm"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+                    }}
+                    onBlur={(e) => commitRename(def, e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setDeleteTarget(def)}
+                    aria-label={`Xoá option ${def.label}`}
+                    className="shrink-0 rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
               )
             })}
+
+            {/* Ô thêm option — nằm trong grid, chỉ Edit Mode */}
+            {editMode &&
+              (draft && draft.groupKey === g.key ? (
+                <div className="flex min-h-[46px] items-center gap-2 rounded-xl border border-dashed border-brand-400 bg-brand-50/50 px-3 py-2">
+                  <input
+                    ref={draftRef}
+                    value={draft.label}
+                    placeholder="Tên option mới..."
+                    className="input min-w-0 flex-1 px-2 py-1 text-sm"
+                    onChange={(e) => setDraft({ groupKey: g.key, label: e.target.value })}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') commitDraft()
+                      if (e.key === 'Escape') setDraft(null)
+                    }}
+                    onBlur={() => commitDraft()}
+                  />
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setDraft({ groupKey: g.key, label: '' })}
+                  className="flex min-h-[46px] items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-300 bg-slate-50 text-xs font-medium text-slate-500 transition-colors hover:border-brand-300 hover:text-brand-600"
+                >
+                  <Plus size={14} /> Thêm option
+                </button>
+              ))}
           </div>
         </div>
       ))}
+
       {groups.length === 0 && (
-        <EmptyState icon={<SlidersHorizontal size={30} />} title="Chưa có option nào" subtitle="Chạy migration 031 để seed danh sách option." />
+        <EmptyState icon={<SlidersHorizontal size={30} />} title="Chưa có option nào" subtitle="Bấm Chỉnh sửa rồi Thêm option để tạo." />
       )}
+
+      {/* Confirm xoá option — cảnh báo số xe đang dùng */}
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Xoá option?"
+        message={
+          deleteTarget
+            ? usingCount > 0
+              ? `Option "${deleteTarget.label}" đang được sử dụng bởi ${usingCount} xe. Bản chọn của các xe đó sẽ được gỡ option này. Bạn có chắc muốn xóa?`
+              : `Xoá option "${deleteTarget.label}" khỏi danh mục?`
+            : ''
+        }
+        confirmLabel="Xóa"
+        cancelLabel="Hủy"
+        variant="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }

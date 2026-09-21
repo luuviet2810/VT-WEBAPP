@@ -24,3 +24,43 @@ export async function getVehicleOptionDefs(): Promise<VehicleOptionDef[]> {
     sortOrder: r.sort_order as number,
   }))
 }
+
+/** Slug ổn định từ label — dùng làm key lưu trong vehicles.options. */
+function slugKey(label: string): string {
+  const slug = label
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+  return `${slug || 'opt'}_${Date.now().toString(36)}`
+}
+
+// ====== WRITE — chỉ Admin Option Manager gọi (RLS migration 036) ======
+
+export async function createOptionDef(
+  groupKey: string,
+  groupLabel: string,
+  label: string,
+  sortOrder: number
+): Promise<void> {
+  const { error } = await supabase.from('vehicle_option_defs').insert({
+    group_key: groupKey,
+    group_label: groupLabel,
+    key: slugKey(label),
+    label,
+    sort_order: sortOrder,
+  })
+  if (error) throw error
+}
+
+export async function updateOptionDefLabel(id: string, label: string): Promise<void> {
+  const { error } = await supabase.from('vehicle_option_defs').update({ label }).eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteOptionDef(id: string): Promise<void> {
+  const { error } = await supabase.from('vehicle_option_defs').delete().eq('id', id)
+  if (error) throw error
+}
