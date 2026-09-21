@@ -7,20 +7,18 @@ export const PUBLIC_FUEL_LABELS: Record<string, string> = {
   hybrid: 'Hybrid',
 }
 
-/** ₩8.000.000 — theo ví dụ spec; null/0 → "Liên hệ" */
+/**
+ * Format giá Public Web — DÙNG CHUNG toàn bộ public components
+ * (Home card, Banner, Vehicle Detail, Pre-Web card).
+ *   3800000 -> "3.800.000 ₩"   (Intl vi-VN: dấu chấm ngăn nghìn, ₩ ở cuối)
+ *   0/null  -> "Liên hệ"
+ * Không dùng dạng rút gọn M/K.
+ */
+const KRW_FORMATTER = new Intl.NumberFormat('vi-VN')
+
 export function formatKRW(price?: number | null): string {
   if (price == null || price <= 0) return 'Liên hệ'
-  return `₩${price.toLocaleString('vi-VN')}`
-}
-
-/** Giá rút gọn cho card 3 cột trên mobile: ₩3.8M */
-export function formatKRWCompact(price?: number | null): string {
-  if (price == null || price <= 0) return 'Liên hệ'
-  if (price >= 1_000_000) {
-    const m = price / 1_000_000
-    return `₩${m % 1 === 0 ? m.toFixed(0) : m.toFixed(1)}M`
-  }
-  return `₩${price.toLocaleString('vi-VN')}`
+  return `${KRW_FORMATTER.format(price)} ₩`
 }
 
 export function fuelLabel(fuelType?: string | null): string | null {

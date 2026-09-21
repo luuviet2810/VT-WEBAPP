@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Car } from 'lucide-react'
 import { getAllPublicImages, getPublicVehicles, type PublicVehicle, type PublicVehicleImage } from '../publicApi'
 import BannerCarousel, { type BannerSlide } from '../components/BannerCarousel'
-import { formatDay, formatKRW, formatKRWCompact, fuelLabel, mileageLabel } from '../format'
+import { formatDay, formatKRW, fuelLabel, mileageLabel } from '../format'
 
 /**
  * Trang chính Public Web: Banner carousel + danh sách "Xe đang có".
@@ -132,10 +132,9 @@ export default function Home() {
                   <div className="truncate text-[10px] text-slate-600 sm:text-sm">{fuelLabel(v.fuelType) ?? '—'}</div>
                   {/* Km */}
                   {v.mileage && <div className="truncate text-[10px] text-slate-500 sm:text-sm">{v.mileage} vạn</div>}
-                  {/* Giá: compact trên mobile, đầy đủ từ tablet */}
-                  <div className="break-words text-[11px] font-extrabold text-brand-600 sm:text-lg">
-                    <span className="sm:hidden">{formatKRWCompact(v.sellPrice)}</span>
-                    <span className="hidden sm:inline">{formatKRW(v.sellPrice)}</span>
+                  {/* Giá: format chung "3.800.000 ₩", tự wrap trong card 3 cột */}
+                  <div className="break-words text-xs font-extrabold leading-snug text-brand-600 sm:text-lg">
+                    {formatKRW(v.sellPrice)}
                   </div>
                 </div>
               </Link>
