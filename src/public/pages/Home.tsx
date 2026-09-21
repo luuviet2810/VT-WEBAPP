@@ -122,18 +122,30 @@ export default function Home() {
                   )}
                 </div>
                 <div className="space-y-0.5 p-1.5 sm:space-y-1 sm:p-3.5">
-                  {/* Tên xe */}
-                  <div className="truncate text-xs font-bold text-slate-900 sm:text-base">{v.model}</div>
-                  {/* Năm */}
-                  {v.year != null && <div className="text-[10px] text-slate-500 sm:text-sm">{v.year}</div>}
-                  {/* Hãng — chỉ hiện từ tablet để card mobile gọn */}
-                  {v.brand && <div className="hidden truncate text-sm text-slate-500 sm:block">{v.brand}</div>}
-                  {/* Nhiên liệu */}
-                  <div className="truncate text-[10px] text-slate-600 sm:text-sm">{fuelLabel(v.fuelType) ?? '—'}</div>
-                  {/* Km */}
-                  {v.mileage && <div className="truncate text-[10px] text-slate-500 sm:text-sm">{v.mileage} vạn</div>}
-                  {/* Giá: format chung "3.800.000 ₩", tự wrap trong card 3 cột */}
-                  <div className="break-words text-xs font-extrabold leading-snug text-brand-600 sm:text-lg">
+                  {/* Dòng 1: Tên xe (trái, bold, truncate) + Năm (phải, không xuống dòng) */}
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="min-w-0 truncate text-xs font-bold text-slate-900 sm:text-base">{v.model}</span>
+                    {v.year != null && (
+                      <span className="shrink-0 whitespace-nowrap text-[10px] text-slate-500 sm:text-sm">{v.year}</span>
+                    )}
+                  </div>
+                  {/* Dòng 1.5: Hãng xe — chỉ render khi có brand */}
+                  {v.brand && (
+                    <div className="truncate text-[10px] leading-tight text-slate-400 sm:text-sm">{v.brand}</div>
+                  )}
+                  {/* Dòng 2: Nhiên liệu (trái) + Km (phải) trên CÙNG hàng */}
+                  <div className="flex items-baseline justify-between gap-1">
+                    <span className="min-w-0 truncate text-[10px] text-slate-600 sm:text-sm">
+                      {fuelLabel(v.fuelType) ?? '—'}
+                    </span>
+                    {v.mileage && (
+                      <span className="shrink-0 whitespace-nowrap text-[10px] text-slate-500 sm:text-sm">
+                        {v.mileage} vạn
+                      </span>
+                    )}
+                  </div>
+                  {/* Dòng 3: Giá — formatKRW duy nhất, 0/null → "Liên hệ" */}
+                  <div className="break-words text-xs font-bold text-brand-600 sm:text-lg">
                     {formatKRW(v.sellPrice)}
                   </div>
                 </div>
