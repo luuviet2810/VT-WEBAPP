@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Car } from 'lucide-react'
 import { getAllPublicImages, getPublicVehicles, type PublicVehicle, type PublicVehicleImage } from '../publicApi'
 import BannerCarousel, { type BannerSlide } from '../components/BannerCarousel'
-import { formatDay, formatKRW, fuelLabel, mileageLabel } from '../format'
+import { formatDay, formatKRW, formatKRWCompact, fuelLabel, mileageLabel } from '../format'
 
 /**
  * Trang chính Public Web: Banner carousel + danh sách "Xe đang có".
@@ -96,7 +96,8 @@ export default function Home() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {/* Catalogue LUÔN 3 cột (mobile/tablet/desktop) — chỉ gap đổi theo breakpoint */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
           {(vehicles ?? []).map((v) => {
             const cover = coverByVehicle.get(v.id)
             return (
@@ -120,21 +121,22 @@ export default function Home() {
                     </div>
                   )}
                 </div>
-                <div className="space-y-1 p-3.5">
-                  {/* Dòng 1: Tên xe — Năm */}
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span className="truncate text-base font-bold text-slate-900">{v.model}</span>
-                    {v.year != null && <span className="shrink-0 text-sm font-medium text-slate-500">{v.year}</span>}
+                <div className="space-y-0.5 p-1.5 sm:space-y-1 sm:p-3.5">
+                  {/* Tên xe */}
+                  <div className="truncate text-xs font-bold text-slate-900 sm:text-base">{v.model}</div>
+                  {/* Năm */}
+                  {v.year != null && <div className="text-[10px] text-slate-500 sm:text-sm">{v.year}</div>}
+                  {/* Hãng — chỉ hiện từ tablet để card mobile gọn */}
+                  {v.brand && <div className="hidden truncate text-sm text-slate-500 sm:block">{v.brand}</div>}
+                  {/* Nhiên liệu */}
+                  <div className="truncate text-[10px] text-slate-600 sm:text-sm">{fuelLabel(v.fuelType) ?? '—'}</div>
+                  {/* Km */}
+                  {v.mileage && <div className="truncate text-[10px] text-slate-500 sm:text-sm">{v.mileage} vạn</div>}
+                  {/* Giá: compact trên mobile, đầy đủ từ tablet */}
+                  <div className="break-words text-[11px] font-extrabold text-brand-600 sm:text-lg">
+                    <span className="sm:hidden">{formatKRWCompact(v.sellPrice)}</span>
+                    <span className="hidden sm:inline">{formatKRW(v.sellPrice)}</span>
                   </div>
-                  {/* Dòng 2: Hãng xe */}
-                  <div className="text-sm text-slate-500">{v.brand || ' '}</div>
-                  {/* Dòng 3: Nhiên liệu — số km */}
-                  <div className="flex items-baseline justify-between gap-2 text-sm text-slate-600">
-                    <span>{fuelLabel(v.fuelType) ?? ' '}</span>
-                    <span className="shrink-0 text-slate-500">{mileageLabel(v.mileage) ?? ''}</span>
-                  </div>
-                  {/* Dòng 4: Giá */}
-                  <div className="pt-1 text-lg font-extrabold text-brand-600">{formatKRW(v.sellPrice)}</div>
                 </div>
               </Link>
             )

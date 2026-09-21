@@ -13,6 +13,16 @@ export function formatKRW(price?: number | null): string {
   return `₩${price.toLocaleString('vi-VN')}`
 }
 
+/** Giá rút gọn cho card 3 cột trên mobile: ₩3.8M */
+export function formatKRWCompact(price?: number | null): string {
+  if (price == null || price <= 0) return 'Liên hệ'
+  if (price >= 1_000_000) {
+    const m = price / 1_000_000
+    return `₩${m % 1 === 0 ? m.toFixed(0) : m.toFixed(1)}M`
+  }
+  return `₩${price.toLocaleString('vi-VN')}`
+}
+
 export function fuelLabel(fuelType?: string | null): string | null {
   if (!fuelType) return null
   return PUBLIC_FUEL_LABELS[fuelType] ?? fuelType

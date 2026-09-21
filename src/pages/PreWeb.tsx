@@ -136,6 +136,7 @@ function VehicleRowInner({
           <span className="truncate text-sm font-bold text-slate-900">{v.model}</span>
           {v.year != null && <span className="shrink-0 text-xs font-medium text-slate-500">{v.year}</span>}
         </div>
+        <div className="truncate text-xs font-semibold text-brand-600">{v.plate || 'Chưa có biển số'}</div>
         {v.brand && <div className="truncate text-xs text-slate-500">{v.brand}</div>}
         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-slate-600">
           {mileageLabel(v.mileage) && <span>{mileageLabel(v.mileage)}</span>}
@@ -264,21 +265,39 @@ export default function PreWeb() {
     return () => { cancelled = true }
   }, [])
 
+  // Chỉ xe CÒN HÀNG (status 'available') được quản lý ở Pre-Web.
+  // Xe sold / deposited KHÔNG xuất hiện ở cả hai tab (dữ liệu giữ nguyên).
+  const inStock = useMemo(() => vehicles.filter((v) => v.status === 'available'), [vehicles])
   const visible = useMemo(
     () =>
-      vehicles
+      inStock
         .filter((v) => v.isPublic)
         .sort((a, b) => (a.publicSortOrder ?? ORDER_TAIL) - (b.publicSortOrder ?? ORDER_TAIL)),
-    [vehicles]
+    [inStock]
   )
   const hiddenList = useMemo(
-    () => vehicles.filter((v) => !v.isPublic).sort((a, b) => (a.model || '').localeCompare(b.model || '')),
-    [vehicles]
+    () => inStock.filter((v) => !v.isPublic).sort((a, b) => (a.model || '').localeCompare(b.model || '')),
+    [inStock]
   )
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
   // ====== Mutations ======
+
+  // Re-number public_sort_order liên tục 1..N cho xe còn hàng + đang public
+  // (loại trừ excludeId). Không để khoảng số sau OFF / drag.
+  const renumberVisible = useCallback(async (excludeId?: string) => {
+    const list = useStore
+      .getState()
+      .vehicles.filter((v) => v.status === 'available' && v.isPublic && v.id !== excludeId)
+      .sort((a, b) => (a.publicSortOrder ?? ORDER_TAIL) - (b.publicSortOrder ?? ORDER_TAIL))
+    const updates = list
+      .map((v, i) => ({ id: v.id, order: i + 1, current: v.publicSortOrder ?? null }))
+      .filter((x) => x.current !== x.order)
+    if (updates.length === 0) return
+    await Promise.all(updates.map((x) => updateVehicle(x.id, { publicSortOrder: x.order })))
+  }, [updateVehicle])
+
   const handleToggle = useCallback(async (id: string) => {
     const v = useStore.getState().vehicles.find((x) => x.id === id)
     if (!v) return
@@ -286,13 +305,21 @@ export default function PreWeb() {
     try {
       await updateVehicle(id, { isPublic: next })
       const after = useStore.getState().vehicles.find((x) => x.id === id)
-      if (after?.isPublic === next) showToast('success', 'Đã cập nhật website')
-      else showToast('error', 'Không thể cập nhật — dữ liệu chưa thay đổi')
+      if (after?.isPublic === next) {
+        if (!next) {
+          // OFF: các xe còn lại được re-number liên tục 1..N
+          await renumberVisible(id)
+        }
+        // ON: giữ public_sort_order cũ; NULL → tự xuống cuối (view NULLS LAST)
+        showToast('success', 'Đã cập nhật website')
+      } else {
+        showToast('error', 'Không thể cập nhật — dữ liệu chưa thay đổi')
+      }
     } catch (err) {
       console.error('[PreWeb] toggle is_public failed:', err)
       showToast('error', 'Không thể cập nhật — dữ liệu chưa thay đổi')
     }
-  }, [updateVehicle, showToast])
+  }, [updateVehicle, renumberVisible, showToast])
 
   function handleDragEnd(e: DragEndEvent) {
     const { active, over } = e
@@ -301,7 +328,7 @@ export default function PreWeb() {
     const newIndex = visible.findIndex((v) => v.id === over.id)
     if (oldIndex < 0 || newIndex < 0) return
     const next = arrayMove(visible, oldIndex, newIndex)
-    // Chỉ ghi những xe đổi thứ tự (1-based); NULL nhận số mới khi bị kéo
+    // Re-number TOÀN BỘ danh sách đang public: index + 1, không khoảng số
     const updates = next
       .map((v, i) => ({ id: v.id, order: i + 1, current: v.publicSortOrder ?? null }))
       .filter((x) => x.current !== x.order)
