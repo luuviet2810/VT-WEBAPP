@@ -1,36 +1,40 @@
 /**
  * ============================================================
- * CẤU HÌNH SITE & LIÊN HỆ — PUBLIC WEB
+ * CẤU HÌNH PUBLIC WEB
  * ============================================================
- * NƠI DUY NHẤT sửa thông tin liên hệ. Mọi component
- * (Header, Footer, ContactBubble) đều đọc từ file này.
- *
- * Link nào để '' (chưa có URL thật) sẽ TỰ ẨN khỏi Footer/Bubble —
- * không publish link giả.
+ * SITE_CONFIG        : branding cố định (tên, tagline, copyright)
+ * DEFAULT_SITE_SETTINGS : giá trị liên hệ mặc định — dùng khi bảng
+ *                        website_settings chưa tồn tại (migration 035
+ *                        chưa chạy). Khi bảng đã có, Footer/Bubble đọc
+ *                        từ DB (Admin sửa trong Pre-Web).
  */
 export const SITE_CONFIG = {
   name: 'VT AUTO',
   tagline: 'XE CŨ TẠI HÀN QUỐC',
   slogan: 'Kiểm tra kỹ – Bán xe chất lượng',
+  copyright: '© 2026 VT AUTO',
+}
 
-  // Địa chỉ văn phòng
-  addresses: [
-    'CS1: 대전광역시 유성구 유성대로 510, 339호',
-    'CS2: 경기 수원시 권선구 세화로 49, 8호',
-  ],
+export interface SiteSettings {
+  address1: string
+  address2: string
+  phoneDisplay: string
+  phoneRaw: string
+  kakaoUrl: string
+  tiktokUrl: string
+  tiktokDisplay: string
+  facebookUrl: string
+  messengerUrl: string
+}
 
-  // Phone / Kakao
+export const DEFAULT_SITE_SETTINGS: SiteSettings = {
+  address1: 'CS1: 대전광역시 유성구 유성대로 510, 339호',
+  address2: 'CS2: 경기 수원시 권선구 세화로 49, 8호',
   phoneDisplay: '010-2592-5885 (Tiến)',
   phoneRaw: '+821025925885',
-
-  // TikTok
-  tiktok: 'https://www.tiktok.com/@viettienauto',
+  kakaoUrl: '',
+  tiktokUrl: 'https://www.tiktok.com/@viettienauto',
   tiktokDisplay: '@viettienauto',
-
-  // TODO: dán URL chính xác vào đây — khi còn '', link tự ẩn
-  facebook: '',
-  messenger: '',
-  kakao: '',
-
-  copyright: '© 2026 VT AUTO',
+  facebookUrl: '',
+  messengerUrl: '',
 }

@@ -4,6 +4,7 @@ import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type D
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useStore } from '../store/useStore'
+import WebsiteSettingsEditor from '../components/WebsiteSettingsEditor'
 import * as publicWebService from '../services/publicWeb.service'
 import type { VehicleImageRow } from '../services/vehicleMedia.service'
 import { formatKRW, mileageLabel } from '../public/format'
@@ -461,6 +462,11 @@ export default function PreWeb() {
             )}
           </div>
         </section>
+      </div>
+
+      {/* ===== Thông tin website (Footer/Bubble của Public Web) ===== */}
+      <div className="mt-6">
+        <WebsiteSettingsEditor />
       </div>
 
       {/* ===== Modal đổi ảnh đại diện ===== */}

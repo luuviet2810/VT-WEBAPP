@@ -1,21 +1,21 @@
 import { useState } from 'react'
 import { Facebook, MessageCircle, MessageSquare, Music2, Phone, X } from 'lucide-react'
-import { SITE_CONFIG } from '../contactConfig'
+import { useSiteSettings } from '../SiteSettingsContext'
 
 /**
- * Nút bong bóng liên hệ cố định góc dưới phải — đọc TOÀN BỘ link
- * từ SITE_CONFIG (không hardcode). Kênh nào chưa có URL thật ('')
- * thì tự ẩn. Mở: animation nhẹ, danh sách rõ ràng.
+ * Nút bong bóng liên hệ cố định góc dưới phải — toàn bộ link đọc từ
+ * website_settings (useSiteSettings). Kênh trống tự ẩn.
  */
 export default function ContactBubble() {
   const [open, setOpen] = useState(false)
+  const s = useSiteSettings()
 
   const channels = [
-    { key: 'phone', label: 'Gọi điện', href: `tel:${SITE_CONFIG.phoneRaw}`, bg: 'bg-green-500', icon: <Phone size={20} className="text-white" /> },
-    { key: 'kakao', label: 'KakaoTalk', href: SITE_CONFIG.kakao, bg: 'bg-[#FEE500]', icon: <MessageSquare size={20} className="text-slate-900" /> },
-    { key: 'facebook', label: 'Facebook', href: SITE_CONFIG.facebook, bg: 'bg-[#1877F2]', icon: <Facebook size={20} className="text-white" /> },
-    { key: 'messenger', label: 'Messenger', href: SITE_CONFIG.messenger, bg: 'bg-[#0084FF]', icon: <MessageCircle size={20} className="text-white" /> },
-    { key: 'tiktok', label: 'TikTok', href: SITE_CONFIG.tiktok, bg: 'bg-slate-900', icon: <Music2 size={20} className="text-white" /> },
+    { key: 'phone', label: 'Gọi điện', href: s.phoneRaw ? `tel:${s.phoneRaw}` : '', bg: 'bg-green-500', icon: <Phone size={20} className="text-white" /> },
+    { key: 'kakao', label: 'KakaoTalk', href: s.kakaoUrl, bg: 'bg-[#FEE500]', icon: <MessageSquare size={20} className="text-slate-900" /> },
+    { key: 'tiktok', label: 'TikTok', href: s.tiktokUrl, bg: 'bg-slate-900', icon: <Music2 size={20} className="text-white" /> },
+    { key: 'facebook', label: 'Facebook', href: s.facebookUrl, bg: 'bg-[#1877F2]', icon: <Facebook size={20} className="text-white" /> },
+    { key: 'messenger', label: 'Messenger', href: s.messengerUrl, bg: 'bg-[#0084FF]', icon: <MessageCircle size={20} className="text-white" /> },
   ].filter((c) => !!c.href)
 
   return (

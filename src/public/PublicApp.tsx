@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { SITE_CONFIG } from './contactConfig'
+import { SiteSettingsProvider } from './SiteSettingsContext'
 import PublicHeader from './components/PublicHeader'
 import PublicFooter from './components/PublicFooter'
 import ContactBubble from './components/ContactBubble'
@@ -26,9 +27,10 @@ export default function PublicApp() {
   }, [])
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
-      <ScrollToTop />
-      <Routes>
+    <SiteSettingsProvider>
+      <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
+        <ScrollToTop />
+        <Routes>
         <Route
           path="/"
           element={
@@ -43,6 +45,7 @@ export default function PublicApp() {
       </Routes>
       <PublicFooter />
       <ContactBubble />
-    </div>
+      </div>
+    </SiteSettingsProvider>
   )
 }
