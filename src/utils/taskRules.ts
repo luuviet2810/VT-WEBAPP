@@ -218,6 +218,84 @@ const ruleInputTireNotInflated: Rule = {
   },
 }
 
+// ====== LỌC GIÓ TRONG / DẦU MÁY / LỌC GIÓ DẦU MÁY ======
+
+// Lọc gió trong Bẩn → task "Thay lọc gió trong".
+// Done → ruleFieldMap sync silent: dirty → replaced.
+const ruleCabinAirFilterDirty: Rule = {
+  id: 'in_cabin_air_filter_dirty',
+  title: 'Thay lọc gió trong',
+  description: 'Lọc gió trong bẩn, cần thay lọc mới',
+  priority: 'low',
+  evaluate(ctx: RuleContext) {
+    if (ctx.sheet.type !== 'in') return false
+    return ctx.sheet.cabinAirFilter === 'dirty'
+  },
+}
+
+// Dầu máy thiếu → task "Thiếu dầu máy" priority cao nhất (high).
+// Done → ruleFieldMap sync silent: needs_topup → sufficient.
+const ruleEngineOilLow: Rule = {
+  id: 'in_engine_oil_low',
+  title: 'Thiếu dầu máy',
+  description: 'Mức dầu máy thiếu (cần đổ thêm)',
+  priority: 'high',
+  evaluate(ctx: RuleContext) {
+    if (ctx.sheet.type !== 'in') return false
+    return ctx.sheet.engineOilLevel === 'needs_topup'
+  },
+}
+
+// Lọc gió dầu máy: CHỈ lưu kết quả — không tạo task (không có rule).
+
+// ====== 4 HẠNG MỤC THIẾT BỊ ĐẦU VÀO ======
+// 'error' → task; 'ok'/'none' → không task.
+// Done → ruleFieldMap silent-sync: 'error' → 'ok'.
+
+const ruleInputDenPhaCotError: Rule = {
+  id: 'in_den_pha_cot_error',
+  title: 'Lỗi đèn (Pha, Cốt, Cảnh báo, Phanh)',
+  description: 'Đèn (Pha, Cốt, Cảnh báo, Phanh) báo lỗi cần kiểm tra',
+  priority: 'low',
+  evaluate(ctx: RuleContext) {
+    if (ctx.sheet.type !== 'in') return false
+    return ctx.sheet.inputDenPhaCot === 'error'
+  },
+}
+
+const ruleInputMotorGuongError: Rule = {
+  id: 'in_motor_guong_nut_bam_error',
+  title: 'Lỗi Motor Gương, Nút bấm',
+  description: 'Motor Gương, Nút bấm báo lỗi cần kiểm tra',
+  priority: 'low',
+  evaluate(ctx: RuleContext) {
+    if (ctx.sheet.type !== 'in') return false
+    return ctx.sheet.inputMotorGuongNutBam === 'error'
+  },
+}
+
+const ruleInputCuaSoError: Rule = {
+  id: 'in_cua_so_error',
+  title: 'Lỗi cửa sổ',
+  description: 'Cửa sổ báo lỗi cần kiểm tra',
+  priority: 'low',
+  evaluate(ctx: RuleContext) {
+    if (ctx.sheet.type !== 'in') return false
+    return ctx.sheet.inputCuaSo === 'error'
+  },
+}
+
+const ruleInputGheChinhDienError: Rule = {
+  id: 'in_ghe_chinh_dien_error',
+  title: 'Lỗi ghế chỉnh điện',
+  description: 'Ghế chỉnh điện báo lỗi cần kiểm tra',
+  priority: 'low',
+  evaluate(ctx: RuleContext) {
+    if (ctx.sheet.type !== 'in') return false
+    return ctx.sheet.inputGheChinhDien === 'error'
+  },
+}
+
 // ====== SCREEN RULES ======
 
 const ruleScreenBroken: Rule = {
@@ -449,6 +527,12 @@ const ALL_RULES: Rule[] = [
   ruleAcquySOCLow,
   ruleTireBad,
   ruleInputTireNotInflated,
+  ruleCabinAirFilterDirty,
+  ruleEngineOilLow,
+  ruleInputDenPhaCotError,
+  ruleInputMotorGuongError,
+  ruleInputCuaSoError,
+  ruleInputGheChinhDienError,
   ruleScreenBroken,
   rulePaintNeeded,
   ruleFuelEmpty,

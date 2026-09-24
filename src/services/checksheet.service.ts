@@ -69,6 +69,13 @@ function mapRow(row: Record<string, unknown>): CheckSheet {
     inputSuoiGhe: row.input_suoi_ghe as CheckSheet['inputSuoiGhe'],
     inputTireState: row.input_tire_state as CheckSheet['inputTireState'],
     inputTireInflated: row.input_tire_inflated as CheckSheet['inputTireInflated'],
+    cabinAirFilter: row.cabin_air_filter as CheckSheet['cabinAirFilter'],
+    engineOilLevel: row.engine_oil_level as CheckSheet['engineOilLevel'],
+    engineAirFilter: row.engine_air_filter as CheckSheet['engineAirFilter'],
+    inputDenPhaCot: row.input_den_pha_cot as CheckSheet['inputDenPhaCot'],
+    inputMotorGuongNutBam: row.input_motor_guong_nut_bam as CheckSheet['inputMotorGuongNutBam'],
+    inputCuaSo: row.input_cua_so as CheckSheet['inputCuaSo'],
+    inputGheChinhDien: row.input_ghe_chinh_dien as CheckSheet['inputGheChinhDien'],
     outputTireInflated: row.output_tire_inflated as CheckSheet['outputTireInflated'],
     inputNotes: row.input_notes as string | undefined,
     outCheck: row.out_check as CheckSheet['outCheck'],
@@ -143,6 +150,13 @@ export async function createCheckSheet(
     input_suoi_ghe: sheet.inputSuoiGhe,
     input_tire_state: sheet.inputTireState,
     input_tire_inflated: sheet.inputTireInflated,
+    cabin_air_filter: sheet.cabinAirFilter,
+    engine_oil_level: sheet.engineOilLevel,
+    engine_air_filter: sheet.engineAirFilter,
+    input_den_pha_cot: sheet.inputDenPhaCot,
+    input_motor_guong_nut_bam: sheet.inputMotorGuongNutBam,
+    input_cua_so: sheet.inputCuaSo,
+    input_ghe_chinh_dien: sheet.inputGheChinhDien,
     output_tire_inflated: sheet.outputTireInflated,
     input_notes: sheet.inputNotes,
     out_check: sheet.outCheck,
@@ -195,6 +209,13 @@ export async function updateCheckSheet(
   if (patch.inputSuoiGhe !== undefined) updateData.input_suoi_ghe = patch.inputSuoiGhe
   if (patch.inputTireState !== undefined) updateData.input_tire_state = patch.inputTireState
   if (patch.inputTireInflated !== undefined) updateData.input_tire_inflated = patch.inputTireInflated
+  if (patch.cabinAirFilter !== undefined) updateData.cabin_air_filter = patch.cabinAirFilter
+  if (patch.engineOilLevel !== undefined) updateData.engine_oil_level = patch.engineOilLevel
+  if (patch.engineAirFilter !== undefined) updateData.engine_air_filter = patch.engineAirFilter
+  if (patch.inputDenPhaCot !== undefined) updateData.input_den_pha_cot = patch.inputDenPhaCot
+  if (patch.inputMotorGuongNutBam !== undefined) updateData.input_motor_guong_nut_bam = patch.inputMotorGuongNutBam
+  if (patch.inputCuaSo !== undefined) updateData.input_cua_so = patch.inputCuaSo
+  if (patch.inputGheChinhDien !== undefined) updateData.input_ghe_chinh_dien = patch.inputGheChinhDien
   if (patch.outputTireInflated !== undefined) updateData.output_tire_inflated = patch.outputTireInflated
   if (patch.inputNotes !== undefined) updateData.input_notes = patch.inputNotes
   if (patch.outCheck !== undefined) updateData.out_check = patch.outCheck

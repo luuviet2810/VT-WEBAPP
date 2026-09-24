@@ -46,6 +46,13 @@ const CLASSIFICATION: Record<string, 'ok' | 'bad' | 'install'> = {
   'slightly_rusty': 'bad',
   'very_rusty': 'bad',
   'not_yet': 'bad',
+  'needs_topup': 'bad',
+
+  // === OK (bổ sung) ===
+  'clean': 'ok',
+  'replaced': 'ok',
+  'sufficient': 'ok',
+  'between_marks': 'ok',
 
   // === INSTALL (missing, needs installation) ===
   'none': 'install',
@@ -126,6 +133,13 @@ const STATUS_LABELS: Record<string, string> = {
   very_rusty: 'Gỉ nhiều',
   // Bơm lốp chưa?
   not_yet: 'Chưa',
+  // Lọc gió trong / lọc gió dầu máy (dirty đã có ở trên)
+  clean: 'Sạch',
+  replaced: 'Đã thay',
+  // Dầu máy
+  sufficient: 'Đủ',
+  between_marks: 'Giữa vạch',
+  needs_topup: 'Thiếu (cần đổ thêm)',
   // Key type
   smartkey: 'Smartkey',
   mechanical: 'Khóa cơ',

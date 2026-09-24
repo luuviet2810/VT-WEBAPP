@@ -32,6 +32,9 @@ import {
   SuoiGheItem,
   SuoiGheStatus,
   TireInflatedStatus,
+  CabinAirFilterStatus,
+  EngineOilLevelStatus,
+  EngineAirFilterStatus,
   Vehicle,
   CameraState,
 } from '../types'
@@ -102,6 +105,33 @@ const SUOI_GHE_OPTIONS: { value: SuoiGheStatus; label: string }[] = [
 const TIRE_INFLATED_OPTIONS: { value: TireInflatedStatus; label: string }[] = [
   { value: 'ok', label: 'OK' },
   { value: 'not_yet', label: 'Chưa' },
+]
+
+// Kiểm tra lọc gió trong — 'dirty' tạo task "Thay lọc gió trong"
+const CABIN_AIR_FILTER_OPTIONS: { value: CabinAirFilterStatus; label: string }[] = [
+  { value: 'clean', label: 'Sạch' },
+  { value: 'replaced', label: 'Đã thay' },
+  { value: 'dirty', label: 'Bẩn' },
+]
+
+// Kiểm tra dầu máy — 'needs_topup' tạo task "Thiếu dầu máy" (priority high)
+const ENGINE_OIL_LEVEL_OPTIONS: { value: EngineOilLevelStatus; label: string }[] = [
+  { value: 'sufficient', label: 'Đủ' },
+  { value: 'between_marks', label: 'Giữa vạch' },
+  { value: 'needs_topup', label: 'Thiếu (cần đổ thêm)' },
+]
+
+// Kiểm tra lọc gió dầu máy — chỉ lưu, không tạo task
+const ENGINE_AIR_FILTER_OPTIONS: { value: EngineAirFilterStatus; label: string }[] = [
+  { value: 'clean', label: 'Sạch' },
+  { value: 'dirty', label: 'Bẩn' },
+]
+
+// 4 hạng mục thiết bị đầu vào — 'error' tạo task, done sync về 'ok'
+const EQUIPMENT_INPUT_OPTIONS: { value: CheckOutStatus; label: string }[] = [
+  { value: 'ok', label: 'OK' },
+  { value: 'error', label: 'Lỗi' },
+  { value: 'none', label: 'Không có' },
 ]
 
 // 12 hạng mục kiểm tra đầu ra - chỉ các item generic (OK/Lỗi/Không có)
@@ -238,6 +268,15 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
   const [inputTireInflated, setInputTireInflated] = useState<TireInflatedStatus | undefined>(undefined)
   const [outputTireInflated, setOutputTireInflated] = useState<TireInflatedStatus | undefined>(undefined)
 
+  // ====== LỌC GIÓ TRONG / DẦU MÁY / LỌC GIÓ DẦU MÁY (Đầu vào) ======
+  const [cabinAirFilter, setCabinAirFilter] = useState<CabinAirFilterStatus | undefined>(undefined)
+  const [engineOilLevel, setEngineOilLevel] = useState<EngineOilLevelStatus | undefined>(undefined)
+  const [engineAirFilter, setEngineAirFilter] = useState<EngineAirFilterStatus | undefined>(undefined)
+  const [inputDenPhaCot, setInputDenPhaCot] = useState<CheckOutStatus | undefined>(undefined)
+  const [inputMotorGuongNutBam, setInputMotorGuongNutBam] = useState<CheckOutStatus | undefined>(undefined)
+  const [inputCuaSo, setInputCuaSo] = useState<CheckOutStatus | undefined>(undefined)
+  const [inputGheChinhDien, setInputGheChinhDien] = useState<CheckOutStatus | undefined>(undefined)
+
   // ====== ĐIỀU HÒA & SƯỞI GHẾ STATE (Đầu vào) ======
   const [inputDieuHoa, setInputDieuHoa] = useState<DieuHoaItem>({ status: '' as DieuHoaStatus })
   const [inputSuoiGhe, setInputSuoiGhe] = useState<SuoiGheItem>({ status: '' as SuoiGheStatus })
@@ -282,6 +321,13 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
       inputSuoiGhe,
       inputTireState,
       inputTireInflated,
+      cabinAirFilter,
+      engineOilLevel,
+      engineAirFilter,
+      inputDenPhaCot,
+      inputMotorGuongNutBam,
+      inputCuaSo,
+      inputGheChinhDien,
       outputTireInflated,
       inputNotes,
       outCheck,
@@ -334,6 +380,13 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
           setOutTireState({ status: '' as CheckOutStatus })
           setInputTireInflated(undefined)
           setOutputTireInflated(undefined)
+          setCabinAirFilter(undefined)
+          setEngineOilLevel(undefined)
+          setEngineAirFilter(undefined)
+          setInputDenPhaCot(undefined)
+          setInputMotorGuongNutBam(undefined)
+          setInputCuaSo(undefined)
+          setInputGheChinhDien(undefined)
           setInputNotes('')
           setSongNungResultStatus(undefined)
           setUndercarriageStatus(undefined)
@@ -366,6 +419,13 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
           setOutTireState(sheet.outTireState ?? { status: '' as CheckOutStatus })
           setInputTireInflated(sheet.inputTireInflated ?? undefined)
           setOutputTireInflated(sheet.outputTireInflated ?? undefined)
+          setCabinAirFilter(sheet.cabinAirFilter ?? undefined)
+          setEngineOilLevel(sheet.engineOilLevel ?? undefined)
+          setEngineAirFilter(sheet.engineAirFilter ?? undefined)
+          setInputDenPhaCot(sheet.inputDenPhaCot ?? undefined)
+          setInputMotorGuongNutBam(sheet.inputMotorGuongNutBam ?? undefined)
+          setInputCuaSo(sheet.inputCuaSo ?? undefined)
+          setInputGheChinhDien(sheet.inputGheChinhDien ?? undefined)
           setInputNotes(sheet.inputNotes ?? '')
           setSongNungResultStatus(sheet.songNungResultStatus ?? undefined)
           setUndercarriageStatus(sheet.undercarriageStatus ?? undefined)
@@ -410,6 +470,13 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
       inputSuoiGhe,
       inputTireState,
       inputTireInflated,
+      cabinAirFilter,
+      engineOilLevel,
+      engineAirFilter,
+      inputDenPhaCot,
+      inputMotorGuongNutBam,
+      inputCuaSo,
+      inputGheChinhDien,
       inputNotes,
     }
     if (type === 'out') {
@@ -441,7 +508,7 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current)
     }
-  }, [sheetId, checkerId, checkDate, fuelLevel, screen, rearCamera, hipass, rearSensor, dashcam, interior, exterior, inputDieuHoa, inputSuoiGhe, inputTireState, inputTireInflated, outputTireInflated, inputNotes, outCheck, outNotes, inputAcquySOH, inputAcquySOC, acquySOH, acquySOC, songNungResultStatus, undercarriageStatus, keyType, smartkeyStatus, outKeyType, outSmartkeyStatus])
+  }, [sheetId, checkerId, checkDate, fuelLevel, screen, rearCamera, hipass, rearSensor, dashcam, interior, exterior, inputDieuHoa, inputSuoiGhe, inputTireState, inputTireInflated, outputTireInflated, cabinAirFilter, engineOilLevel, engineAirFilter, inputDenPhaCot, inputMotorGuongNutBam, inputCuaSo, inputGheChinhDien, inputNotes, outCheck, outNotes, inputAcquySOH, inputAcquySOC, acquySOH, acquySOC, songNungResultStatus, undercarriageStatus, keyType, smartkeyStatus, outKeyType, outSmartkeyStatus])
 
   // ====== SUMMARY COUNTS ======
   const summaryCounts = useMemo(() => {
@@ -499,6 +566,30 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
       const ti = classifyStatus(inputTireInflated)
       if (ti === 'ok') ok++
       else if (ti === 'bad') error++
+
+      // Lọc gió trong (Đầu vào) — Bẩn tính lỗi
+      const caf = classifyStatus(cabinAirFilter)
+      if (caf === 'ok') ok++
+      else if (caf === 'bad') error++
+
+      // Dầu máy (Đầu vào) — Thiếu tính lỗi
+      const eol = classifyStatus(engineOilLevel)
+      if (eol === 'ok') ok++
+      else if (eol === 'bad') error++
+
+      // Lọc gió dầu máy (Đầu vào) — Bẩn tính lỗi (chỉ lưu, không task)
+      const eaf = classifyStatus(engineAirFilter)
+      if (eaf === 'ok') ok++
+      else if (eaf === 'bad') error++
+
+      // 4 hạng mục thiết bị (Đầu vào) — Lỗi tính hỏng, Không có tính cần lắp
+      const equip: (CheckOutStatus | undefined)[] = [inputDenPhaCot, inputMotorGuongNutBam, inputCuaSo, inputGheChinhDien]
+      for (const eq of equip) {
+        const c = classifyStatus(eq)
+        if (c === 'ok') ok++
+        else if (c === 'bad') error++
+        else if (c === 'install') { error++; none++ }
+      }
 
       // Số lượng chìa (Đầu vào) — chỉ smartkey/both mới có
       if (keyType === 'smartkey' || keyType === 'both') {
@@ -581,7 +672,7 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
 
       return { ok, error, none, noteCount: outNotes ? 1 : 0 }
     }
-  }, [type, screen, rearCamera, rearSensor, dashcam, interior, exterior, outCheck, outNotes, inputDieuHoa, inputSuoiGhe, inputTireState, inputTireInflated, outputTireInflated, fuelLevel, inputAcquySOC, keyType, smartkeyStatus, outKeyType, outSmartkeyStatus, songNungResultStatus, undercarriageStatus])
+  }, [type, screen, rearCamera, rearSensor, dashcam, interior, exterior, outCheck, outNotes, inputDieuHoa, inputSuoiGhe, inputTireState, inputTireInflated, outputTireInflated, cabinAirFilter, engineOilLevel, engineAirFilter, inputDenPhaCot, inputMotorGuongNutBam, inputCuaSo, inputGheChinhDien, fuelLevel, inputAcquySOC, keyType, smartkeyStatus, outKeyType, outSmartkeyStatus, songNungResultStatus, undercarriageStatus])
 
   // Paint count
   const paintCount = useMemo(() => {
@@ -1173,6 +1264,13 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
                 <SuoiGheRow label="Sưởi ghế" entry={inputSuoiGhe} onChange={(p) => setInputSuoiGhe((prev) => ({ ...prev, ...p }))} />
                 <TireCheckRow label="Tình trạng lốp" entry={inputTireState} onChange={(p) => setInputTireState((prev) => ({ ...prev, ...p }))} />
                 <OptionRow label="Bơm lốp chưa?" value={inputTireInflated} onChange={(v) => setInputTireInflated(v as TireInflatedStatus)} options={TIRE_INFLATED_OPTIONS} />
+                <OptionRow label="Kiểm tra lọc gió trong" value={cabinAirFilter} onChange={(v) => setCabinAirFilter(v as CabinAirFilterStatus)} options={CABIN_AIR_FILTER_OPTIONS} />
+                <OptionRow label="Kiểm tra dầu máy" value={engineOilLevel} onChange={(v) => setEngineOilLevel(v as EngineOilLevelStatus)} options={ENGINE_OIL_LEVEL_OPTIONS} />
+                <OptionRow label="Kiểm tra lọc gió dầu máy" value={engineAirFilter} onChange={(v) => setEngineAirFilter(v as EngineAirFilterStatus)} options={ENGINE_AIR_FILTER_OPTIONS} />
+                <OptionRow label="Đèn (Pha, Cốt, Cảnh báo, Phanh)" value={inputDenPhaCot} onChange={(v) => setInputDenPhaCot(v as CheckOutStatus)} options={EQUIPMENT_INPUT_OPTIONS} />
+                <OptionRow label="Motor Gương, Nút bấm" value={inputMotorGuongNutBam} onChange={(v) => setInputMotorGuongNutBam(v as CheckOutStatus)} options={EQUIPMENT_INPUT_OPTIONS} />
+                <OptionRow label="Cửa sổ" value={inputCuaSo} onChange={(v) => setInputCuaSo(v as CheckOutStatus)} options={EQUIPMENT_INPUT_OPTIONS} />
+                <OptionRow label="Ghế chỉnh điện" value={inputGheChinhDien} onChange={(v) => setInputGheChinhDien(v as CheckOutStatus)} options={EQUIPMENT_INPUT_OPTIONS} />
               </div>
 
               {/* Battery Check - Đầu vào */}

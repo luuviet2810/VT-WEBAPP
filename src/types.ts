@@ -238,6 +238,15 @@ export type SuoiGheStatus = 'good' | 'broken' | 'none'
 // Bơm lốp chưa?: ok (OK/Bình thường) | not_yet (Chưa — lỗi)
 export type TireInflatedStatus = 'ok' | 'not_yet'
 
+// Kiểm tra lọc gió trong: clean | replaced | dirty
+export type CabinAirFilterStatus = 'clean' | 'replaced' | 'dirty'
+
+// Kiểm tra dầu máy: sufficient | between_marks | needs_topup
+export type EngineOilLevelStatus = 'sufficient' | 'between_marks' | 'needs_topup'
+
+// Kiểm tra lọc gió dầu máy: clean | dirty
+export type EngineAirFilterStatus = 'clean' | 'dirty'
+
 export interface ConSeongnyeongItem {
   status: ConSeongnyeongStatus
 }
@@ -296,6 +305,14 @@ export interface CheckSheet {
   inputSuoiGhe?: SuoiGheItem
   inputTireState?: CheckOutItem
   inputTireInflated?: TireInflatedStatus
+  cabinAirFilter?: CabinAirFilterStatus
+  engineOilLevel?: EngineOilLevelStatus
+  engineAirFilter?: EngineAirFilterStatus
+  // 4 hạng mục thiết bị đầu vào: 'ok' | 'error' | 'none'
+  inputDenPhaCot?: CheckOutStatus
+  inputMotorGuongNutBam?: CheckOutStatus
+  inputCuaSo?: CheckOutStatus
+  inputGheChinhDien?: CheckOutStatus
   inputAcquySOH?: number
   inputAcquySOC?: number
   acquySOH?: number

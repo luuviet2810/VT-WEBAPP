@@ -562,6 +562,13 @@ function CheckSheetPreview({ sheet, mode, employees, vehicleId }: { sheet: Check
         { label: 'Sưởi ghế', status: sheet.inputSuoiGhe?.status },
         { label: 'Tình trạng lốp', status: sheet.inputTireState?.status },
         { label: 'Bơm lốp chưa?', status: sheet.inputTireInflated },
+        { label: 'Kiểm tra lọc gió trong', status: sheet.cabinAirFilter },
+        { label: 'Kiểm tra dầu máy', status: sheet.engineOilLevel },
+        { label: 'Kiểm tra lọc gió dầu máy', status: sheet.engineAirFilter },
+        { label: 'Đèn (Pha, Cốt, Cảnh báo, Phanh)', status: sheet.inputDenPhaCot },
+        { label: 'Motor Gương, Nút bấm', status: sheet.inputMotorGuongNutBam },
+        { label: 'Cửa sổ', status: sheet.inputCuaSo },
+        { label: 'Ghế chỉnh điện', status: sheet.inputGheChinhDien },
         { label: 'Song nưng', status: sheet.songNungResultStatus },
         { label: 'Kiểm tra gầm', status: sheet.undercarriageStatus },
         ...Object.entries(sheet.interior || {}).map(([key, val]) => ({ label: seatLabels[key] || key, status: (val as any)?.condition })),
@@ -650,6 +657,13 @@ function CheckSheetPreview({ sheet, mode, employees, vehicleId }: { sheet: Check
     'An toàn & hỗ trợ lái': ['Cảm biến lùi', 'Điều hòa', 'Sưởi ghế', 'Chìa khóa', 'Số lượng chìa'],
     'Nội thất': Object.values(seatLabels),
     'Ngoại thất & thân vỏ': [...Object.values(spotLabels), 'Tình trạng lốp', 'Bơm lốp chưa?'],
+    'Bảo dưỡng động cơ': ['Kiểm tra lọc gió trong', 'Kiểm tra dầu máy', 'Kiểm tra lọc gió dầu máy'],
+    'Thiết bị đầu vào': [
+      'Đèn (Pha, Cốt, Cảnh báo, Phanh)',
+      'Motor Gương, Nút bấm',
+      'Cửa sổ',
+      'Ghế chỉnh điện',
+    ],
   }
   const OUT_EXPORT_GROUP_MAP: Record<string, string[]> = {
     'Song nưng & gầm': ['Còn Song nưng không?', 'Song nưng', 'Kiểm tra gầm'],
