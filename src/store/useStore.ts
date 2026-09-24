@@ -721,6 +721,14 @@ export const useStore = create<StoreState>()(
           match = get().tasks.find((t) => t.vehicleId === sheet.vehicleId && t.ruleId === gen.ruleId)
         }
 
+        // Closed-loop rules (có silent-sync Checksheet): task DONE thuộc chu kỳ
+        // lỗi cũ. Rule fire lại nghĩa là lỗi MỚI (user vừa đổi lại về lỗi)
+        // → tạo task MỚI thay vì mở lại task đã hoàn thành.
+        // Rule không có sync map giữ hành vi cũ (không duplicate).
+        if (match && match.status === 'done' && getAutoSyncPatch(gen.ruleId, sheet) !== null) {
+          match = undefined
+        }
+
         if (!match) {
           try {
             const created = await taskService.createTask({
