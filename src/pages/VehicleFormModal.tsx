@@ -7,6 +7,21 @@ import { FuelType, VehicleStatus } from '../types'
 
 export const DISPLACEMENT_OPTIONS = ['1.0L', '1.4L', '1.6L', '1.8L', '2.0L', '2.2L', '2.4L', '3.0L', '3.3L']
 
+/** PostgREST unique_violation cho plate (409 / 23505 / "duplicate key") */
+function isDuplicatePlateError(err: unknown): boolean {
+  const e = err as { code?: string; message?: string; status?: number }
+  if (!e) return false
+  return (
+    e.code === '23505' ||
+    e.status === 409 ||
+    /duplicate key|already exists/i.test(e.message ?? '')
+  )
+}
+
+function duplicatePlateMessage(plate: string, model?: string): string {
+  return `Biển số ${plate} đã tồn tại trong hệ thống${model ? ` (xe ${model})` : ''}. Mở xe đó để chỉnh sửa — không tạo bản ghi trùng.`
+}
+
 export default function VehicleFormModal({
   open,
   onClose,
@@ -23,6 +38,8 @@ export default function VehicleFormModal({
 
   const [tab, setTab] = useState('info')
   const [vehicleId, setVehicleId] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const vehicle = vehicles.find((v) => v.id === vehicleId) || null
 
   const [form, setForm] = useState({
@@ -46,6 +63,7 @@ export default function VehicleFormModal({
   }
 
   function reset() {
+    setSaveError(null)
     setForm({
       plate: '',
       model: '',
@@ -99,6 +117,7 @@ export default function VehicleFormModal({
 
   async function handleSave() {
     if (!form.plate.trim() || !form.model.trim()) return
+    if (saving) return // chống double-click gửi insert nhiều lần
     const data = {
       plate: form.plate.trim(),
       model: form.model.trim(),
@@ -118,11 +137,32 @@ export default function VehicleFormModal({
       useStore.getState().updateVehicle(vehicleId, data)
       setTab('photos')
     } else {
-      const created = await addVehicle(data)
-      if (created?.id) {
-        setVehicleId(created.id)
+      // Pre-check biển số trùng trong dữ liệu đã tải — báo lỗi sớm,
+      // không gửi insert lên Supabase (không sinh bản ghi trùng)
+      const existing = useStore.getState().vehicles.find((v) => v.plate === data.plate)
+      if (existing) {
+        setSaveError(duplicatePlateMessage(data.plate, existing.model))
+        return
       }
-      setTab('photos')
+      setSaving(true)
+      setSaveError(null)
+      try {
+        const created = await addVehicle(data)
+        if (created?.id) {
+          setVehicleId(created.id)
+        }
+        setTab('photos')
+      } catch (err) {
+        // Bắt lỗi insert (kể cả race 409/23505) — không còn unhandled rejection
+        console.error('[VehicleFormModal] create vehicle failed:', err)
+        setSaveError(
+          isDuplicatePlateError(err)
+            ? duplicatePlateMessage(data.plate)
+            : 'Không thể tạo xe. Vui lòng kiểm tra lại rồi thử lại.'
+        )
+      } finally {
+        setSaving(false)
+      }
     }
   }
 
@@ -252,8 +292,13 @@ export default function VehicleFormModal({
                 <label className="label">Ghi chú</label>
                 <textarea className="input" rows={2} value={form.note} onChange={(e) => set('note', e.target.value)} />
               </div>
-              <button className="btn-primary mt-5 w-full" onClick={handleSave}>
-                {isEditing ? 'Lưu & chuyển sang Ảnh' : 'Tạo xe & chuyển sang Ảnh'}
+              {saveError && (
+                <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-600">
+                  {saveError}
+                </div>
+              )}
+              <button className="btn-primary mt-5 w-full" onClick={handleSave} disabled={saving}>
+                {saving ? 'Đang tạo xe...' : isEditing ? 'Lưu & chuyển sang Ảnh' : 'Tạo xe & chuyển sang Ảnh'}
               </button>
             </div>
           </>
