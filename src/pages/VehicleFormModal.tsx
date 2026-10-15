@@ -190,6 +190,15 @@ export default function VehicleFormModal({
           <>
             <VehicleDetailTabs vehicle={vehicle} tab={tab} onTabChange={setTab} />
           </>
+        ) : editVehicleId && !vehicleId ? (
+          /* Mở chế độ sửa nhưng không tìm thấy xe trong dữ liệu đã tải:
+             KHÔNG rơi vào form tạo mới (tránh insert trùng biển số) */
+          <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+              Không tìm thấy xe này trong dữ liệu đã tải. Vui lòng tải lại trang rồi mở lại —
+              hệ thống sẽ không tạo xe mới khi bạn đang muốn chỉnh sửa.
+            </div>
+          </div>
         ) : (
           /* New vehicle — show create form */
           <>

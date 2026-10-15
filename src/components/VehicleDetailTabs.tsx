@@ -71,6 +71,84 @@ export default function VehicleDetailTabs({ vehicle, tab, onTabChange }: Props) 
     updateVehicle(vehicle.id, p)
   }
 
+  // ====== Form thông tin xe: controlled + nút [Lưu thay đổi] rõ ràng ======
+  // Không còn autosave onBlur/onChange ngầm — một đường lưu duy nhất
+  // UPDATE theo id, có trạng thái đang lưu / thành công / thất bại.
+  type InfoForm = {
+    plate: string; model: string; brand: string; year: string; fuelType: string
+    displacement: string; mileage: string; color: string; sellPrice: string
+    positionId: string; status: Vehicle['status']; songNung: string; dangKiem: string
+  }
+  function pickInfo(v: Vehicle): InfoForm {
+    return {
+      plate: v.plate ?? '', model: v.model ?? '', brand: v.brand ?? '',
+      year: v.year?.toString() ?? '', fuelType: v.fuelType ?? '',
+      displacement: v.displacement ?? '', mileage: v.mileage ?? '',
+      color: v.color ?? '', sellPrice: v.sellPrice?.toString() ?? '',
+      positionId: v.positionId ?? '', status: v.status,
+      songNung: v.songNungExpiryDate ?? '', dangKiem: v.registrationExpiryDate ?? '',
+    }
+  }
+  const [info, setInfo] = useState<InfoForm>(() => pickInfo(vehicle))
+  const [infoSaving, setInfoSaving] = useState(false)
+  const [infoMsg, setInfoMsg] = useState<{ kind: 'success' | 'error'; text: string } | null>(null)
+  const [noteDraft, setNoteDraft] = useState(vehicle.note ?? '')
+  useEffect(() => {
+    setInfo(pickInfo(vehicle))
+    setNoteDraft(vehicle.note ?? '')
+    setInfoMsg(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vehicle.id])
+  function setInfoField<K extends keyof InfoForm>(k: K, val: InfoForm[K]) {
+    setInfo((f) => ({ ...f, [k]: val }))
+  }
+
+  async function handleSaveInfo() {
+    if (infoSaving) return // khoá nút — không gửi trùng
+    const plate = info.plate.trim()
+    const model = info.model.trim()
+    if (!plate || !model) {
+      setInfoMsg({ kind: 'error', text: 'Biển số và Dòng xe là bắt buộc.' })
+      return
+    }
+    // Biển số mới đã thuộc xe khác → báo lỗi, không gửi UPDATE
+    const dup = useStore.getState().vehicles.find((v) => v.plate === plate && v.id !== vehicle.id)
+    if (dup) {
+      setInfoMsg({ kind: 'error', text: `Biển số "${plate}" đã thuộc về xe khác (${dup.model}). Dữ liệu hiện tại được giữ nguyên.` })
+      return
+    }
+    const data: Partial<Vehicle> = {
+      plate,
+      model,
+      brand: info.brand.trim() || undefined,
+      year: info.year ? Number(info.year) : undefined,
+      fuelType: (info.fuelType || undefined) as Vehicle['fuelType'],
+      displacement: info.displacement || undefined,
+      mileage: info.mileage || undefined,
+      color: info.color || undefined,
+      sellPrice: info.sellPrice ? Number(info.sellPrice) : undefined,
+      positionId: info.positionId || '00000000-0000-0000-0000-000000000001',
+      status: info.status,
+      songNungExpiryDate: info.songNung || null,
+      registrationExpiryDate: info.dangKiem || null,
+      note: noteDraft || undefined,
+    }
+    setInfoSaving(true)
+    setInfoMsg(null)
+    const ok = await updateVehicle(vehicle.id, data)
+    setInfoSaving(false)
+    if (ok) {
+      setInfoMsg({ kind: 'success', text: 'Đã lưu thay đổi.' })
+      const fresh = useStore.getState().vehicles.find((v) => v.id === vehicle.id)
+      if (fresh) {
+        setInfo(pickInfo(fresh))
+        setNoteDraft(fresh.note ?? '')
+      }
+    } else {
+      setInfoMsg({ kind: 'error', text: 'Lưu thất bại — dữ liệu giữ nguyên. Xem thông báo lỗi cụ thể.' })
+    }
+  }
+
   const infoFields = (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       {/* Public Web visibility switch — prominent, top of the info tab */}
@@ -98,23 +176,23 @@ export default function VehicleDetailTabs({ vehicle, tab, onTabChange }: Props) 
       </div>
       <div>
         <label className="label">Biển số (4 số cuối)</label>
-        <input className="input" defaultValue={vehicle.plate} onBlur={(e) => patch({ plate: e.target.value })} />
+        <input className="input" value={info.plate} onChange={(e) => setInfoField('plate', e.target.value)} />
       </div>
       <div>
         <label className="label">Dòng xe</label>
-        <input className="input" defaultValue={vehicle.model} onBlur={(e) => patch({ model: e.target.value })} />
+        <input className="input" value={info.model} onChange={(e) => setInfoField('model', e.target.value)} />
       </div>
       <div>
         <label className="label">Hãng xe</label>
-        <input className="input" placeholder="VD: Hyundai" defaultValue={vehicle.brand ?? ''} onBlur={(e) => patch({ brand: e.target.value || undefined })} />
+        <input className="input" placeholder="VD: Hyundai" value={info.brand} onChange={(e) => setInfoField('brand', e.target.value)} />
       </div>
       <div>
         <label className="label">Năm</label>
-        <input className="input" type="number" placeholder="VD: 2020" defaultValue={vehicle.year ?? ''} onBlur={(e) => patch({ year: e.target.value ? Number(e.target.value) : undefined })} />
+        <input className="input" type="number" placeholder="VD: 2020" value={info.year} onChange={(e) => setInfoField('year', e.target.value)} />
       </div>
       <div>
         <label className="label">Nhiên liệu</label>
-        <select className="input" defaultValue={vehicle.fuelType ?? ''} onChange={(e) => patch({ fuelType: (e.target.value || undefined) as Vehicle['fuelType'] })}>
+        <select className="input" value={info.fuelType} onChange={(e) => setInfoField('fuelType', e.target.value)}>
           <option value="">Chọn...</option>
           <option value="gasoline">Xăng</option>
           <option value="diesel">Dầu</option>
@@ -124,7 +202,7 @@ export default function VehicleDetailTabs({ vehicle, tab, onTabChange }: Props) 
       </div>
       <div>
         <label className="label">Dung tích (L)</label>
-        <select className="input" defaultValue={vehicle.displacement ?? ''} onChange={(e) => patch({ displacement: e.target.value || undefined })}>
+        <select className="input" value={info.displacement} onChange={(e) => setInfoField('displacement', e.target.value)}>
           <option value="">Chọn...</option>
           {DISPLACEMENT_OPTIONS.map((d) => (
             <option key={d} value={d}>{d}</option>
@@ -133,11 +211,11 @@ export default function VehicleDetailTabs({ vehicle, tab, onTabChange }: Props) 
       </div>
       <div>
         <label className="label">Đã chạy (vạn km)</label>
-        <input className="input" placeholder="VD: 12" defaultValue={vehicle.mileage ?? ''} onBlur={(e) => patch({ mileage: e.target.value || undefined })} />
+        <input className="input" placeholder="VD: 12" value={info.mileage} onChange={(e) => setInfoField('mileage', e.target.value)} />
       </div>
       <div>
         <label className="label">Màu xe</label>
-        <select className="input" defaultValue={vehicle.color ?? ''} onChange={(e) => patch({ color: e.target.value || undefined })}>
+        <select className="input" value={info.color} onChange={(e) => setInfoField('color', e.target.value)}>
           <option value="">Chọn...</option>
           {['Trắng', 'Đen', 'Bạc', 'Xám', 'Đỏ', 'Xanh'].map((c) => (
             <option key={c} value={c}>{c}</option>
@@ -146,11 +224,11 @@ export default function VehicleDetailTabs({ vehicle, tab, onTabChange }: Props) 
       </div>
       <div>
         <label className="label">Giá bán</label>
-        <input className="input" placeholder="VNĐ" defaultValue={vehicle.sellPrice ?? ''} onBlur={(e) => patch({ sellPrice: e.target.value ? Number(e.target.value) : undefined })} />
+        <input className="input" placeholder="VNĐ" value={info.sellPrice} onChange={(e) => setInfoField('sellPrice', e.target.value)} />
       </div>
       <div>
         <label className="label">Vị trí xe</label>
-        <select className="input" defaultValue={vehicle.positionId ?? ''} onChange={(e) => patch({ positionId: e.target.value || '00000000-0000-0000-0000-000000000001' })}>
+        <select className="input" value={info.positionId} onChange={(e) => setInfoField('positionId', e.target.value)}>
           <option value="">— Chưa phân bổ —</option>
           {positions.map((p) => (
             <option key={p.id} value={p.id}>{p.name}</option>
@@ -159,7 +237,7 @@ export default function VehicleDetailTabs({ vehicle, tab, onTabChange }: Props) 
       </div>
       <div>
         <label className="label">Tình trạng</label>
-        <select className="input" defaultValue={vehicle.status} onChange={(e) => patch({ status: e.target.value as Vehicle['status'] })}>
+        <select className="input" value={info.status} onChange={(e) => setInfoField('status', e.target.value as Vehicle['status'])}>
           <option value="available">Chưa bán</option>
           <option value="deposited">Đã cọc</option>
           <option value="sold">Đã bán</option>
@@ -167,7 +245,7 @@ export default function VehicleDetailTabs({ vehicle, tab, onTabChange }: Props) 
       </div>
       <div>
         <label className="label">Hạn Song nưng</label>
-        <input className="input" type="date" value={vehicle.songNungExpiryDate ?? ''} onChange={(e) => patch({ songNungExpiryDate: e.target.value || null })} />
+        <input className="input" type="date" value={info.songNung} onChange={(e) => setInfoField('songNung', e.target.value)} />
         {vehicle.songNungExpiryDate && (
           <span className={`mt-1 inline-flex items-center gap-1 text-xs font-medium ${new Date(vehicle.songNungExpiryDate) < new Date() ? 'text-red-600' : 'text-green-600'}`}>
             <span className={`inline-block h-1.5 w-1.5 rounded-full ${new Date(vehicle.songNungExpiryDate) < new Date() ? 'bg-red-600' : 'bg-green-600'}`} />
@@ -177,7 +255,7 @@ export default function VehicleDetailTabs({ vehicle, tab, onTabChange }: Props) 
       </div>
       <div>
         <label className="label">Hạn đăng kiểm</label>
-        <input className="input" type="date" value={vehicle.registrationExpiryDate ?? ''} onChange={(e) => patch({ registrationExpiryDate: e.target.value || null })} />
+        <input className="input" type="date" value={info.dangKiem} onChange={(e) => setInfoField('dangKiem', e.target.value)} />
         {vehicle.registrationExpiryDate && (
           <span className={`mt-1 inline-flex items-center gap-1 text-xs font-medium ${new Date(vehicle.registrationExpiryDate) < new Date() ? 'text-red-600' : 'text-green-600'}`}>
             <span className={`inline-block h-1.5 w-1.5 rounded-full ${new Date(vehicle.registrationExpiryDate) < new Date() ? 'bg-red-600' : 'bg-green-600'}`} />
@@ -200,7 +278,18 @@ export default function VehicleDetailTabs({ vehicle, tab, onTabChange }: Props) 
             {infoFields}
             <div className="mt-4">
               <label className="label">Ghi chú</label>
-              <textarea className="input" rows={2} defaultValue={vehicle.note ?? ''} onBlur={(e) => patch({ note: e.target.value || undefined })} />
+              <textarea className="input" rows={2} value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)} />
+            </div>
+            {/* Nút lưu rõ ràng — UPDATE theo id, khoá khi đang lưu */}
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <button type="button" className="btn-primary" onClick={handleSaveInfo} disabled={infoSaving}>
+                {infoSaving ? 'Đang lưu...' : 'Lưu thay đổi'}
+              </button>
+              {infoMsg && (
+                <span className={`text-xs font-medium ${infoMsg.kind === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                  {infoMsg.text}
+                </span>
+              )}
             </div>
           </div>
         )}

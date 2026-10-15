@@ -130,7 +130,7 @@ interface StoreState {
   templates: TaskTemplate[]
 
   addVehicle: (v: Partial<Vehicle>) => Promise<Vehicle>
-  updateVehicle: (id: string, patch: Partial<Vehicle>) => Promise<void>
+  updateVehicle: (id: string, patch: Partial<Vehicle>) => Promise<boolean>
   setVehicleImages: (id: string, images: string[], thumbnails?: Record<string, string>) => void
   deleteVehicle: (id: string) => Promise<void>
   moveVehicle: (id: string, toPositionId: string) => Promise<void>
@@ -367,10 +367,21 @@ export const useStore = create<StoreState>()(
         try {
           await vehicleService.updateVehicle(id, vehiclePatch)
           get().loadVehicleTimeline(id)
+          return true
         } catch (err) {
           if (before) set((s) => ({ vehicles: s.vehicles.map((v) => (v.id === id ? before : v)) }))
           console.error('\uD83D\uDD34 [STORE] Failed to update vehicle in Supabase:', err)
-          get().addNotification({ type: 'error', title: 'Lỗi', body: 'Không thể cập nhật xe. Vui lòng thử lại.' })
+          const e = err as { code?: string; message?: string }
+          const dupPlate = e?.code === '23505' || /duplicate key|already exists/i.test(e?.message ?? '')
+          get().addNotification({
+            type: 'error',
+            title: 'Lỗi lưu xe',
+            body:
+              dupPlate && vehiclePatch.plate
+                ? `Biển số "${vehiclePatch.plate}" đã thuộc về xe khác. Dữ liệu hiện tại được giữ nguyên.`
+                : 'Không thể cập nhật xe. Vui lòng thử lại.',
+          })
+          return false
         }
       }
 
@@ -395,6 +406,7 @@ export const useStore = create<StoreState>()(
           })
         }
       }
+      return true
     },
 
     setVehicleImages: (id, images, thumbnails) => {
@@ -1014,13 +1026,16 @@ export const useStore = create<StoreState>()(
     },
 
     addNotification: async (n) => {
-      console.trace("NOTIFICATION:", n.type, JSON.stringify(n.data))
+      // Validate payload shape — không che lỗi gốc bằng log khó hiểu
+      const type = n.type ?? 'system'
+      const title = typeof n.title === 'string' && n.title.trim() ? n.title : 'Thông báo'
+      const body = typeof n.body === 'string' ? n.body : ''
       // Guard: block notifications with empty task names
       if (n.data?.taskName && !n.data.taskName.trim()) {
-        console.warn("⚠️ [STORE] Blocked notification with empty task name:", n.type)
+        console.warn("⚠️ [STORE] Blocked notification with empty task name:", type)
         return
       }
-      const notif: Notification = { ...n, id: uid('notif'), read: false, createdAt: todayISO() }
+      const notif: Notification = { type, title, body, data: n.data, id: uid('notif'), read: false, createdAt: todayISO() }
       set((s) => ({ notifications: [notif, ...s.notifications] }))
     },
 
