@@ -38,6 +38,9 @@ export async function createTask(task: Omit<Task, 'id' | 'createdAt'>): Promise<
       rule_id: task.ruleId || null,
       source: task.source || null,
       deferred: task.deferred ?? false,
+      sold_handled: task.soldHandled ?? false,
+      vehicle_model_snapshot: task.vehicleModelSnapshot ?? null,
+      vehicle_plate_snapshot: task.vehiclePlateSnapshot ?? null,
     })
     .select()
     .single()
@@ -63,6 +66,9 @@ export async function updateTask(id: string, patch: Partial<Task>): Promise<Task
   if (patch.dueDate !== undefined) updateData.due_date = patch.dueDate || null
   if (patch.dueTime !== undefined) updateData.due_time = patch.dueTime || null
   if (patch.deferred !== undefined) updateData.deferred = patch.deferred
+  if (patch.soldHandled !== undefined) updateData.sold_handled = patch.soldHandled
+  if (patch.vehicleModelSnapshot !== undefined) updateData.vehicle_model_snapshot = patch.vehicleModelSnapshot
+  if (patch.vehiclePlateSnapshot !== undefined) updateData.vehicle_plate_snapshot = patch.vehiclePlateSnapshot
 
   const { data, error } = await supabase
     .from('tasks')
@@ -191,6 +197,9 @@ function mapRow(row: Record<string, unknown>): Task {
     ruleId: (row.rule_id as string) || undefined,
     source: (row.source as Task['source']) || undefined,
     deferred: Boolean(row.deferred),
+    soldHandled: Boolean(row.sold_handled),
+    vehicleModelSnapshot: (row.vehicle_model_snapshot as string) || undefined,
+    vehiclePlateSnapshot: (row.vehicle_plate_snapshot as string) || undefined,
     createdAt: row.created_at as string,
   }
 }

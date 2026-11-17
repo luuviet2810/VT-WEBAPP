@@ -7,13 +7,14 @@ import { buildTaskSummary, TaskGroupSummary } from '../utils/taskSummary'
 import type { Task, TaskPriority, TaskStatus } from '../types'
 import { uid } from '../utils/format'
 
-type WorkSection = 'todo' | 'deferred' | 'doing' | 'done'
+type WorkSection = 'todo' | 'deferred' | 'doing' | 'done' | 'sold'
 
-const SECTION_CONFIG: { key: WorkSection; label: string; icon: string; tone: 'slate' | 'orange' | 'green' | 'blue' }[] = [
+const SECTION_CONFIG: { key: WorkSection; label: string; icon: string; tone: 'slate' | 'orange' | 'green' | 'blue' | 'red' }[] = [
   { key: 'todo', label: 'Chưa làm', icon: '🚗', tone: 'slate' },
   { key: 'deferred', label: 'Chưa cần làm ngay', icon: '📌', tone: 'blue' },
   { key: 'doing', label: 'Đang làm', icon: '🟡', tone: 'orange' },
   { key: 'done', label: 'Đã hoàn thành', icon: '✅', tone: 'green' },
+  { key: 'sold', label: 'Xe đã bán', icon: '🏷️', tone: 'red' },
 ]
 
 const PRIORITY_LABEL: Record<TaskPriority, string> = { high: 'Làm gấp / Giao ngay', medium: 'Ưu tiên hơn', low: 'Cứ từ từ', urgent: 'Làm gấp / Giao ngay' }
@@ -38,11 +39,13 @@ function QuickStatusBtn({ label, tone, onClick }: { label: string; tone: 'slate'
 }
 
 // ====== TASK CARD ======
-function TaskCard({ task, vehiclePlate, onEdit, onDragStart }: { task: Task; vehiclePlate: string; onEdit: () => void; onDragStart: (e: React.DragEvent) => void }) {
+function TaskCard({ task, onEdit, onDragStart }: { task: Task; onEdit: () => void; onDragStart: (e: React.DragEvent) => void }) {
   const vehicles = useStore((s) => s.vehicles)
   const employees = useStore((s) => s.employees)
   const assignee = task.assigneeId ? employees.find((e) => e.id === task.assigneeId) : null
   const taskVehicle = task.vehicleId ? vehicles.find((v) => v.id === task.vehicleId) : null
+  const vehicleModel = taskVehicle?.model || task.vehicleModelSnapshot || 'Xe đã xóa'
+  const vehiclePlate = taskVehicle?.plate || task.vehiclePlateSnapshot || '—'
 
   // Deadline display logic
   const deadlineText = useMemo(() => {
@@ -95,9 +98,10 @@ function TaskCard({ task, vehiclePlate, onEdit, onDragStart }: { task: Task; veh
 
           {/* Vehicle model · plate */}
           <div className="flex items-center gap-1.5 text-xs text-slate-400">
-            <span className="truncate">{taskVehicle ? taskVehicle.model : '—'}</span>
+            <span className="truncate">{vehicleModel}</span>
             <span className="shrink-0">·</span>
-            <span className="shrink-0 font-medium text-slate-500">{vehiclePlate || '—'}</span>
+            <span className="shrink-0 font-medium text-slate-500">{vehiclePlate}</span>
+            {!taskVehicle && <span className="shrink-0 text-red-500">· Xe đã xóa</span>}
           </div>
 
           {/* Divider */}
@@ -178,7 +182,9 @@ function TaskEditDrawer({ task, vehicles, employees, onClose, onUpdate, onDelete
             {/* Vehicle — read-only */}
             <div className="rounded-2xl px-4 py-3" style={{ background: 'rgba(0,0,0,0.02)' }}>
               <div className="text-xs font-medium text-slate-400">Xe</div>
-              <div className="mt-0.5 text-sm font-semibold text-slate-700">{vehicle ? `${vehicle.plate} ${vehicle.model}` : 'Không có xe'}</div>
+              <div className="mt-0.5 text-sm font-semibold text-slate-700">
+                {vehicle ? `${vehicle.plate} ${vehicle.model}` : task.vehicleId ? 'Không có xe' : `${task.vehiclePlateSnapshot || '—'} ${task.vehicleModelSnapshot || 'Xe đã xóa'}`}
+              </div>
             </div>
 
             {/* Source badge */}
@@ -481,17 +487,32 @@ export default function Tasks() {
     return plateA.localeCompare(plateB)
   })
 
-  const todoTasks = useMemo(() => sortTasks(filtered.filter((t) => t.status === 'todo' && !t.deferred)), [filtered])
-  const deferredTasks = useMemo(() => sortTasks(filtered.filter((t) => t.status === 'todo' && t.deferred)), [filtered])
-  const doingTasks = useMemo(() => sortTasks(filtered.filter((t) => t.status === 'doing')), [filtered])
+  const isSoldVehicleTask = (t: Task) => {
+    if (t.status === 'done' || t.soldHandled) return false
+    const vehicle = t.vehicleId ? vehicles.find((v) => v.id === t.vehicleId) : null
+    return vehicle?.status === 'sold'
+  }
+  const activeFiltered = useMemo(() => filtered.filter((t) => !isSoldVehicleTask(t)), [filtered, vehicles])
+  const todoTasks = useMemo(() => sortTasks(activeFiltered.filter((t) => t.status === 'todo' && !t.deferred)), [activeFiltered])
+  const deferredTasks = useMemo(() => sortTasks(activeFiltered.filter((t) => t.status === 'todo' && t.deferred)), [activeFiltered])
+  const doingTasks = useMemo(() => sortTasks(activeFiltered.filter((t) => t.status === 'doing')), [activeFiltered])
   const doneTasks = useMemo(() => sortTasks(filtered.filter((t) => t.status === 'done')), [filtered])
 
-  const sectionTasks: Record<WorkSection, Task[]> = { todo: todoTasks, deferred: deferredTasks, doing: doingTasks, done: doneTasks }
+  const soldTasks = useMemo(() => sortTasks(filtered.filter(isSoldVehicleTask)), [filtered, vehicles])
+
+  const sectionTasks: Record<WorkSection, Task[]> = { todo: todoTasks, deferred: deferredTasks, doing: doingTasks, done: doneTasks, sold: soldTasks }
 
   // Read-only summary of incomplete tasks — updates automatically with Zustand
   const summaryGroups = useMemo(() => buildTaskSummary(tasks), [tasks])
 
   function handleDragStart(_e: React.DragEvent, taskId: string) { dragTaskIdRef.current = taskId }
+
+  function handleTaskUpdate(id: string, patch: Partial<Task>) {
+    const task = tasks.find((t) => t.id === id)
+    const leavingSoldColumn = task ? isSoldVehicleTask(task) && patch.status !== undefined : false
+    updateTask(id, leavingSoldColumn ? { ...patch, soldHandled: true } : patch)
+  }
+
   function handleDrop(section: WorkSection) {
     return (e: React.DragEvent) => {
       e.preventDefault()
@@ -501,15 +522,19 @@ export default function Tasks() {
       const task = tasks.find((t) => t.id === taskId)
       if (!task) return
 
+      if (section === 'sold') return
+
+      // Kéo task ra khỏi cột Xe đã bán là quyết định xử lý thủ công.
+      // soldHandled lưu lựa chọn này để reload không đưa task quay lại cột sold.
+      const leavingSoldColumn = isSoldVehicleTask(task)
       if (section === 'deferred') {
-        // Deferred stays "chưa làm" — never becomes done, never triggers checkSheet sync
-        if (task.status === 'todo' && task.deferred) return
-        updateTask(taskId, { status: 'todo', deferred: true })
+        if (task.status === 'todo' && task.deferred && !leavingSoldColumn) return
+        updateTask(taskId, { status: 'todo', deferred: true, soldHandled: leavingSoldColumn ? true : task.soldHandled })
         return
       }
 
-      if (task.status === section && !task.deferred) return
-      updateTask(taskId, { status: section, deferred: false })
+      if (task.status === section && !task.deferred && !leavingSoldColumn) return
+      updateTask(taskId, { status: section, deferred: false, soldHandled: leavingSoldColumn ? true : task.soldHandled })
     }
   }
 
@@ -598,7 +623,7 @@ export default function Tasks() {
                 )}
                 {tasksInSection.map((task) => (
                   <div key={task.id} onDragStart={(e) => handleDragStart(e, task.id)}>
-                    <TaskCard task={task} vehiclePlate={vehiclesMap.get(task.vehicleId ?? '') ?? ''} onEdit={() => setEditingTaskId(task.id)} onDragStart={(e) => handleDragStart(e, task.id)} />
+                    <TaskCard task={task} onEdit={() => setEditingTaskId(task.id)} onDragStart={(e) => handleDragStart(e, task.id)} />
                   </div>
                 ))}
               </div>
@@ -650,7 +675,7 @@ export default function Tasks() {
       {/* Task Edit Drawer */}
       {editingTask && (
         <TaskEditDrawer task={editingTask} vehicles={vehicles} employees={employees}
-          onClose={() => setEditingTaskId(null)} onUpdate={updateTask} onDelete={deleteTask} />
+          onClose={() => setEditingTaskId(null)} onUpdate={handleTaskUpdate} onDelete={deleteTask} />
       )}
 
       {/* Task Summary Detail */}

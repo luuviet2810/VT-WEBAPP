@@ -113,11 +113,17 @@ export async function getVehicleById(id: string): Promise<Vehicle | null> {
   )
 }
 
+/**
+ * Compatibility lookup for legacy callers. Plates are no longer unique, so
+ * this returns the most recently updated match. Prefer looking up by vehicle ID.
+ */
 export async function getVehicleByPlate(plate: string): Promise<Vehicle | null> {
   const { data, error } = await supabase
     .from('vehicles')
     .select('*')
     .eq('plate', plate)
+    .order('updated_at', { ascending: false })
+    .limit(1)
     .maybeSingle()
 
   if (error) throw error
@@ -240,7 +246,7 @@ export async function moveVehicle(vehicleId: string, toPositionId: string | null
   return updateVehicle(vehicleId, { positionId: toPositionId ?? undefined })
 }
 
-// ====== UPSERT (import) ======
+// ====== IMPORT CREATE (legacy helper; plate is not unique) ======
 
 export interface UpsertVehicleInput {
   plate: string
@@ -256,21 +262,15 @@ export interface UpsertVehicleInput {
 }
 
 /**
- * Upsert a vehicle by plate.
+ * Legacy import helper. Since plates are not unique identifiers, this always
+ * inserts a new vehicle row. Any later updates must use the returned vehicle ID.
  *
- * Uses a single atomic INSERT ... ON CONFLICT (plate) DO UPDATE SET
- * to avoid race conditions during concurrent imports.
- *
- * - Plate exists → UPDATE every provided field.
- * - Plate missing → INSERT with fallback defaults for NOT NULL columns.
- *
- * Never modifies: id, created_at, images, documents, check_sheets, tasks,
- * workflow_logs, move_logs, position history, or any relationship.
+ * Never modifies existing vehicles or their operational relationships.
  */
-export async function upsertVehicle(data: UpsertVehicleInput): Promise<'inserted' | 'updated'> {
-  // Build the upsert record.
-  // Supabase JS serialises to JSON — keys with undefined are dropped
-  // by JSON.stringify, so they are omitted from the INSERT/UPDATE entirely.
+export async function upsertVehicle(data: UpsertVehicleInput): Promise<'inserted'> {
+  // Plate is not a unique identifier anymore. This legacy import helper now
+  // always inserts a distinct vehicle and uses the returned ID for follow-up
+  // writes; it must never ON CONFLICT or update a row by plate.
   // model/status are always included (NOT NULL columns need fallbacks).
   const record: Record<string, unknown> = {
     plate: data.plate,
@@ -291,22 +291,22 @@ export async function upsertVehicle(data: UpsertVehicleInput): Promise<'inserted
   if (data.costPrice != null) record.cost_price = data.costPrice
   if (data.sellPrice != null) record.sell_price = data.sellPrice
 
-  const { error, status } = await supabase
+  const { data: created, error } = await supabase
     .from('vehicles')
-    .upsert(record, { onConflict: 'plate' })
+    .insert(record)
+    .select('id')
+    .single()
 
   if (error) throw error
 
-  // For newly inserted vehicles, set the default starting position
-  if (status === 201) {
-    await supabase
+  // Follow-up writes are keyed by the new row ID, never by plate.
+  if (created?.id) {
+    const { error: positionError } = await supabase
       .from('vehicles')
       .update({ position_id: '00000000-0000-0000-0000-000000000001' })
-      .eq('plate', data.plate)
+      .eq('id', created.id)
+    if (positionError) throw positionError
   }
 
-  // Detect whether a row was inserted or updated:
-  //  201 = Created (INSERT)
-  //  200 = OK      (UPDATE — row existed)
-  return status === 201 ? 'inserted' : 'updated'
+  return 'inserted'
 }

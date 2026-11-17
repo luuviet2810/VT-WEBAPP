@@ -171,14 +171,16 @@ export function useDashboardViewModel() {
         .filter((t) => t.status !== 'done' && t.title.toLowerCase().includes(kw))
         .map((t) => {
           const v = vehicles.find((ve) => ve.id === t.vehicleId)
-          return { id: t.id, plate: v?.plate || '—', model: v?.model || '', task: t.title }
+          return { id: t.id, vehicleId: t.vehicleId, plate: v?.plate || '—', model: v?.model || '', task: t.title }
         })
-        .filter((v) => v.plate !== '—')
-      // Deduplicate by plate
+        .filter((v) => v.vehicleId && v.plate !== '—')
+      // Deduplicate repeated tasks for the same vehicle, never by plate:
+      // multiple distinct vehicles may legitimately share one plate.
       const seen = new Set<string>()
       const deduped = matched.filter((v) => {
-        if (seen.has(v.plate)) return false
-        seen.add(v.plate)
+        const key = v.vehicleId as string
+        if (seen.has(key)) return false
+        seen.add(key)
         return true
       })
       col.vehicles = deduped.slice(0, 6)

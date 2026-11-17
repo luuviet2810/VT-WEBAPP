@@ -121,6 +121,11 @@ export interface Task {
   ruleId?: string | null
   source?: TaskSource
   deferred?: boolean
+  /** User deliberately moved this task out of the sold-vehicle Kanban column. */
+  soldHandled?: boolean
+  /** Snapshots preserve display after the linked vehicle is deleted. */
+  vehicleModelSnapshot?: string | null
+  vehiclePlateSnapshot?: string | null
   createdAt: string
 }
 

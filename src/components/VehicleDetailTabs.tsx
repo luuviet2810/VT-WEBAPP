@@ -111,12 +111,6 @@ export default function VehicleDetailTabs({ vehicle, tab, onTabChange }: Props) 
       setInfoMsg({ kind: 'error', text: 'Biển số và Dòng xe là bắt buộc.' })
       return
     }
-    // Biển số mới đã thuộc xe khác → báo lỗi, không gửi UPDATE
-    const dup = useStore.getState().vehicles.find((v) => v.plate === plate && v.id !== vehicle.id)
-    if (dup) {
-      setInfoMsg({ kind: 'error', text: `Biển số "${plate}" đã thuộc về xe khác (${dup.model}). Dữ liệu hiện tại được giữ nguyên.` })
-      return
-    }
     const data: Partial<Vehicle> = {
       plate,
       model,

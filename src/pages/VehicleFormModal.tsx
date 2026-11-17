@@ -7,21 +7,6 @@ import { FuelType, VehicleStatus } from '../types'
 
 export const DISPLACEMENT_OPTIONS = ['1.0L', '1.4L', '1.6L', '1.8L', '2.0L', '2.2L', '2.4L', '3.0L', '3.3L']
 
-/** PostgREST unique_violation cho plate (409 / 23505 / "duplicate key") */
-function isDuplicatePlateError(err: unknown): boolean {
-  const e = err as { code?: string; message?: string; status?: number }
-  if (!e) return false
-  return (
-    e.code === '23505' ||
-    e.status === 409 ||
-    /duplicate key|already exists/i.test(e.message ?? '')
-  )
-}
-
-function duplicatePlateMessage(plate: string, model?: string): string {
-  return `Biển số ${plate} đã tồn tại trong hệ thống${model ? ` (xe ${model})` : ''}. Mở xe đó để chỉnh sửa — không tạo bản ghi trùng.`
-}
-
 export default function VehicleFormModal({
   open,
   onClose,
@@ -137,13 +122,6 @@ export default function VehicleFormModal({
       useStore.getState().updateVehicle(vehicleId, data)
       setTab('photos')
     } else {
-      // Pre-check biển số trùng trong dữ liệu đã tải — báo lỗi sớm,
-      // không gửi insert lên Supabase (không sinh bản ghi trùng)
-      const existing = useStore.getState().vehicles.find((v) => v.plate === data.plate)
-      if (existing) {
-        setSaveError(duplicatePlateMessage(data.plate, existing.model))
-        return
-      }
       setSaving(true)
       setSaveError(null)
       try {
@@ -155,11 +133,7 @@ export default function VehicleFormModal({
       } catch (err) {
         // Bắt lỗi insert (kể cả race 409/23505) — không còn unhandled rejection
         console.error('[VehicleFormModal] create vehicle failed:', err)
-        setSaveError(
-          isDuplicatePlateError(err)
-            ? duplicatePlateMessage(data.plate)
-            : 'Không thể tạo xe. Vui lòng kiểm tra lại rồi thử lại.'
-        )
+        setSaveError('Không thể tạo xe. Vui lòng kiểm tra kết nối và thử lại.')
       } finally {
         setSaving(false)
       }

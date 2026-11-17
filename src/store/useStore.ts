@@ -392,11 +392,8 @@ export const useStore = create<StoreState>()(
 
         // Telegram: notify on vehicle sold or ready status changes
         if (patch.status === 'sold') {
-          // Delete all tasks for this vehicle — sold cars don't need open tasks
-          const vehicleTasks = get().tasks.filter((t) => t.vehicleId === id)
-          Promise.all(vehicleTasks.map((t) => get().deleteTask(t.id))).catch((err) => {
-            console.error('[STORE] Failed to delete tasks for sold vehicle:', err)
-          })
+          // Keep tasks intact. The Tasks Kanban places incomplete tasks for
+          // sold vehicles in its dedicated "Xe đã bán" column.
           dispatchVehicleSold(after!).catch((err) => {
             console.error('[STORE] Telegram dispatchVehicleSold failed:', err)
           })
@@ -438,6 +435,16 @@ export const useStore = create<StoreState>()(
       set((s) => ({ vehicles: s.vehicles.filter((v) => v.id !== id) }))
 
       try {
+        // Preserve task display identity before FK ON DELETE SET NULL runs.
+        // No status/activity is changed by this snapshot-only update.
+        const linkedTasks = get().tasks.filter((t) => t.vehicleId === id)
+        await Promise.all(linkedTasks.map((task) =>
+          taskService.updateTask(task.id, {
+            vehicleModelSnapshot: task.vehicleModelSnapshot ?? before?.model ?? null,
+            vehiclePlateSnapshot: task.vehiclePlateSnapshot ?? before?.plate ?? null,
+          })
+        ))
+
         for (const url of imagesToDelete) {
           try {
             await storageService.deleteVehicleImage(url)
@@ -455,6 +462,15 @@ export const useStore = create<StoreState>()(
 
         await vehicleMediaService.deleteAllVehicleMedia(id)
         await vehicleService.deleteVehicle(id)
+        // Database FK sets task.vehicle_id NULL; mirror that locally while
+        // retaining the snapshots for the "Xe đã xóa" display.
+        set((s) => ({
+          tasks: s.tasks.map((task) =>
+            task.vehicleId === id
+              ? { ...task, vehicleId: null, vehicleModelSnapshot: task.vehicleModelSnapshot ?? before?.model, vehiclePlateSnapshot: task.vehiclePlateSnapshot ?? before?.plate }
+              : task
+          ),
+        }))
       } catch (err) {
         if (before) set((s) => ({ vehicles: [...s.vehicles, before] }))
         console.error('\uD83D\uDD34 [STORE] Failed to delete vehicle in Supabase:', err)
@@ -514,6 +530,9 @@ export const useStore = create<StoreState>()(
         status: t.status || 'todo',
         assigneeId: t.assigneeId ?? null,
         vehicleId: t.vehicleId ?? null,
+        vehicleModelSnapshot: t.vehicleModelSnapshot ?? (t.vehicleId ? get().vehicles.find((v) => v.id === t.vehicleId)?.model : null),
+        vehiclePlateSnapshot: t.vehiclePlateSnapshot ?? (t.vehicleId ? get().vehicles.find((v) => v.id === t.vehicleId)?.plate : null),
+        soldHandled: t.soldHandled ?? false,
         dueDate: t.dueDate ?? null,
         dueTime: t.dueTime ?? null,
         source: 'manual',
@@ -700,6 +719,10 @@ export const useStore = create<StoreState>()(
       const vehicleId = sheet.vehicleId
       const genVehicle = vehicleId ? stateBefore.vehicles.find((v) => v.id === vehicleId) : undefined
 
+      // Sold vehicles keep historical tasks but must not receive new ones
+      // from checksheet/rule evaluation.
+      if (genVehicle?.status === 'sold') return
+
       // Capture workflow status before changes
       const prevStatus = vehicleId
         ? getVehicleWorkflowStatus(
@@ -750,6 +773,9 @@ export const useStore = create<StoreState>()(
               priority: gen.priority,
               status: gen.status,
               vehicleId: gen.vehicleId,
+              vehicleModelSnapshot: genVehicle?.model ?? null,
+              vehiclePlateSnapshot: genVehicle?.plate ?? vehiclePlate,
+              soldHandled: false,
               assigneeId: null,
               dueDate: null,
               dueTime: null,
@@ -949,7 +975,7 @@ export const useStore = create<StoreState>()(
         }))
         // Auto-generate tasks from updated checksheet using rule engine
         const vehicle = get().vehicles.find((v) => v.id === updated.vehicleId)
-        if (vehicle) {
+        if (vehicle && vehicle.status !== 'sold') {
           get().generateTasksFromSheet(updated, vehicle.plate)
         }
       } catch (err) {
@@ -1123,6 +1149,9 @@ export const useStore = create<StoreState>()(
         ruleId: (row.rule_id as string) ?? null,
         source: (row.source as Task['source']) ?? undefined,
         deferred: Boolean(row.deferred),
+        soldHandled: Boolean(row.sold_handled),
+        vehicleModelSnapshot: (row.vehicle_model_snapshot as string) || undefined,
+        vehiclePlateSnapshot: (row.vehicle_plate_snapshot as string) || undefined,
         createdAt: row.created_at as string,
       }
       set((s) => {
