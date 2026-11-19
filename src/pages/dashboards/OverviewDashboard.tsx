@@ -192,7 +192,8 @@ function QuickStatsCard({ stats }: { stats: QuickStats }) {
 
 function TaskOverviewSection() {
   const tasks = useStore((s) => s.tasks)
-  const summaryGroups = buildTaskSummary(tasks)
+  const vehicles = useStore((s) => s.vehicles)
+  const summaryGroups = buildTaskSummary(tasks, vehicles)
 
   return (
     <div>

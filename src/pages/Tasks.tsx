@@ -503,7 +503,7 @@ export default function Tasks() {
   const sectionTasks: Record<WorkSection, Task[]> = { todo: todoTasks, deferred: deferredTasks, doing: doingTasks, done: doneTasks, sold: soldTasks }
 
   // Read-only summary of incomplete tasks — updates automatically with Zustand
-  const summaryGroups = useMemo(() => buildTaskSummary(tasks), [tasks])
+  const summaryGroups = useMemo(() => buildTaskSummary(tasks, vehicles), [tasks, vehicles])
 
   function handleDragStart(_e: React.DragEvent, taskId: string) { dragTaskIdRef.current = taskId }
 
@@ -679,9 +679,9 @@ export default function Tasks() {
       )}
 
       {/* Task Summary Detail */}
-      {summaryDetailGroup && (
+      {summaryDetailGroup && summaryGroups.some((group) => group.key === summaryDetailGroup.key) && (
         <TaskSummaryDetail
-          group={summaryDetailGroup}
+          group={summaryGroups.find((group) => group.key === summaryDetailGroup.key)!}
           vehicles={vehicles}
           employees={employees}
           onClose={() => setSummaryDetailGroup(null)}

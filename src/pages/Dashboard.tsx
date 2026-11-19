@@ -5,7 +5,7 @@ import { useStore } from '../store/useStore'
 import { useAuthStore } from '../store/useAuthStore'
 import { Badge } from '../components/ui'
 import { formatDateTime } from '../utils/format'
-import { buildTaskSummary } from '../utils/taskSummary'
+import { buildTaskSummary, isActiveVehicleTask } from '../utils/taskSummary'
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -20,8 +20,8 @@ export default function Dashboard() {
 
   // ====== KPIs ======
   const sold = vehicles.filter((v) => v.status === 'sold')
-  const pending = tasks.filter((t) => t.status !== 'done').length
-  const overdue = tasks.filter((t) => t.status !== 'done' && t.dueDate && new Date(t.dueDate) < new Date()).length
+  const pending = tasks.filter((t) => isActiveVehicleTask(t, vehicles)).length
+  const overdue = tasks.filter((t) => isActiveVehicleTask(t, vehicles) && t.dueDate && new Date(t.dueDate) < new Date()).length
   const doneToday = tasks.filter((t) => t.status === 'done').length
   const deposited = vehicles.filter((v) => v.status === 'deposited').length
   const today = new Date().toISOString().slice(0, 10)
@@ -45,9 +45,9 @@ export default function Dashboard() {
   }, [employees])
 
   // ====== TASKS ======
-  const myTasks = useMemo(() => tasks.filter((t) => t.assigneeId === currentUser?.id), [tasks, currentUser])
-  const unassignedTasks = useMemo(() => tasks.filter((t) => !t.assigneeId), [tasks])
-  const summaryGroups = useMemo(() => buildTaskSummary(tasks), [tasks])
+  const myTasks = useMemo(() => tasks.filter((t) => t.assigneeId === currentUser?.id && isActiveVehicleTask(t, vehicles)), [tasks, vehicles, currentUser])
+  const unassignedTasks = useMemo(() => tasks.filter((t) => !t.assigneeId && isActiveVehicleTask(t, vehicles)), [tasks, vehicles])
+  const summaryGroups = useMemo(() => buildTaskSummary(tasks, vehicles), [tasks, vehicles])
   const vehiclesMap = useMemo(() => {
     const m = new Map<string, string>()
     for (const v of vehicles) m.set(v.id, v.plate)

@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 import { useStore } from '../../../store/useStore'
 import { todayISO } from '../../../utils/format'
 import type { Vehicle, Task, Position, Employee, AttendanceEntry, CheckSheet, MoveLog } from '../../../types'
+import { isActiveVehicleTask } from '../../../utils/taskSummary'
 
 export interface KpiData {
   noInputCheck: number
@@ -94,7 +95,7 @@ export function useDashboardViewModel() {
         t.title.toLowerCase().includes('rửa'))
     ).length
 
-    const needTasks = tasks.filter((t) => t.status !== 'done').length
+    const needTasks = tasks.filter((t) => isActiveVehicleTask(t, vehicles)).length
 
     const kpi: KpiData = { noInputCheck, needPolish, washing, needTasks }
 
@@ -168,7 +169,7 @@ export function useDashboardViewModel() {
     for (const col of workflowColumns) {
       const kw = col.title.toLowerCase()
       const matched = tasks
-        .filter((t) => t.status !== 'done' && t.title.toLowerCase().includes(kw))
+        .filter((t) => isActiveVehicleTask(t, vehicles) && t.title.toLowerCase().includes(kw))
         .map((t) => {
           const v = vehicles.find((ve) => ve.id === t.vehicleId)
           return { id: t.id, vehicleId: t.vehicleId, plate: v?.plate || '—', model: v?.model || '', task: t.title }
@@ -189,7 +190,7 @@ export function useDashboardViewModel() {
 
     // ===== MY TASKS =====
     const myTasks: TaskItem[] = tasks
-      .filter((t) => t.assigneeId === currentEmployeeId && t.status !== 'done')
+      .filter((t) => t.assigneeId === currentEmployeeId && isActiveVehicleTask(t, vehicles))
       .slice(0, 10)
       .map((t) => {
         const v = vehicles.find((ve) => ve.id === t.vehicleId)
@@ -206,7 +207,7 @@ export function useDashboardViewModel() {
       })
 
     const assignedToMe: TaskItem[] = tasks
-      .filter((t) => t.assigneeId !== currentEmployeeId && t.status !== 'done')
+      .filter((t) => t.assigneeId !== currentEmployeeId && isActiveVehicleTask(t, vehicles))
       .slice(0, 10)
       .map((t) => {
         const v = vehicles.find((ve) => ve.id === t.vehicleId)
