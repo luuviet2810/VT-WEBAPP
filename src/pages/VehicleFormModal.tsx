@@ -215,10 +215,11 @@ export default function VehicleFormModal({
                   <label className="label">Nhiên liệu</label>
                   <select className="input" value={form.fuelType} onChange={(e) => set('fuelType', e.target.value as FuelType | '')}>
                     <option value="">Chọn...</option>
-                    <option value="gasoline">Xăng</option>
-                    <option value="diesel">Dầu</option>
-                    <option value="lpg">LPG</option>
-                    <option value="hybrid">Hybrid</option>
+                    <option value="Xăng">Xăng</option>
+                    <option value="Dầu">Dầu</option>
+                    <option value="Ga">Ga</option>
+                    <option value="Hybrid">Hybrid</option>
+                    <option value="Điện">Điện</option>
                   </select>
                 </div>
                 <div>

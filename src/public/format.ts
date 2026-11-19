@@ -1,10 +1,11 @@
 /** Formatters riêng cho Public Web (không dùng formatCurrency 'đ' của Admin). */
 
 export const PUBLIC_FUEL_LABELS: Record<string, string> = {
-  gasoline: 'Xăng',
-  diesel: 'Dầu',
-  lpg: 'LPG',
-  hybrid: 'Hybrid',
+  'Xăng': 'Xăng', gasoline: 'Xăng',
+  'Dầu': 'Dầu', diesel: 'Dầu',
+  'Ga': 'Ga', lpg: 'Ga',
+  'Hybrid': 'Hybrid', hybrid: 'Hybrid',
+  'Điện': 'Điện', electric: 'Điện',
 }
 
 /**

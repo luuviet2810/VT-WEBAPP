@@ -188,10 +188,11 @@ export default function VehicleDetailTabs({ vehicle, tab, onTabChange }: Props) 
         <label className="label">Nhiên liệu</label>
         <select className="input" value={info.fuelType} onChange={(e) => setInfoField('fuelType', e.target.value)}>
           <option value="">Chọn...</option>
-          <option value="gasoline">Xăng</option>
-          <option value="diesel">Dầu</option>
-          <option value="lpg">LPG</option>
-          <option value="hybrid">Hybrid</option>
+          <option value="Xăng">Xăng</option>
+          <option value="Dầu">Dầu</option>
+          <option value="Ga">Ga</option>
+          <option value="Hybrid">Hybrid</option>
+          <option value="Điện">Điện</option>
         </select>
       </div>
       <div>

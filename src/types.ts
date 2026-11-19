@@ -6,7 +6,7 @@ export interface Vehicle {
   model: string // Dòng xe
   brand?: string // Hãng xe (Hyundai, Kia, ...) — dùng cho Public Web
   year?: number
-  fuelType?: 'gasoline' | 'diesel' | 'lpg' | 'hybrid'
+  fuelType?: 'Xăng' | 'Dầu' | 'Ga' | 'Hybrid' | 'Điện'
   displacement?: string
   mileage?: string
   color?: string
@@ -186,7 +186,7 @@ export type CameraState = 'ok' | 'blurry' | 'broken'
 export type HipassState = 'mirror' | 'device' | 'none'
 export type SensorState = 'ok' | 'broken' | 'none'
 export type DashcamState = 'good' | 'maybe' | 'none'
-export type FuelType = 'gasoline' | 'diesel' | 'lpg' | 'hybrid'
+export type FuelType = 'Xăng' | 'Dầu' | 'Ga' | 'Hybrid' | 'Điện'
 
 export type InteriorCondition = 'good' | 'dirty' | 'torn'
 export type ExteriorCondition = 'good' | 'polish' | 'dent' | 'discolor' | 'touchup'

@@ -6,6 +6,15 @@ import { getVehicleImages, getVehicleDocuments } from './vehicleMedia.service'
 
 type VehicleRow = Record<string, unknown>
 
+/** Canonical Vietnamese values; keep legacy English rows readable. */
+export function fuelTypeFromDb(value: unknown): Vehicle['fuelType'] | undefined {
+  if (typeof value !== 'string' || !value.trim()) return undefined
+  const aliases: Record<string, Vehicle['fuelType']> = {
+    gasoline: 'Xăng', diesel: 'Dầu', lpg: 'Ga', hybrid: 'Hybrid', electric: 'Điện',
+  }
+  return aliases[value.trim().toLowerCase()] ?? (value as Vehicle['fuelType'])
+}
+
 function mapVehicleRow(v: VehicleRow, images: string[] = [], documents: string[] = [], thumbnails?: Record<string, string>): Vehicle {
   return {
     id: v.id as string,
@@ -13,7 +22,7 @@ function mapVehicleRow(v: VehicleRow, images: string[] = [], documents: string[]
     model: v.model as string,
     brand: (v.brand as string) ?? undefined,
     year: v.year as number | undefined,
-    fuelType: (v.fuel_type as Vehicle['fuelType']) ?? undefined,
+    fuelType: fuelTypeFromDb(v.fuel_type),
     displacement: v.displacement as string | undefined,
     mileage: v.mileage as string | undefined,
     color: v.color as string | undefined,

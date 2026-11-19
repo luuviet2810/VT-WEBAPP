@@ -766,7 +766,7 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
 
     // Mức nhiên liệu - Báo vàng (empty) mới tạo
     if (fuelLevel === 'empty') {
-      const fuelText = vehicle.fuelType === 'diesel' ? 'Đổ dầu' : 'Đổ xăng'
+      const fuelText = vehicle.fuelType === 'Dầu' ? 'Đổ dầu' : 'Đổ xăng'
       items.push({ id: uid('chk'), text: fuelText, done: false })
     }
 

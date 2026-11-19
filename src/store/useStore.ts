@@ -1127,7 +1127,7 @@ export const useStore = create<StoreState>()(
 
     upsertVehicleFromRealtime(row) {
       const fuelTypeRaw = row.fuel_type as string | undefined
-      const fuelTypeVal = fuelTypeRaw as Vehicle['fuelType']
+      const fuelTypeVal = vehicleService.fuelTypeFromDb(fuelTypeRaw)
       const statusRaw = row.status as string | undefined
       const statusVal = statusRaw as Vehicle['status']
       const v = {

@@ -164,7 +164,7 @@ export interface Vehicle {
   plate: string;
   model: string;
   year: number | null;
-  fuel_type: 'gasoline' | 'diesel' | 'lpg' | 'hybrid' | null;
+  fuel_type: 'Xăng' | 'Dầu' | 'Ga' | 'Hybrid' | 'Điện' | 'gasoline' | 'diesel' | 'lpg' | 'hybrid' | null;
   displacement: string | null;
   mileage: string | null;
   color: string | null;
