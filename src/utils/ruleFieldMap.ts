@@ -84,3 +84,7 @@ export function getAutoSyncPatch(ruleId: string, sheet: CheckSheet): Partial<Che
   if (!mapper) return null
   return mapper(sheet)
 }
+
+export function hasAutoSyncPatch(ruleId: string): boolean {
+  return Boolean(RULE_FIELD_MAP[ruleId])
+}

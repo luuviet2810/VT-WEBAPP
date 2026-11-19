@@ -42,6 +42,7 @@ import { CollapsibleCard, SegButton, WheelPicker, BatteryCheck, Badge } from './
 import { emptyExteriorCheck } from '../store/useStore'
 import { uid } from '../utils/format'
 import { classifyStatus } from '../utils/statusClassification'
+import { getInputBatteryStatus } from '../utils/batteryStatus'
 
 const DEBOUNCE_MS = 500
 
@@ -613,11 +614,11 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
         else if (fl === 'install') { error++; none++ }
       }
 
-      // SOC ắc quy < 50% — skip if not measured (undefined)
-      if (inputAcquySOC !== undefined) {
-        if (inputAcquySOC < 50) error++
-        else ok++
-      }
+      // Ắc quy: một mục tổng hợp; thiếu SOH hoặc SOC = chưa kiểm tra,
+      // không tự coi là OK và không tự coi là lỗi.
+      const batteryStatus = getInputBatteryStatus({ inputAcquySOH, inputAcquySOC })
+      if (batteryStatus === 'needs_charge') error++
+      else if (batteryStatus === 'normal') ok++
 
       // Nội thất
       Object.values(interior).forEach((v) => {
@@ -773,11 +774,14 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
     if (inputTireState.status === 'error') items.push({ id: uid('chk'), text: 'Kiểm tra lốp', done: false })
     if (inputTireState.status === 'none') items.push({ id: uid('chk'), text: 'Thay lốp', done: false })
 
-    // SOC acquy đầu vào < 50%
-    if ((inputAcquySOC ?? 100) < 50) items.push({ id: uid('chk'), text: 'Kiểm tra / Sạc ắc quy', done: false })
+    // Chỉ sinh task khi CẢ SOH và SOC đã có dữ liệu và một chỉ số <50%.
+    // Chưa nhập ắc quy không được tự coi là yếu hoặc tạo task.
+    if (inputAcquySOH !== undefined && inputAcquySOC !== undefined && (inputAcquySOH < 50 || inputAcquySOC < 50)) {
+      items.push({ id: uid('chk'), text: 'Kiểm tra / Sạc ắc quy', done: false })
+    }
 
     return items
-  }, [type, screen, rearCamera, rearSensor, dashcam, hipass, inputDieuHoa, inputSuoiGhe, interior, exterior, fuelLevel, vehicle.fuelType, inputTireState, inputAcquySOC])
+  }, [type, screen, rearCamera, rearSensor, dashcam, hipass, inputDieuHoa, inputSuoiGhe, interior, exterior, fuelLevel, vehicle.fuelType, inputTireState, inputAcquySOH, inputAcquySOC])
 
   // Generate tasks from Đầu ra errors
   const outErrorTasks = useMemo(() => {

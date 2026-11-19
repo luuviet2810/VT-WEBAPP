@@ -137,7 +137,8 @@ interface StoreState {
   loadVehicleTimeline: (vehicleId: string) => Promise<void>
 
   addTask: (t: Partial<Task>) => Promise<void>
-  updateTask: (id: string, patch: Partial<Task>) => Promise<void>
+  updateTask: (id: string, patch: Partial<Task>) => Promise<boolean>
+  completeTaskWithChecksheet: (id: string) => Promise<boolean>
   deleteTask: (id: string) => Promise<void>
   toggleTaskChecklistItem: (taskId: string, itemId: string) => Promise<void>
   addTaskActivity: (taskId: string, action: string, employeeId?: string | null) => Promise<void>
@@ -580,7 +581,10 @@ export const useStore = create<StoreState>()(
       try {
         await taskService.updateTask(id, patch)
       } catch (err) {
+        // Roll back the optimistic task change; callers can safely retry.
+        set((s) => ({ tasks: s.tasks.map((t) => (t.id === id ? taskBefore! : t)) }))
         console.error('\uD83D\uDD34 [STORE] Failed to update task in Supabase:', err)
+        return false
       }
 
       // Auto-sync CheckSheet when a rule_engine task is moved to Done
@@ -658,6 +662,44 @@ export const useStore = create<StoreState>()(
             })
           }
         }
+      }
+      return true
+    },
+
+    completeTaskWithChecksheet: async (id) => {
+      const task = get().tasks.find((t) => t.id === id)
+      if (!task || task.status === 'done' || !task.vehicleId || !task.ruleId) return false
+      const sheetType = task.ruleId.startsWith('out_') ? 'out' : 'in'
+      const sheet = get().checkSheets
+        .filter((s) => s.vehicleId === task.vehicleId && s.type === sheetType)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
+      if (!sheet) return false
+      const sheetPatch = getAutoSyncPatch(task.ruleId, sheet)
+      if (!sheetPatch) return false
+
+      // Persist CheckSheet first, so a task cannot become done while its
+      // linked inspection field failed to save.
+      try {
+        await checksheetService.updateCheckSheet(sheet.id, sheetPatch)
+        set((s) => ({ checkSheets: s.checkSheets.map((c) => (c.id === sheet.id ? { ...c, ...sheetPatch } : c)) }))
+        const taskOk = await get().updateTask(id, { status: 'done', deferred: false })
+        if (!taskOk) throw new Error('Không thể hoàn thành nhiệm vụ')
+        return true
+      } catch (err) {
+        // Restore the changed CheckSheet field when task completion fails.
+        const rollback: Partial<CheckSheet> = {}
+        for (const key of Object.keys(sheetPatch) as (keyof CheckSheet)[]) {
+          ;(rollback as any)[key] = (sheet as any)[key]
+        }
+        try {
+          await checksheetService.updateCheckSheet(sheet.id, rollback)
+          set((s) => ({ checkSheets: s.checkSheets.map((c) => (c.id === sheet.id ? { ...c, ...rollback } : c)) }))
+        } catch (rollbackErr) {
+          console.error('[STORE] Failed to rollback CheckSheet completion:', rollbackErr)
+        }
+        get().addNotification({ type: 'error', title: 'Không thể hoàn thành nhiệm vụ', body: 'CheckSheet hoặc nhiệm vụ chưa được hoàn thành. Vui lòng thử lại.' })
+        console.error('[STORE] completeTaskWithChecksheet failed:', err)
+        return false
       }
     },
 

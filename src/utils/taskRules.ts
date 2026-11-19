@@ -184,11 +184,14 @@ const ruleDashcamNone: Rule = {
 const ruleAcquySOCLow: Rule = {
   id: 'in_battery_soc_low',
   title: 'Sạc ắc quy',
-  description: 'SOC acquy đầu vào dưới 20%, cần sạc pin',
+  description: 'SOH hoặc SOC ắc quy đầu vào dưới 50%, cần sạc pin',
   priority: 'low',
   evaluate(ctx: RuleContext) {
     if (ctx.sheet.type !== 'in') return false
-    return (ctx.sheet.inputAcquySOC ?? 100) < 20
+    // Missing SOH/SOC = unchecked, never creates a task.
+    return ctx.sheet.inputAcquySOH !== undefined &&
+      ctx.sheet.inputAcquySOC !== undefined &&
+      (ctx.sheet.inputAcquySOH < 50 || ctx.sheet.inputAcquySOC < 50)
   },
 }
 

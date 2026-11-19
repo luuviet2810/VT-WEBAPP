@@ -5,9 +5,16 @@ import { useStore } from '../../../store/useStore'
 import { todayISO } from '../../../utils/format'
 import type { Vehicle, Task, Position, Employee, AttendanceEntry, CheckSheet, MoveLog } from '../../../types'
 import { isActiveVehicleTask } from '../../../utils/taskSummary'
+import { getInputChecksheetMissingFields } from '../../../utils/inputChecksheetCompletion'
+import { getInputBatteryStatus } from '../../../utils/batteryStatus'
 
 export interface KpiData {
   noInputCheck: number
+  noInputVehicleIds: string[]
+  noInputMissingByVehicle: Record<string, string[]>
+  batteryNormal: number
+  batteryNeedsCharge: number
+  batteryUnchecked: number
   needPolish: number
   washing: number
   needTasks: number
@@ -81,9 +88,26 @@ export function useDashboardViewModel() {
   return useMemo(() => {
     // ===== KPI =====
     const activeVehicles = vehicles.filter((v) => v.status !== 'sold')
-    const noInputCheck = activeVehicles.filter((v) =>
-      !checkSheets.some((c) => c.vehicleId === v.id && c.type === 'in')
-    ).length
+    const noInputMissingByVehicle: Record<string, string[]> = {}
+    const noInputVehicleIds = activeVehicles
+      .filter((v) => {
+        const sheet = checkSheets
+          .filter((c) => c.vehicleId === v.id && c.type === 'in')
+          .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
+        const missing = getInputChecksheetMissingFields(sheet)
+        if (missing.length > 0) noInputMissingByVehicle[v.id] = missing
+        return missing.length > 0
+      })
+      .map((v) => v.id)
+    const noInputCheck = noInputVehicleIds.length
+
+    const batteryCounts = { normal: 0, needs_charge: 0, unchecked: 0 }
+    for (const vehicle of activeVehicles) {
+      const input = checkSheets
+        .filter((c) => c.vehicleId === vehicle.id && c.type === 'in')
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
+      batteryCounts[getInputBatteryStatus(input)]++
+    }
 
     const needPolish = activeVehicles.filter((v) =>
       tasks.some((t) => t.vehicleId === v.id && t.status !== 'done' &&
@@ -97,7 +121,17 @@ export function useDashboardViewModel() {
 
     const needTasks = tasks.filter((t) => isActiveVehicleTask(t, vehicles)).length
 
-    const kpi: KpiData = { noInputCheck, needPolish, washing, needTasks }
+    const kpi: KpiData = {
+      noInputCheck,
+      noInputVehicleIds,
+      noInputMissingByVehicle,
+      batteryNormal: batteryCounts.normal,
+      batteryNeedsCharge: batteryCounts.needs_charge,
+      batteryUnchecked: batteryCounts.unchecked,
+      needPolish,
+      washing,
+      needTasks,
+    }
 
     // ===== ATTENDANCE =====
     const todayAtt = attendance.filter((a) => a.date === today)

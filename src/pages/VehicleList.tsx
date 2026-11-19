@@ -1,7 +1,7 @@
 // ====== VEHICLE LIST PAGE ======
 
 import { memo, useMemo, useState, useRef, useEffect, useCallback } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useNavigationType } from 'react-router-dom'
 import { Car, LogIn, LogOut, Fuel, Monitor, Camera, AlertCircle, Wrench, CheckCircle2, XCircle, Minus, StickyNote, ExternalLink, X, ChevronLeft, ChevronRight, Download, ListChecks, Globe, EyeOff, Loader2 } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import { Badge, EmptyState, Modal } from '../components/ui'
@@ -55,6 +55,7 @@ const VehicleCard = memo(function VehicleCard({
   onPreviewOut,
   onNoteClick,
   onTogglePublic,
+  onNavigateToDetail,
 }: {
   vehicle: Vehicle
   positionName: string | null
@@ -68,6 +69,7 @@ const VehicleCard = memo(function VehicleCard({
   onPreviewOut: (id: string) => void
   onNoteClick?: (id: string) => void
   onTogglePublic: (id: string) => void
+  onNavigateToDetail: () => void
 }) {
   // [PERF] card render counter
   if (DEV_DISABLE_IMAGES) {
@@ -79,7 +81,7 @@ const VehicleCard = memo(function VehicleCard({
   }
 
   return (
-    <Link key={v.id} to={`/xe/${v.id}`} className="card group overflow-hidden transition-transform hover:-translate-y-0.5 text-sm">
+    <Link key={v.id} to={`/xe/${v.id}`} onClick={onNavigateToDetail} className="card group overflow-hidden transition-transform hover:-translate-y-0.5 text-sm">
       {/* Vehicle Image — click navigates to Vehicle Detail */}
       <div className="relative aspect-[4/2.2] w-full overflow-hidden bg-slate-100">
         {!DEV_DISABLE_IMAGES && v.images[0] ? (
@@ -197,17 +199,65 @@ const VehicleCard = memo(function VehicleCard({
 export default function VehicleList() {
   const vehicles = useStore((s) => s.vehicles)
   const positions = useStore((s) => s.positions)
+  const location = useLocation()
+  const navigationType = useNavigationType()
   const employees = useStore((s) => s.employees)
   const tasks = useStore((s) => s.tasks)
-  const [filters, setFilters] = useState({
-    query: '',
-    status: 'all',
-    positionId: 'all',
-    assigneeId: 'all',
+  const defaultFilters = {
+    query: '', status: 'all', positionId: 'all', assigneeId: 'all',
     sortBy: 'default' as 'default' | 'price_asc' | 'price_desc',
-    priceMin: 0,
-    priceMax: 110000000,
+    priceMin: 0, priceMax: 110000000,
+  }
+  const [filters, setFilters] = useState(() => {
+    try {
+      const raw = sessionStorage.getItem('vehicle-list-filters')
+      return raw ? { ...defaultFilters, ...JSON.parse(raw) } : defaultFilters
+    } catch {
+      return defaultFilters
+    }
   })
+
+  const saveListStateBeforeDetail = useCallback(() => {
+    const main = document.querySelector('main')
+    if (!main) return
+    try {
+      sessionStorage.setItem('vehicle-list-filters', JSON.stringify(filters))
+      sessionStorage.setItem('vehicle-list-scroll', JSON.stringify({
+        locationKey: location.key,
+        top: main.scrollTop,
+        left: main.scrollLeft,
+      }))
+    } catch {
+      // Storage can be unavailable in private/browser-restricted contexts.
+    }
+  }, [filters, location.key])
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('vehicle-list-filters', JSON.stringify(filters))
+    } catch {}
+  }, [filters])
+
+  useEffect(() => {
+    if (navigationType !== 'POP') return
+    let saved: { locationKey?: string; top?: number; left?: number } | null = null
+    try {
+      const raw = sessionStorage.getItem('vehicle-list-scroll')
+      saved = raw ? JSON.parse(raw) : null
+    } catch {}
+    if (!saved || saved.locationKey !== location.key) return
+
+    // The main container must be restored after this list render. Use two
+    // frames so filtering/content layout has settled before assigning scroll.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const main = document.querySelector('main')
+      if (main) {
+        main.scrollTop = saved?.top ?? 0
+        main.scrollLeft = saved?.left ?? 0
+      }
+      try { sessionStorage.removeItem('vehicle-list-scroll') } catch {}
+    }))
+  }, [location.key, navigationType, vehicles.length])
   const [previewSheet, setPreviewSheet] = useState<CheckSheet | null>(null)
   const [previewType, setPreviewType] = useState<'in' | 'out'>('in')
 
@@ -408,6 +458,7 @@ export default function VehicleList() {
                 onPreviewOut={handlePreviewOut}
                 onNoteClick={handleNoteClick}
                 onTogglePublic={handleTogglePublic}
+                onNavigateToDetail={saveListStateBeforeDetail}
               />
             )
           })}

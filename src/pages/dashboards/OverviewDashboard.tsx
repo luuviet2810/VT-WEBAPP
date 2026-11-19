@@ -32,13 +32,16 @@ function DashboardHeader() {
 // ====== KPI CARDS ======
 
 const KPI_CARDS = [
-  { key: 'noInputCheck', label: 'Xe chưa kiểm tra đầu vào', icon: ClipboardList, color: '#3b82f6' },
+  { key: 'noInputCheck', label: 'Chưa hoàn thành kiểm tra đầu vào', icon: ClipboardList, color: '#3b82f6' },
   { key: 'needPolish', label: 'Xe cần đánh bóng', icon: Car, color: '#f59e0b' },
   { key: 'washing', label: 'Xe đang rửa máy', icon: Car, color: '#10b981' },
   { key: 'needTasks', label: 'Nhiệm vụ cần xử lý', icon: AlertTriangle, color: '#ef4444' },
+  { key: 'batteryNormal', label: 'Ắc quy bình thường', icon: CheckCircle, color: '#16a34a' },
+  { key: 'batteryNeedsCharge', label: 'Ắc quy cần sạc', icon: AlertTriangle, color: '#dc2626' },
+  { key: 'batteryUnchecked', label: 'Ắc quy chưa kiểm tra', icon: Clock, color: '#64748b' },
 ]
 
-function TodayKPICards({ kpi }: { kpi: KpiData }) {
+function TodayKPICards({ kpi, onInputDetail }: { kpi: KpiData; onInputDetail: () => void }) {
   return (
     <>
       {KPI_CARDS.map((card) => {
@@ -50,6 +53,11 @@ function TodayKPICards({ kpi }: { kpi: KpiData }) {
             </div>
             <div className="mt-2 text-2xl font-bold" style={{ color: card.color }}>{value}</div>
             <div className="mt-0.5 text-xs text-slate-500">{card.label}</div>
+            {card.key === 'noInputCheck' && value > 0 && (
+              <button type="button" onClick={onInputDetail} className="mt-2 self-start text-xs font-medium text-brand-600 hover:underline">
+                Chi tiết →
+              </button>
+            )}
           </div>
         )
       })}
@@ -512,10 +520,57 @@ function MissingImageCards() {
   )
 }
 
+// ====== INPUT CHECK DETAIL MODAL ======
+function IncompleteInputModal({ vehicleIds, missingByVehicle, vehicles, onClose }: {
+  vehicleIds: string[]
+  missingByVehicle: Record<string, string[]>
+  vehicles: import('../../types').Vehicle[]
+  onClose: () => void
+}) {
+  const navigate = useNavigate()
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div className="mx-4 flex max-h-[70vh] w-full max-w-xl flex-col rounded-xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex shrink-0 items-center justify-between border-b px-5 py-3">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-800">Chưa hoàn thành kiểm tra đầu vào</h3>
+            <p className="mt-0.5 text-xs text-slate-500">{vehicleIds.length} xe cần hoàn thành</p>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100">✕</button>
+        </div>
+        <div className="overflow-y-auto px-5 py-3">
+          <div className="space-y-2">
+            {vehicleIds.map((id) => {
+              const v = vehicles.find((item) => item.id === id)
+              if (!v) return null
+              return (
+                <div key={id} className="flex items-center gap-3 rounded-lg border border-slate-100 px-3 py-2.5">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-semibold text-brand-600">{v.plate || '—'}</div>
+                    <div className="truncate text-xs text-slate-600">{v.model}</div>
+                    <div className="mt-1 text-[11px] text-slate-500">
+                      <span className="font-medium">Còn thiếu:</span> {missingByVehicle[id]?.join(', ') || '—'}
+                    </div>
+                  </div>
+                  <button type="button" onClick={() => navigate(`/xe/${id}`)} className="shrink-0 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-xs font-medium text-brand-700 hover:bg-brand-100">
+                    Mở kiểm tra
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ====== PAGE ======
 
 export default function OverviewDashboard() {
   const vm = useDashboardViewModel()
+  const vehicles = useStore((s) => s.vehicles)
+  const [inputDetailOpen, setInputDetailOpen] = useState(false)
 
   return (
     <div className="space-y-7">
@@ -532,7 +587,7 @@ export default function OverviewDashboard() {
 
       {/* ROW 1: 4 KPI cards — equal width, full row */}
       <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5">
-        <TodayKPICards kpi={vm.kpi} />
+        <TodayKPICards kpi={vm.kpi} onInputDetail={() => setInputDetailOpen(true)} />
       </div>
 
       {/* ROW 2: LiveFeed + Locations + Warnings */}
@@ -550,6 +605,15 @@ export default function OverviewDashboard() {
 
       {/* ROW 3: Quick stats — full width */}
       <QuickStatsCard stats={vm.quickStats} />
+
+      {inputDetailOpen && (
+        <IncompleteInputModal
+          vehicleIds={vm.kpi.noInputVehicleIds}
+          missingByVehicle={vm.kpi.noInputMissingByVehicle}
+          vehicles={vehicles}
+          onClose={() => setInputDetailOpen(false)}
+        />
+      )}
     </div>
   )
 }

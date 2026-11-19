@@ -6,6 +6,7 @@ import { Badge, Modal } from '../components/ui'
 import { buildTaskSummary, TaskGroupSummary } from '../utils/taskSummary'
 import type { Task, TaskPriority, TaskStatus } from '../types'
 import { uid } from '../utils/format'
+import { hasAutoSyncPatch } from '../utils/ruleFieldMap'
 
 type WorkSection = 'todo' | 'deferred' | 'doing' | 'done' | 'sold'
 
@@ -332,12 +333,19 @@ function TaskSummary({ groups, onDetail }: { groups: TaskGroupSummary[]; onDetai
 }
 
 // ====== TASK SUMMARY DETAIL (drawer/modal, read-only) ======
-function TaskSummaryDetail({ group, vehicles, employees, onClose }: {
+function TaskSummaryDetail({ group, vehicles, employees, onClose, onComplete }: {
   group: TaskGroupSummary
   vehicles: { id: string; plate: string; model: string }[]
   employees: { id: string; name: string }[]
   onClose: () => void
+  onComplete: (taskId: string) => Promise<boolean>
 }) {
+  const [completingId, setCompletingId] = useState<string | null>(null)
+  async function complete(task: Task) {
+    if (!task.ruleId || !hasAutoSyncPatch(task.ruleId)) return
+    setCompletingId(task.id)
+    try { await onComplete(task.id) } finally { setCompletingId(null) }
+  }
   const assigneeName = (id?: string | null) => (id ? employees.find((e) => e.id === id)?.name : undefined)
 
   if (group.isManual) {
@@ -384,6 +392,12 @@ function TaskSummaryDetail({ group, vehicles, employees, onClose }: {
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-slate-800">🚗 {v?.plate || '—'}</span>
                 <span className="text-sm text-slate-500">{v?.model || ''}</span>
+                {t.ruleId && hasAutoSyncPatch(t.ruleId) && (
+                  <label className="ml-auto flex shrink-0 items-center gap-1.5 text-xs font-medium text-slate-600">
+                    <input type="checkbox" checked={false} disabled={completingId === t.id} onChange={() => complete(t)} className="h-4 w-4 accent-brand-600" aria-label="Hoàn thành và cập nhật CheckSheet" />
+                    {completingId === t.id ? 'Đang lưu...' : 'Hoàn thành'}
+                  </label>
+                )}
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
                 <Badge tone={t.status === 'doing' ? 'orange' : 'slate'}>{t.status === 'todo' ? 'Chưa làm' : 'Đang làm'}</Badge>
@@ -413,6 +427,7 @@ export default function Tasks() {
   const employees = useStore((s) => s.employees)
   const vehicles = useStore((s) => s.vehicles)
   const updateTask = useStore((s) => s.updateTask)
+  const completeTaskWithChecksheet = useStore((s) => s.completeTaskWithChecksheet)
   const deleteTask = useStore((s) => s.deleteTask)
   const addTask = useStore((s) => s.addTask)
   const taskPerms = useTaskPermissions()
@@ -684,6 +699,7 @@ export default function Tasks() {
           group={summaryGroups.find((group) => group.key === summaryDetailGroup.key)!}
           vehicles={vehicles}
           employees={employees}
+          onComplete={completeTaskWithChecksheet}
           onClose={() => setSummaryDetailGroup(null)}
         />
       )}
