@@ -9,6 +9,7 @@ import {
 import { useDashboardViewModel } from './dashboard/DashboardViewModel'
 import { useStore } from '../../store/useStore'
 import { buildTaskSummary } from '../../utils/taskSummary'
+import { getInputBatteryStatus } from '../../utils/batteryStatus'
 import type {
   KpiData, LiveFeedItem, LocationItem,
   WarningItem, QuickStats,
@@ -41,7 +42,7 @@ const KPI_CARDS = [
   { key: 'batteryUnchecked', label: 'Ắc quy chưa kiểm tra', icon: Clock, color: '#64748b' },
 ]
 
-function TodayKPICards({ kpi, onInputDetail }: { kpi: KpiData; onInputDetail: () => void }) {
+function TodayKPICards({ kpi, onInputDetail, onBatteryDetail }: { kpi: KpiData; onInputDetail: () => void; onBatteryDetail: (status: 'normal' | 'needs_charge' | 'unchecked') => void }) {
   return (
     <>
       {KPI_CARDS.map((card) => {
@@ -53,8 +54,8 @@ function TodayKPICards({ kpi, onInputDetail }: { kpi: KpiData; onInputDetail: ()
             </div>
             <div className="mt-2 text-2xl font-bold" style={{ color: card.color }}>{value}</div>
             <div className="mt-0.5 text-xs text-slate-500">{card.label}</div>
-            {card.key === 'noInputCheck' && value > 0 && (
-              <button type="button" onClick={onInputDetail} className="mt-2 self-start text-xs font-medium text-brand-600 hover:underline">
+            {(card.key === 'noInputCheck' || card.key === 'batteryNormal' || card.key === 'batteryNeedsCharge' || card.key === 'batteryUnchecked') && (
+              <button type="button" onClick={() => card.key === 'noInputCheck' ? onInputDetail() : onBatteryDetail(card.key === 'batteryNormal' ? 'normal' : card.key === 'batteryNeedsCharge' ? 'needs_charge' : 'unchecked')} className="mt-2 self-start text-xs font-medium text-brand-600 hover:underline">
                 Chi tiết →
               </button>
             )}
@@ -565,12 +566,48 @@ function IncompleteInputModal({ vehicleIds, missingByVehicle, vehicles, onClose 
   )
 }
 
+// ====== BATTERY DETAIL MODAL ======
+function BatteryDetailModal({ status, vehicles, checkSheets, onClose }: { status: 'normal' | 'needs_charge' | 'unchecked'; vehicles: import('../../types').Vehicle[]; checkSheets: import('../../types').CheckSheet[]; onClose: () => void }) {
+  const navigate = useNavigate()
+  const rows = vehicles.filter((v) => {
+    if (v.status === 'sold') return false
+    const sheet = checkSheets.filter((s) => s.vehicleId === v.id && s.type === 'in').sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
+    return getInputBatteryStatus(sheet) === status
+  })
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div className="mx-4 flex max-h-[70vh] w-full max-w-xl flex-col rounded-xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b px-5 py-3">
+          <h3 className="text-sm font-semibold text-slate-800">{status === 'normal' ? 'Ắc quy bình thường' : status === 'needs_charge' ? 'Ắc quy cần sạc' : 'Ắc quy chưa kiểm tra'}</h3>
+          <button type="button" onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100">✕</button>
+        </div>
+        <div className="overflow-y-auto px-5 py-3">
+          {rows.length === 0 ? <p className="py-4 text-center text-sm text-slate-400">Không có xe nào</p> : (
+            <div className="space-y-2">
+              {rows.map((v) => {
+                const sheet = checkSheets.filter((s) => s.vehicleId === v.id && s.type === 'in').sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
+                return <div key={v.id} className="flex items-center gap-3 rounded-lg border border-slate-100 px-3 py-2.5">
+                  <div className="min-w-0 flex-1"><div className="text-sm font-semibold text-brand-600">{v.plate || '—'}</div><div className="truncate text-xs text-slate-600">{v.model}</div></div>
+                  <div className="shrink-0 text-right text-xs text-slate-500"><div>SOH: {sheet?.inputAcquySOH ?? '—'}%</div><div>SOC: {sheet?.inputAcquySOC ?? '—'}%</div></div>
+                  <button type="button" onClick={() => navigate(`/xe/${v.id}`)} className="shrink-0 rounded-lg border border-brand-200 bg-brand-50 px-2.5 py-2 text-xs font-medium text-brand-700">Chi tiết</button>
+                </div>
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ====== PAGE ======
 
 export default function OverviewDashboard() {
   const vm = useDashboardViewModel()
   const vehicles = useStore((s) => s.vehicles)
+  const checkSheets = useStore((s) => s.checkSheets)
   const [inputDetailOpen, setInputDetailOpen] = useState(false)
+  const [batteryDetail, setBatteryDetail] = useState<'normal' | 'needs_charge' | 'unchecked' | null>(null)
 
   return (
     <div className="space-y-7">
@@ -587,7 +624,7 @@ export default function OverviewDashboard() {
 
       {/* ROW 1: 4 KPI cards — equal width, full row */}
       <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5">
-        <TodayKPICards kpi={vm.kpi} onInputDetail={() => setInputDetailOpen(true)} />
+        <TodayKPICards kpi={vm.kpi} onInputDetail={() => setInputDetailOpen(true)} onBatteryDetail={setBatteryDetail} />
       </div>
 
       {/* ROW 2: LiveFeed + Locations + Warnings */}
@@ -614,6 +651,7 @@ export default function OverviewDashboard() {
           onClose={() => setInputDetailOpen(false)}
         />
       )}
+      {batteryDetail && <BatteryDetailModal status={batteryDetail} vehicles={vehicles} checkSheets={checkSheets} onClose={() => setBatteryDetail(null)} />}
     </div>
   )
 }
