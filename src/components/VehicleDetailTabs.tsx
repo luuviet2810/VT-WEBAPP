@@ -11,6 +11,7 @@ import * as storageService from '../services/storage.service'
 import * as vehicleOptionService from '../services/vehicleOption.service'
 import type { VehicleImageRow } from '../services/vehicleMedia.service'
 import type { Vehicle, VehicleOptionDef } from '../types'
+import { DISPLACEMENT_OPTIONS } from '../utils/vehicleDisplacement'
 
 interface Props {
   vehicle: Vehicle
@@ -27,8 +28,6 @@ export const VEHICLE_DETAIL_TABS = [
   { key: 'docs', label: 'Giấy tờ', icon: <FileText size={15} /> },
   { key: 'history', label: 'Lịch sử', icon: <Clock size={15} /> },
 ]
-
-const DISPLACEMENT_OPTIONS = ['1.0L', '1.4L', '1.6L', '1.8L', '2.0L', '2.2L', '2.4L', '3.0L', '3.3L']
 
 async function downloadAllImages(images: string[], model: string, plate: string, prefix = '') {
   for (let i = 0; i < images.length; i++) {
@@ -199,6 +198,11 @@ export default function VehicleDetailTabs({ vehicle, tab, onTabChange }: Props) 
         <label className="label">Dung tích (L)</label>
         <select className="input" value={info.displacement} onChange={(e) => setInfoField('displacement', e.target.value)}>
           <option value="">Chọn...</option>
+          {info.displacement && !DISPLACEMENT_OPTIONS.includes(info.displacement) && (
+            <option value={info.displacement} disabled>
+              {/^\d+(\.\d+)?$/.test(info.displacement) ? `${info.displacement}L` : info.displacement}
+            </option>
+          )}
           {DISPLACEMENT_OPTIONS.map((d) => (
             <option key={d} value={d}>{d}</option>
           ))}

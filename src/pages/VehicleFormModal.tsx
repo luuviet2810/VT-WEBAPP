@@ -226,6 +226,9 @@ export default function VehicleFormModal({
                   <label className="label">Dung tích (L)</label>
                   <select className="input" value={form.displacement} onChange={(e) => set('displacement', e.target.value)}>
                     <option value="">Chọn...</option>
+                    {form.displacement && !DISPLACEMENT_OPTIONS.includes(form.displacement) && (
+                      <option value={form.displacement} disabled>{form.displacement}</option>
+                    )}
                     {DISPLACEMENT_OPTIONS.map((d) => (
                       <option key={d} value={d}>{d}</option>
                     ))}
