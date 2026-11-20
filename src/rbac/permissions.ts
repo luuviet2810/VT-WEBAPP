@@ -141,8 +141,10 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   ],
 
   staff: [
-    // Vehicle - read only (can view assigned vehicles)
+    // Vehicle - create/update allowed; delete remains admin-only
     'vehicle:read',
+    'vehicle:create',
+    'vehicle:update',
     'vehicle:move',
     'vehicle:upload_photo',
     'vehicle:upload_document',

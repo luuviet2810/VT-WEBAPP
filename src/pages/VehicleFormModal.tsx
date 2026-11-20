@@ -5,7 +5,7 @@ import { useStore } from '../store/useStore'
 import { useIsAdminMode } from '../hooks/useAuthRole'
 import { FuelType, VehicleStatus } from '../types'
 
-export const DISPLACEMENT_OPTIONS = ['1.0L', '1.4L', '1.6L', '1.8L', '2.0L', '2.2L', '2.4L', '3.0L', '3.3L']
+import { DISPLACEMENT_OPTIONS } from '../utils/vehicleDisplacement'
 
 export default function VehicleFormModal({
   open,

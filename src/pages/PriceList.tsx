@@ -7,6 +7,7 @@ import { Badge, EmptyState, ConfirmDialog } from '../components/ui'
 import VehicleFilterBar from '../components/VehicleFilterBar'
 import VehicleFormModal from './VehicleFormModal'
 import { useIsAdminMode, useIsStaffMode } from '../hooks/useAuthRole'
+import { useVehiclePermissions } from '../rbac/usePermissions'
 import { Vehicle, VehicleStatus } from '../types'
 
 const STATUS_LABEL: Record<VehicleStatus, string> = {
@@ -42,7 +43,11 @@ export default function PriceList() {
   // Use auth-based role check (respects viewMode for UI)
   const isAdminMode = useIsAdminMode()
   const isStaffMode = useIsStaffMode()
-  const canEdit = isAdminMode && !isStaffMode // Only actual admin can edit (not previewing staff)
+  const vehiclePerms = useVehiclePermissions()
+  // Actual role permissions, not view-mode: Staff can create/update; only
+  // Admin has vehicle:delete.
+  const canEdit = vehiclePerms.canCreate || vehiclePerms.canUpdate
+  const canDelete = vehiclePerms.canDelete
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editVehicleId, setEditVehicleId] = useState<string | null>(null)
@@ -125,7 +130,7 @@ export default function PriceList() {
           <h1 className="text-2xl font-bold text-slate-900">Bảng giá xe</h1>
           <p className="mt-1 text-sm text-slate-500">
             {filtered.length} xe
-            {isStaffMode && !isAdminMode && ' — chỉ xem thông tin'}
+            {isStaffMode && !isAdminMode && ' — có thể thêm và chỉnh sửa'}
           </p>
         </div>
         {canEdit && (
@@ -168,6 +173,7 @@ export default function PriceList() {
                   vehicle={v}
                   canEdit={canEdit}
                   onEdit={handleEditRow}
+                  canDelete={canDelete}
                   onDelete={handleDeleteRow}
                   onStatusChange={handleStatusChangeRow}
                 />
@@ -229,12 +235,14 @@ function Th({ label, onClick, sortKey, sortAsc, current }: { label: string; onCl
 const PriceRow = memo(function PriceRow({
   vehicle,
   canEdit,
+  canDelete,
   onEdit,
   onDelete,
   onStatusChange,
 }: {
   vehicle: Vehicle
   canEdit: boolean
+  canDelete: boolean
   onEdit: (id: string) => void
   onDelete: (id: string) => void
   onStatusChange: (id: string, status: VehicleStatus) => void
@@ -247,7 +255,21 @@ const PriceRow = memo(function PriceRow({
       onClick={canEdit ? () => onEdit(vehicle.id) : undefined}
     >
       <td className="px-3 py-2.5 font-medium text-slate-800 whitespace-nowrap">{vehicle.model}</td>
-      <td className="px-3 py-2.5 font-medium text-brand-600 whitespace-nowrap">{vehicle.plate || '—'}</td>
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            if (canEdit) onEdit(vehicle.id)
+          }}
+          className={`font-medium text-brand-600 transition-colors ${
+            canEdit ? 'hover:underline hover:text-brand-700 cursor-pointer text-left' : 'cursor-default'
+          }`}
+          title={canEdit ? 'Bấm để xem và chỉnh sửa thông tin xe' : undefined}
+        >
+          {vehicle.plate || '—'}
+        </button>
+      </td>
       <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap">{vehicle.year || '—'}</td>
       <td className="px-3 py-2.5 font-semibold text-slate-800 whitespace-nowrap">{formatCurrency(vehicle.sellPrice)}</td>
       <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap">{vehicle.mileage || '—'}</td>
@@ -286,13 +308,15 @@ const PriceRow = memo(function PriceRow({
             >
               <Pencil size={15} />
             </button>
-            <button
-              className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 active:scale-95"
-              onClick={() => onDelete(vehicle.id)}
-              title="Xoá"
-            >
-              <Trash2 size={15} />
-            </button>
+            {canDelete && (
+              <button
+                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 active:scale-95"
+                onClick={() => onDelete(vehicle.id)}
+                title="Xoá"
+              >
+                <Trash2 size={15} />
+              </button>
+            )}
           </div>
         </td>
       )}
