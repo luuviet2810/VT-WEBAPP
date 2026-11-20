@@ -1170,6 +1170,7 @@ export const useStore = create<StoreState>()(
         isPublic: Boolean(row.is_public),
         publicSortOrder: (row.public_sort_order as number) ?? null,
         options: (row.options as string[]) ?? undefined,
+        optionsChecked: (row.options_checked as boolean | null) ?? null,
       }
       set((s) => {
         const idx = s.vehicles.findIndex((x) => x.id === v.id)

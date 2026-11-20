@@ -45,6 +45,7 @@ function mapVehicleRow(v: VehicleRow, images: string[] = [], documents: string[]
     isPublic: (v.is_public as boolean) ?? false,
     publicSortOrder: (v.public_sort_order as number) ?? null,
     options: (v.options as string[]) ?? undefined,
+    optionsChecked: (v.options_checked as boolean | null) ?? null,
   }
 }
 
@@ -212,6 +213,7 @@ export async function updateVehicle(id: string, patch: Partial<Vehicle>): Promis
   if (patch.isPublic !== undefined) updateData.is_public = patch.isPublic
   if (patch.publicSortOrder !== undefined) updateData.public_sort_order = patch.publicSortOrder
   if (patch.options !== undefined) updateData.options = patch.options
+  if (patch.optionsChecked !== undefined) updateData.options_checked = patch.optionsChecked
   // NOTE: images and documents are NOT columns in vehicles table
 
   updateData.updated_at = new Date().toISOString()

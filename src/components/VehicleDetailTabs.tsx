@@ -968,6 +968,7 @@ function VehicleOptionsTab({ vehicle }: { vehicle: Vehicle }) {
   const [loadError, setLoadError] = useState(false)
   const [editMode, setEditMode] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [checkingOptions, setCheckingOptions] = useState(false)
   const [msg, setMsg] = useState<{ kind: 'success' | 'error'; text: string } | null>(null)
   // Option mới đang gõ (local-only, chưa vào DB cho tới khi Enter/blur)
   const [draft, setDraft] = useState<{ groupKey: string; label: string } | null>(null)
@@ -1103,17 +1104,37 @@ function VehicleOptionsTab({ vehicle }: { vehicle: Vehicle }) {
             <span className="ml-1 font-semibold text-brand-600">Đang chọn: {selected.length}</span>
           )}
         </div>
-        {isAdmin && (
-          <button
-            type="button"
-            className="btn-secondary flex shrink-0 items-center gap-1.5"
-            disabled={saving}
-            onClick={() => { setEditMode((m) => !m); setDraft(null); setMsg(null) }}
-          >
-            {editMode ? <Check size={15} /> : <Pencil size={15} />}
-            {editMode ? 'Hoàn tất' : 'Chỉnh sửa'}
-          </button>
-        )}
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700">
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-brand-600"
+              checked={vehicle.optionsChecked === true}
+              disabled={checkingOptions || saving}
+              onChange={async (e) => {
+                setCheckingOptions(true)
+                setMsg(null)
+                const ok = await updateVehicle(vehicle.id, { optionsChecked: e.target.checked })
+                setCheckingOptions(false)
+                setMsg(ok
+                  ? { kind: 'success', text: e.target.checked ? 'Đã xác nhận kiểm tra Option.' : 'Đã bỏ xác nhận kiểm tra Option.' }
+                  : { kind: 'error', text: 'Không thể lưu trạng thái kiểm tra Option.' })
+              }}
+            />
+            Đã kiểm tra Option
+          </label>
+          {isAdmin && (
+            <button
+              type="button"
+              className="btn-secondary flex shrink-0 items-center gap-1.5"
+              disabled={saving}
+              onClick={() => { setEditMode((m) => !m); setDraft(null); setMsg(null) }}
+            >
+              {editMode ? <Check size={15} /> : <Pencil size={15} />}
+              {editMode ? 'Hoàn tất' : 'Chỉnh sửa'}
+            </button>
+          )}
+        </div>
       </div>
 
       {msg && (

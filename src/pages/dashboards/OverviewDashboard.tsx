@@ -34,6 +34,7 @@ function DashboardHeader() {
 
 const KPI_CARDS = [
   { key: 'noInputCheck', label: 'Chưa hoàn thành kiểm tra đầu vào', icon: ClipboardList, color: '#3b82f6' },
+  { key: 'noOptionsCheck', label: 'Xe chưa kiểm tra Option', icon: ClipboardList, color: '#3b82f6' },
   { key: 'needPolish', label: 'Xe cần đánh bóng', icon: Car, color: '#f59e0b' },
   { key: 'washing', label: 'Xe đang rửa máy', icon: Car, color: '#10b981' },
   { key: 'needTasks', label: 'Nhiệm vụ cần xử lý', icon: AlertTriangle, color: '#ef4444' },
@@ -42,7 +43,7 @@ const KPI_CARDS = [
   { key: 'batteryUnchecked', label: 'Ắc quy chưa kiểm tra', icon: Clock, color: '#64748b' },
 ]
 
-function TodayKPICards({ kpi, onInputDetail, onBatteryDetail }: { kpi: KpiData; onInputDetail: () => void; onBatteryDetail: (status: 'normal' | 'needs_charge' | 'unchecked') => void }) {
+function TodayKPICards({ kpi, onInputDetail, onOptionsDetail, onBatteryDetail }: { kpi: KpiData; onInputDetail: () => void; onOptionsDetail: () => void; onBatteryDetail: (status: 'normal' | 'needs_charge' | 'unchecked') => void }) {
   return (
     <>
       {KPI_CARDS.map((card) => {
@@ -54,8 +55,16 @@ function TodayKPICards({ kpi, onInputDetail, onBatteryDetail }: { kpi: KpiData; 
             </div>
             <div className="mt-2 text-2xl font-bold" style={{ color: card.color }}>{value}</div>
             <div className="mt-0.5 text-xs text-slate-500">{card.label}</div>
-            {(card.key === 'noInputCheck' || card.key === 'batteryNormal' || card.key === 'batteryNeedsCharge' || card.key === 'batteryUnchecked') && (
-              <button type="button" onClick={() => card.key === 'noInputCheck' ? onInputDetail() : onBatteryDetail(card.key === 'batteryNormal' ? 'normal' : card.key === 'batteryNeedsCharge' ? 'needs_charge' : 'unchecked')} className="mt-2 self-start text-xs font-medium text-brand-600 hover:underline">
+            {(card.key === 'noInputCheck' || card.key === 'noOptionsCheck' || card.key === 'batteryNormal' || card.key === 'batteryNeedsCharge' || card.key === 'batteryUnchecked') && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (card.key === 'noInputCheck') onInputDetail()
+                  else if (card.key === 'noOptionsCheck') onOptionsDetail()
+                  else onBatteryDetail(card.key === 'batteryNormal' ? 'normal' : card.key === 'batteryNeedsCharge' ? 'needs_charge' : 'unchecked')
+                }}
+                className="mt-2 self-start text-xs font-medium text-brand-600 hover:underline"
+              >
                 Chi tiết →
               </button>
             )}
@@ -566,6 +575,40 @@ function IncompleteInputModal({ vehicleIds, missingByVehicle, vehicles, onClose 
   )
 }
 
+// ====== OPTIONS DETAIL MODAL ======
+function OptionsDetailModal({ vehicleIds, vehicles, onClose }: { vehicleIds: string[]; vehicles: import('../../types').Vehicle[]; onClose: () => void }) {
+  const navigate = useNavigate()
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div className="mx-4 flex max-h-[70vh] w-full max-w-xl flex-col rounded-xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex shrink-0 items-center justify-between border-b px-5 py-3">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-800">Xe chưa kiểm tra Option</h3>
+            <p className="mt-0.5 text-xs text-slate-500">{vehicleIds.length} xe cần kiểm tra</p>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100">✕</button>
+        </div>
+        <div className="overflow-y-auto px-5 py-3">
+          {vehicleIds.length === 0 ? <p className="py-4 text-center text-sm text-slate-400">Không có xe nào</p> : (
+            <div className="space-y-2">
+              {vehicleIds.map((id) => {
+                const v = vehicles.find((item) => item.id === id)
+                if (!v) return null
+                return (
+                  <button key={id} type="button" onClick={() => navigate(`/xe/${id}`)} className="flex w-full items-center gap-3 rounded-lg border border-slate-100 px-3 py-2.5 text-left hover:bg-slate-50">
+                    <div className="min-w-0 flex-1"><div className="text-sm font-semibold text-brand-600">{v.plate || '—'}</div><div className="truncate text-xs text-slate-600">{v.model}</div></div>
+                    <span className="shrink-0 text-xs font-medium text-brand-600">Chi tiết →</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ====== BATTERY DETAIL MODAL ======
 function BatteryDetailModal({ status, vehicles, checkSheets, onClose }: { status: 'normal' | 'needs_charge' | 'unchecked'; vehicles: import('../../types').Vehicle[]; checkSheets: import('../../types').CheckSheet[]; onClose: () => void }) {
   const navigate = useNavigate()
@@ -607,6 +650,7 @@ export default function OverviewDashboard() {
   const vehicles = useStore((s) => s.vehicles)
   const checkSheets = useStore((s) => s.checkSheets)
   const [inputDetailOpen, setInputDetailOpen] = useState(false)
+  const [optionsDetailOpen, setOptionsDetailOpen] = useState(false)
   const [batteryDetail, setBatteryDetail] = useState<'normal' | 'needs_charge' | 'unchecked' | null>(null)
 
   return (
@@ -624,7 +668,7 @@ export default function OverviewDashboard() {
 
       {/* ROW 1: 4 KPI cards — equal width, full row */}
       <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-5">
-        <TodayKPICards kpi={vm.kpi} onInputDetail={() => setInputDetailOpen(true)} onBatteryDetail={setBatteryDetail} />
+        <TodayKPICards kpi={vm.kpi} onInputDetail={() => setInputDetailOpen(true)} onOptionsDetail={() => setOptionsDetailOpen(true)} onBatteryDetail={setBatteryDetail} />
       </div>
 
       {/* ROW 2: LiveFeed + Locations + Warnings */}
@@ -651,6 +695,7 @@ export default function OverviewDashboard() {
           onClose={() => setInputDetailOpen(false)}
         />
       )}
+      {optionsDetailOpen && <OptionsDetailModal vehicleIds={vm.kpi.noOptionsVehicleIds} vehicles={vehicles} onClose={() => setOptionsDetailOpen(false)} />}
       {batteryDetail && <BatteryDetailModal status={batteryDetail} vehicles={vehicles} checkSheets={checkSheets} onClose={() => setBatteryDetail(null)} />}
     </div>
   )

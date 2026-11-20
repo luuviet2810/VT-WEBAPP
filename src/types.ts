@@ -36,6 +36,7 @@ export interface Vehicle {
   /** Selected equipment — array of vehicle_option_defs.key. NULL/undefined
    *  for vehicles that have no options chosen (no fake data). */
   options?: string[]
+  optionsChecked?: boolean | null
 }
 
 /** Master catalog row for vehicle equipment options ("Option xe").

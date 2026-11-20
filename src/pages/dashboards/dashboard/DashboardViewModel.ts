@@ -12,6 +12,8 @@ export interface KpiData {
   noInputCheck: number
   noInputVehicleIds: string[]
   noInputMissingByVehicle: Record<string, string[]>
+  noOptionsCheck: number
+  noOptionsVehicleIds: string[]
   batteryNormal: number
   batteryNeedsCharge: number
   batteryUnchecked: number
@@ -100,6 +102,7 @@ export function useDashboardViewModel() {
       })
       .map((v) => v.id)
     const noInputCheck = noInputVehicleIds.length
+    const noOptionsVehicleIds = activeVehicles.filter((v) => v.optionsChecked !== true).map((v) => v.id)
 
     const batteryCounts = { normal: 0, needs_charge: 0, unchecked: 0 }
     for (const vehicle of activeVehicles) {
@@ -125,6 +128,8 @@ export function useDashboardViewModel() {
       noInputCheck,
       noInputVehicleIds,
       noInputMissingByVehicle,
+      noOptionsVehicleIds,
+      noOptionsCheck: noOptionsVehicleIds.length,
       batteryNormal: batteryCounts.normal,
       batteryNeedsCharge: batteryCounts.needs_charge,
       batteryUnchecked: batteryCounts.unchecked,
