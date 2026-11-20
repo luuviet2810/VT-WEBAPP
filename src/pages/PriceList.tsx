@@ -1,6 +1,6 @@
 import { memo, useCallback, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowUpDown, Car, Pencil, Plus, Trash2 } from 'lucide-react'
+import { ArrowUpDown, Car, Plus } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import { formatCurrency, todayISO } from '../utils/format'
 import { Badge, EmptyState, ConfirmDialog } from '../components/ui'
@@ -162,8 +162,7 @@ export default function PriceList() {
                 <th className="px-3 py-3 whitespace-nowrap">Màu</th>
                 <th className="px-3 py-3 whitespace-nowrap">Dung tích</th>
                 {canEdit && <th className="px-3 py-3 whitespace-nowrap">Giá nhập</th>}
-                <th className="px-3 py-3 whitespace-nowrap">Tình trạng</th>
-                {canEdit && <th className="px-3 py-3" />}
+                <th className="px-3 py-3 whitespace-nowrap text-right pr-4">Tình trạng</th>
               </tr>
             </thead>
             <tbody>
@@ -277,7 +276,7 @@ const PriceRow = memo(function PriceRow({
       <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap">{vehicle.color || '—'}</td>
       <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap">{vehicle.displacement || '—'}</td>
       {canEdit && <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap">{formatCurrency(vehicle.costPrice)}</td>}
-      <td className="px-3 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+      <td className="px-3 py-2.5 pr-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
         {canEdit ? (
           <select
             className="cursor-pointer rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs transition-colors hover:border-brand-400 focus:border-brand-500 focus:outline-none"
@@ -298,28 +297,6 @@ const PriceRow = memo(function PriceRow({
           </span>
         )}
       </td>
-      {canEdit && (
-        <td className="px-3 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center gap-1">
-            <button
-              className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-brand-600 active:scale-95"
-              onClick={() => onEdit(vehicle.id)}
-              title="Chỉnh sửa"
-            >
-              <Pencil size={15} />
-            </button>
-            {canDelete && (
-              <button
-                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 active:scale-95"
-                onClick={() => onDelete(vehicle.id)}
-                title="Xoá"
-              >
-                <Trash2 size={15} />
-              </button>
-            )}
-          </div>
-        </td>
-      )}
     </tr>
   )
 })
