@@ -25,6 +25,7 @@ import {
   HipassState,
   InteriorCheck,
   InteriorCondition,
+  InputEquipmentStatus,
   NuocLamMatItem,
   NuocLamMatStatus,
   ScreenState,
@@ -94,6 +95,7 @@ const DIEU_HOA_OPTIONS: { value: DieuHoaStatus; label: string }[] = [
   { value: 'good', label: 'Tốt' },
   { value: 'need_gas', label: 'Cần đổ ga' },
 ]
+const INPUT_DIEU_HOA_OPTIONS = [...DIEU_HOA_OPTIONS, { value: 'not_checked', label: 'Chưa check' }]
 
 // Sưởi ghế options
 const SUOI_GHE_OPTIONS: { value: SuoiGheStatus; label: string }[] = [
@@ -113,6 +115,7 @@ const CABIN_AIR_FILTER_OPTIONS: { value: CabinAirFilterStatus; label: string }[]
   { value: 'clean', label: 'Sạch' },
   { value: 'replaced', label: 'Đã thay' },
   { value: 'dirty', label: 'Bẩn' },
+  { value: 'not_checked', label: 'Chưa check' },
 ]
 
 // Kiểm tra dầu máy — 'needs_topup' tạo task "Thiếu dầu máy" (priority high)
@@ -120,12 +123,14 @@ const ENGINE_OIL_LEVEL_OPTIONS: { value: EngineOilLevelStatus; label: string }[]
   { value: 'sufficient', label: 'Đủ' },
   { value: 'between_marks', label: 'Giữa vạch' },
   { value: 'needs_topup', label: 'Thiếu (cần đổ thêm)' },
+  { value: 'not_checked', label: 'Chưa check' },
 ]
 
 // Kiểm tra lọc gió dầu máy — chỉ lưu, không tạo task
 const ENGINE_AIR_FILTER_OPTIONS: { value: EngineAirFilterStatus; label: string }[] = [
   { value: 'clean', label: 'Sạch' },
   { value: 'dirty', label: 'Bẩn' },
+  { value: 'not_checked', label: 'Chưa check' },
 ]
 
 // 4 hạng mục thiết bị đầu vào — 'error' tạo task, done sync về 'ok'
@@ -133,6 +138,13 @@ const EQUIPMENT_INPUT_OPTIONS: { value: CheckOutStatus; label: string }[] = [
   { value: 'ok', label: 'OK' },
   { value: 'error', label: 'Lỗi' },
   { value: 'none', label: 'Không có' },
+]
+
+// 3 hạng mục thiết bị đầu vào (Đèn, Motor gương, Cửa sổ) — đổi 'Không có' thành 'Chưa check'
+const EQUIPMENT_INPUT_UNCHECKED_OPTIONS: { value: InputEquipmentStatus; label: string }[] = [
+  { value: 'ok', label: 'OK' },
+  { value: 'error', label: 'Lỗi' },
+  { value: 'not_checked', label: 'Chưa check' },
 ]
 
 // 12 hạng mục kiểm tra đầu ra - chỉ các item generic (OK/Lỗi/Không có)
@@ -273,10 +285,10 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
   const [cabinAirFilter, setCabinAirFilter] = useState<CabinAirFilterStatus | undefined>(undefined)
   const [engineOilLevel, setEngineOilLevel] = useState<EngineOilLevelStatus | undefined>(undefined)
   const [engineAirFilter, setEngineAirFilter] = useState<EngineAirFilterStatus | undefined>(undefined)
-  const [inputDenPhaCot, setInputDenPhaCot] = useState<CheckOutStatus | undefined>(undefined)
-  const [inputMotorGuongNutBam, setInputMotorGuongNutBam] = useState<CheckOutStatus | undefined>(undefined)
-  const [inputCuaSo, setInputCuaSo] = useState<CheckOutStatus | undefined>(undefined)
-  const [inputGheChinhDien, setInputGheChinhDien] = useState<CheckOutStatus | undefined>(undefined)
+  const [inputDenPhaCot, setInputDenPhaCot] = useState<InputEquipmentStatus | undefined>(undefined)
+  const [inputMotorGuongNutBam, setInputMotorGuongNutBam] = useState<InputEquipmentStatus | undefined>(undefined)
+  const [inputCuaSo, setInputCuaSo] = useState<InputEquipmentStatus | undefined>(undefined)
+  const [inputGheChinhDien, setInputGheChinhDien] = useState<InputEquipmentStatus | undefined>(undefined)
 
   // ====== ĐIỀU HÒA & SƯỞI GHẾ STATE (Đầu vào) ======
   const [inputDieuHoa, setInputDieuHoa] = useState<DieuHoaItem>({ status: '' as DieuHoaStatus })
@@ -584,7 +596,7 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
       else if (eaf === 'bad') error++
 
       // 4 hạng mục thiết bị (Đầu vào) — Lỗi tính hỏng, Không có tính cần lắp
-      const equip: (CheckOutStatus | undefined)[] = [inputDenPhaCot, inputMotorGuongNutBam, inputCuaSo, inputGheChinhDien]
+      const equip: (InputEquipmentStatus | undefined)[] = [inputDenPhaCot, inputMotorGuongNutBam, inputCuaSo, inputGheChinhDien]
       for (const eq of equip) {
         const c = classifyStatus(eq)
         if (c === 'ok') ok++
@@ -1264,16 +1276,16 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
                 <OptionRow label="Camera hành trình" value={dashcam} onChange={(v) => setDashcam(v as DashcamState)} options={[
                   { value: 'good', label: 'Có thẻ nhớ' }, { value: 'maybe', label: 'Thiếu thẻ nhớ' }, { value: 'none', label: 'Chưa có' },
                 ]} />
-                <DieuHoaRow label="Điều hòa" entry={inputDieuHoa} onChange={(p) => setInputDieuHoa((prev) => ({ ...prev, ...p }))} />
+                <OptionRow label="Điều hòa" value={inputDieuHoa.status?.trim() || 'not_checked'} onChange={(v) => setInputDieuHoa({ status: v as DieuHoaStatus })} options={INPUT_DIEU_HOA_OPTIONS} />
                 <SuoiGheRow label="Sưởi ghế" entry={inputSuoiGhe} onChange={(p) => setInputSuoiGhe((prev) => ({ ...prev, ...p }))} />
                 <TireCheckRow label="Tình trạng lốp" entry={inputTireState} onChange={(p) => setInputTireState((prev) => ({ ...prev, ...p }))} />
                 <OptionRow label="Bơm lốp chưa?" value={inputTireInflated} onChange={(v) => setInputTireInflated(v as TireInflatedStatus)} options={TIRE_INFLATED_OPTIONS} />
-                <OptionRow label="Kiểm tra lọc gió trong" value={cabinAirFilter} onChange={(v) => setCabinAirFilter(v as CabinAirFilterStatus)} options={CABIN_AIR_FILTER_OPTIONS} />
-                <OptionRow label="Kiểm tra dầu máy" value={engineOilLevel} onChange={(v) => setEngineOilLevel(v as EngineOilLevelStatus)} options={ENGINE_OIL_LEVEL_OPTIONS} />
-                <OptionRow label="Kiểm tra lọc gió dầu máy" value={engineAirFilter} onChange={(v) => setEngineAirFilter(v as EngineAirFilterStatus)} options={ENGINE_AIR_FILTER_OPTIONS} />
-                <OptionRow label="Đèn (Pha, Cốt, Cảnh báo, Phanh)" value={inputDenPhaCot} onChange={(v) => setInputDenPhaCot(v as CheckOutStatus)} options={EQUIPMENT_INPUT_OPTIONS} />
-                <OptionRow label="Motor Gương, Nút bấm" value={inputMotorGuongNutBam} onChange={(v) => setInputMotorGuongNutBam(v as CheckOutStatus)} options={EQUIPMENT_INPUT_OPTIONS} />
-                <OptionRow label="Cửa sổ" value={inputCuaSo} onChange={(v) => setInputCuaSo(v as CheckOutStatus)} options={EQUIPMENT_INPUT_OPTIONS} />
+                <OptionRow label="Kiểm tra lọc gió trong" value={cabinAirFilter?.trim() || 'not_checked'} onChange={(v) => setCabinAirFilter(v as CabinAirFilterStatus)} options={CABIN_AIR_FILTER_OPTIONS} />
+                <OptionRow label="Kiểm tra dầu máy" value={engineOilLevel?.trim() || 'not_checked'} onChange={(v) => setEngineOilLevel(v as EngineOilLevelStatus)} options={ENGINE_OIL_LEVEL_OPTIONS} />
+                <OptionRow label="Kiểm tra lọc gió dầu máy" value={engineAirFilter?.trim() || 'not_checked'} onChange={(v) => setEngineAirFilter(v as EngineAirFilterStatus)} options={ENGINE_AIR_FILTER_OPTIONS} />
+                <OptionRow label="Đèn (Pha, Cốt, Cảnh báo, Phanh)" value={inputDenPhaCot?.trim() || 'not_checked'} onChange={(v) => setInputDenPhaCot(v as InputEquipmentStatus)} options={inputDenPhaCot === 'none' ? [...EQUIPMENT_INPUT_UNCHECKED_OPTIONS, { value: 'none', label: 'Không có' }] : EQUIPMENT_INPUT_UNCHECKED_OPTIONS} />
+                <OptionRow label="Motor Gương, Nút bấm" value={inputMotorGuongNutBam?.trim() || 'not_checked'} onChange={(v) => setInputMotorGuongNutBam(v as InputEquipmentStatus)} options={inputMotorGuongNutBam === 'none' ? [...EQUIPMENT_INPUT_UNCHECKED_OPTIONS, { value: 'none', label: 'Không có' }] : EQUIPMENT_INPUT_UNCHECKED_OPTIONS} />
+                <OptionRow label="Cửa sổ" value={inputCuaSo?.trim() || 'not_checked'} onChange={(v) => setInputCuaSo(v as InputEquipmentStatus)} options={inputCuaSo === 'none' ? [...EQUIPMENT_INPUT_UNCHECKED_OPTIONS, { value: 'none', label: 'Không có' }] : EQUIPMENT_INPUT_UNCHECKED_OPTIONS} />
                 <OptionRow label="Ghế chỉnh điện" value={inputGheChinhDien} onChange={(v) => setInputGheChinhDien(v as CheckOutStatus)} options={EQUIPMENT_INPUT_OPTIONS} />
               </div>
 

@@ -66,6 +66,7 @@ const CLASSIFICATION: Record<string, 'ok' | 'bad' | 'install'> = {
 export function classifyStatus(status: string | undefined | null): 'ok' | 'bad' | 'install' | 'unselected' {
   if (!status) return 'unselected'
   const key = status.toLowerCase().trim()
+  if (!key || key === 'not_checked') return 'unselected'
   return CLASSIFICATION[key] ?? 'ok'
 }
 
@@ -140,6 +141,7 @@ const STATUS_LABELS: Record<string, string> = {
   sufficient: 'Đủ',
   between_marks: 'Giữa vạch',
   needs_topup: 'Thiếu (cần đổ thêm)',
+  not_checked: 'Chưa check',
   // Key type
   smartkey: 'Smartkey',
   mechanical: 'Khóa cơ',
@@ -151,6 +153,6 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 export function statusLabel(status: string | null | undefined): string {
-  if (!status) return 'Chưa check'
+  if (!status || !status.trim()) return 'Chưa check'
   return STATUS_LABELS[status] ?? status
 }

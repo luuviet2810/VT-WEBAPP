@@ -219,6 +219,8 @@ export type ExteriorCheck = Record<ExteriorSpotKey, ConditionEntry<ExteriorCondi
 
 // Check out items - 12 items from the paper form
 export type CheckOutStatus = 'ok' | 'error' | 'none'
+/** Input-only equipment status. `not_checked` is distinct from legacy `none`. */
+export type InputEquipmentStatus = CheckOutStatus | 'not_checked'
 
 export interface CheckOutItem {
   status: CheckOutStatus
@@ -234,8 +236,8 @@ export type DauMayStatus = 'replacing' | 'good' | 'empty'
 // Nước làm mát: replacing | good | empty
 export type NuocLamMatStatus = 'replacing' | 'good' | 'empty'
 
-// Điều hòa: good | need_gas
-export type DieuHoaStatus = 'good' | 'need_gas'
+// Điều hòa: good | need_gas | not_checked
+export type DieuHoaStatus = 'good' | 'need_gas' | 'not_checked'
 
 // Sưởi ghế: good | broken | none
 export type SuoiGheStatus = 'good' | 'broken' | 'none'
@@ -243,14 +245,14 @@ export type SuoiGheStatus = 'good' | 'broken' | 'none'
 // Bơm lốp chưa?: ok (OK/Bình thường) | not_yet (Chưa — lỗi)
 export type TireInflatedStatus = 'ok' | 'not_yet'
 
-// Kiểm tra lọc gió trong: clean | replaced | dirty
-export type CabinAirFilterStatus = 'clean' | 'replaced' | 'dirty'
+// Kiểm tra lọc gió trong: clean | replaced | dirty | not_checked
+export type CabinAirFilterStatus = 'clean' | 'replaced' | 'dirty' | 'not_checked'
 
-// Kiểm tra dầu máy: sufficient | between_marks | needs_topup
-export type EngineOilLevelStatus = 'sufficient' | 'between_marks' | 'needs_topup'
+// Kiểm tra dầu máy: sufficient | between_marks | needs_topup | not_checked
+export type EngineOilLevelStatus = 'sufficient' | 'between_marks' | 'needs_topup' | 'not_checked'
 
-// Kiểm tra lọc gió dầu máy: clean | dirty
-export type EngineAirFilterStatus = 'clean' | 'dirty'
+// Kiểm tra lọc gió dầu máy: clean | dirty | not_checked
+export type EngineAirFilterStatus = 'clean' | 'dirty' | 'not_checked'
 
 export interface ConSeongnyeongItem {
   status: ConSeongnyeongStatus
@@ -313,11 +315,11 @@ export interface CheckSheet {
   cabinAirFilter?: CabinAirFilterStatus
   engineOilLevel?: EngineOilLevelStatus
   engineAirFilter?: EngineAirFilterStatus
-  // 4 hạng mục thiết bị đầu vào: 'ok' | 'error' | 'none'
-  inputDenPhaCot?: CheckOutStatus
-  inputMotorGuongNutBam?: CheckOutStatus
-  inputCuaSo?: CheckOutStatus
-  inputGheChinhDien?: CheckOutStatus
+  // 4 hạng mục thiết bị đầu vào: OK | Lỗi | legacy Không có | Chưa check
+  inputDenPhaCot?: InputEquipmentStatus
+  inputMotorGuongNutBam?: InputEquipmentStatus
+  inputCuaSo?: InputEquipmentStatus
+  inputGheChinhDien?: InputEquipmentStatus
   inputAcquySOH?: number
   inputAcquySOC?: number
   acquySOH?: number
