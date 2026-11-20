@@ -429,6 +429,16 @@ export const useStore = create<StoreState>()(
     },
 
     deleteVehicle: async (id) => {
+      // Check the authenticated database role before optimistic state changes,
+      // media cleanup, or task snapshot updates. Never use viewMode here.
+      try {
+        await vehicleService.assertCanDeleteVehicle()
+      } catch (err) {
+        console.error('[STORE] Vehicle delete denied:', err)
+        get().addNotification({ type: 'error', title: 'Không có quyền', body: 'Chỉ Admin được phép xóa xe.' })
+        return
+      }
+
       const before = get().vehicles.find((v) => v.id === id)
       const imagesToDelete = before?.images ?? []
       const docsToDelete = before?.documents ?? []

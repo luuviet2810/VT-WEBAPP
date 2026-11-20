@@ -1,7 +1,7 @@
 // ====== PERMISSION HOOK — centralized permission helpers ======
 
-import { useCallback } from 'react'
 import { useAuthStore } from '../store/useAuthStore'
+import { useViewModeStore } from '../store/viewModeStore'
 import { Permission, hasPermission, hasAnyPermission, hasAllPermissions } from './permissions'
 import { UserRole } from './roles'
 
@@ -9,7 +9,11 @@ import { UserRole } from './roles'
  * Returns the current user's role, or 'driver' as the default (most restrictive).
  */
 function useRole(): UserRole {
-  return (useAuthStore((s) => s.currentUser?.role) as UserRole | undefined) ?? 'staff'
+  const actualRole = (useAuthStore((s) => s.currentUser?.role) as UserRole | undefined) ?? 'staff'
+  const viewMode = useViewModeStore((s) => s.viewMode)
+  // View mode only controls which controls are rendered. Backend/store
+  // authorization still checks the actual users.role independently.
+  return actualRole === 'admin' ? viewMode : actualRole
 }
 
 /**

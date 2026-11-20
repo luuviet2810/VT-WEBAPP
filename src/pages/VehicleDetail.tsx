@@ -54,6 +54,7 @@ export default function VehicleDetail() {
   const v = vehicle!
 
   function confirmDelete() {
+    if (!canDelete) return
     deleteVehicle(v.id)
     navigate('/')
   }

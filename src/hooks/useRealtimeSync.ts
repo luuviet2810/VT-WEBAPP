@@ -114,7 +114,11 @@ export function useRealtimeSync(): void {
 
     const storeActions: RealtimeStoreActions = {
       upsertVehicle: (row) => useStore.getState().upsertVehicleFromRealtime(row),
-      deleteVehicle: (id) => useStore.getState().deleteVehicle(id),
+      // The row is already deleted in the database. Never invoke the user
+      // delete workflow (or delete media) while processing a realtime echo.
+      deleteVehicle: (id) => useStore.setState((s) => ({
+        vehicles: s.vehicles.filter((vehicle) => vehicle.id !== id),
+      })),
       upsertTask: (row) => useStore.getState().upsertTaskFromRealtime(row),
       deleteTask: (id) => useStore.getState().deleteTask(id),
       upsertPosition: (row) => useStore.getState().upsertPositionFromRealtime(row),

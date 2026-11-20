@@ -40,14 +40,13 @@ export default function PriceList() {
   const updateVehicle = useStore((s) => s.updateVehicle)
   const deleteVehicle = useStore((s) => s.deleteVehicle)
 
-  // Use auth-based role check (respects viewMode for UI)
+  // UI permissions respect the selected mode; data-layer authorization does not.
   const isAdminMode = useIsAdminMode()
   const isStaffMode = useIsStaffMode()
   const vehiclePerms = useVehiclePermissions()
-  // Actual role permissions, not view-mode: Staff can create/update; only
-  // Admin has vehicle:delete.
+  // Staff can create/update; only Admin has vehicle:delete in the RBAC map.
   const canEdit = vehiclePerms.canCreate || vehiclePerms.canUpdate
-  const canDelete = vehiclePerms.canDelete
+  const canDelete = vehiclePerms.canDelete && !isStaffMode
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editVehicleId, setEditVehicleId] = useState<string | null>(null)
@@ -101,8 +100,9 @@ export default function PriceList() {
     setModalOpen(true)
   }, [])
   const handleDeleteRow = useCallback((id: string) => {
+    if (!canDelete) return
     if (confirm('Xoá xe này khỏi hệ thống?')) deleteVehicle(id)
-  }, [deleteVehicle])
+  }, [canDelete, deleteVehicle])
   const handleStatusChangeRow = useCallback((id: string, status: VehicleStatus) => {
     if (status === 'sold') {
       setConfirmSoldId(id)

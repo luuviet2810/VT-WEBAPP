@@ -240,8 +240,34 @@ export async function updateVehicle(id: string, patch: Partial<Vehicle>): Promis
 
 // ====== DELETE ======
 
+/**
+ * Defense-in-depth check using the authenticated user's database role.
+ * This deliberately does not use viewMode/localStorage; those are UI state.
+ * RLS remains the authoritative database enforcement layer.
+ */
+export async function assertCanDeleteVehicle(): Promise<void> {
+  const { data: authData, error: authError } = await supabase.auth.getUser()
+  if (authError || !authData.user) {
+    throw new Error('Không xác định được người dùng hiện tại.')
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from('users')
+    .select('role')
+    .eq('auth_id', authData.user.id)
+    .maybeSingle()
+
+  if (profileError) throw profileError
+  if (profile?.role !== 'admin') {
+    throw new Error('Chỉ Admin được phép xóa xe.')
+  }
+}
+
 export async function deleteVehicle(id: string): Promise<void> {
-  // CASCADE will auto-delete vehicle_images and vehicle_documents rows
+  await assertCanDeleteVehicle()
+
+  // CASCADE will auto-delete vehicle_images and vehicle_documents rows.
+  // The database RLS policy must independently reject Staff DELETE.
   const { error } = await supabase
     .from('vehicles')
     .delete()
