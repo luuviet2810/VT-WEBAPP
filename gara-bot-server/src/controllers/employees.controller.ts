@@ -151,3 +151,32 @@ export async function updateEmployee(req: Request, res: Response) {
     });
   }
 }
+
+export async function deleteEmployee(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+
+    const userResult = await query('SELECT id, role, is_admin FROM users WHERE id = $1', [id]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        ok: false,
+        error: 'not_found',
+        message: 'Không tìm thấy nhân viên',
+      });
+    }
+
+    await query('DELETE FROM users WHERE id = $1', [id]);
+
+    return res.status(200).json({
+      ok: true,
+      message: 'Đã xóa nhân viên thành công',
+    });
+  } catch (err: any) {
+    console.error('[Employees Controller] deleteEmployee error:', err);
+    return res.status(500).json({
+      ok: false,
+      error: 'internal_error',
+      message: 'Không thể xóa nhân viên',
+    });
+  }
+}

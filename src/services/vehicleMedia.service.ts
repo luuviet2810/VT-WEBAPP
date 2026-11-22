@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase'
+import { apiGet, apiPost, apiPatch, apiDelete } from './api.client'
 
 // ====== TYPES ======
 
@@ -34,27 +34,42 @@ export interface VehicleDocumentRow {
 
 // ====== VEHICLE IMAGES ======
 
-function mapImageRow(row: Record<string, unknown>): VehicleImageRow {
+function mapImageRow(row: Record<string, any>): VehicleImageRow {
   return {
     id: row.id as string,
-    vehicle_id: row.vehicle_id as string,
+    vehicle_id: (row.vehicle_id || row.vehicleId) as string,
     path: row.path as string,
     bucket: row.bucket as string,
     url: row.url as string,
-    thumbnail: row.thumbnail as string | null,
+    thumbnail: (row.thumbnail as string | null) ?? null,
     category: (row.category as string) ?? undefined,
     subtype: (row.subtype as string) ?? null,
-    resolved: (row.resolved as boolean) ?? undefined,
-    song_nung_expiry_date: (row.song_nung_expiry_date as string) ?? null,
-    size_bytes: row.size_bytes as number | null,
-    mime_type: row.mime_type as string | null,
-    sort_order: row.sort_order as number,
-    created_at: row.created_at as string,
+    resolved: Boolean(row.resolved),
+    song_nung_expiry_date: (row.song_nung_expiry_date || row.songNungExpiryDate) ?? null,
+    size_bytes: row.size_bytes != null ? Number(row.size_bytes) : (row.sizeBytes != null ? Number(row.sizeBytes) : null),
+    mime_type: (row.mime_type || row.mimeType) ?? null,
+    sort_order: Number(row.sort_order ?? row.sortOrder ?? 0),
+    created_at: (row.created_at || row.createdAt) as string,
+  }
+}
+
+function mapDocumentRow(row: Record<string, any>): VehicleDocumentRow {
+  return {
+    id: row.id as string,
+    vehicle_id: (row.vehicle_id || row.vehicleId) as string,
+    label: (row.label as string | null) ?? null,
+    path: row.path as string,
+    bucket: row.bucket as string,
+    url: row.url as string,
+    size_bytes: row.size_bytes != null ? Number(row.size_bytes) : (row.sizeBytes != null ? Number(row.sizeBytes) : null),
+    mime_type: (row.mime_type || row.mimeType) ?? null,
+    sort_order: Number(row.sort_order ?? row.sortOrder ?? 0),
+    created_at: (row.created_at || row.createdAt) as string,
   }
 }
 
 /**
- * Save image metadata to DB after uploading file to Supabase Storage.
+ * Save image metadata to DB via Express API.
  */
 export async function addVehicleImage(
   vehicleId: string,
@@ -68,111 +83,54 @@ export async function addVehicleImage(
   category?: string,
   songNungExpiryDate?: string | null
 ): Promise<VehicleImageRow> {
-  const { data, error } = await supabase
-    .from('vehicle_images')
-    .insert({
-      vehicle_id: vehicleId,
-      path,
-      bucket,
-      url,
-      thumbnail: thumbnail ?? null,
-      category: category ?? 'vehicle',
-      song_nung_expiry_date: songNungExpiryDate ?? null,
-      size_bytes: sizeBytes ?? null,
-      mime_type: mimeType ?? null,
-      sort_order: sortOrder ?? 0,
-    })
-    .select()
-    .single()
-
-  if (error) throw error
-  return mapImageRow(data as Record<string, unknown>)
+  const data = await apiPost<any>(`/api/vehicles/${vehicleId}/images`, {
+    path,
+    bucket,
+    url,
+    thumbnail,
+    category,
+    songNungExpiryDate,
+    sizeBytes,
+    mimeType,
+    sortOrder,
+  })
+  return mapImageRow(data)
 }
 
 /**
  * Get all images for a specific vehicle, ordered by sort_order.
  */
 export async function getVehicleImages(vehicleId: string): Promise<VehicleImageRow[]> {
-  const { data, error } = await supabase
-    .from('vehicle_images')
-    .select('*')
-    .eq('vehicle_id', vehicleId)
-    .order('sort_order', { ascending: true })
-
-  if (error) throw error
-  return (data as Record<string, unknown>[]).map(mapImageRow)
+  const data = await apiGet<any[]>(`/api/vehicles/${vehicleId}/images`)
+  return (data ?? []).map(mapImageRow)
 }
 
 /**
- * Delete image metadata + file from Supabase Storage.
+ * Delete image metadata from DB via Express API.
  */
-export async function deleteVehicleImage(imageId: string, storagePath: string): Promise<void> {
-  // Delete from Supabase Storage
-  const { error: storageError } = await supabase.storage
-    .from('vehicle-images')
-    .remove([storagePath])
-
-  if (storageError) console.error('🔴 [vehicleMedia] Failed to delete storage file:', storageError)
-
-  // Delete DB record
-  const { error: dbError } = await supabase
-    .from('vehicle_images')
-    .delete()
-    .eq('id', imageId)
-
-  if (dbError) throw dbError
+export async function deleteVehicleImage(imageId: string, _storagePath?: string): Promise<void> {
+  await apiDelete(`/api/vehicles/images/${imageId}`)
 }
 
 /**
  * Update the display order (sort_order) of a vehicle's images.
- * Used when the user reorders images or sets a new cover image.
  */
 export async function updateVehicleImageOrder(imageId: string, sortOrder: number): Promise<void> {
-  const { error } = await supabase
-    .from('vehicle_images')
-    .update({ sort_order: sortOrder })
-    .eq('id', imageId)
-
-  if (error) throw error
+  await apiPatch(`/api/vehicles/images/${imageId}/order`, { sortOrder })
 }
 
 export async function updateVehicleImageCategory(imageId: string, category: string, sortOrder: number): Promise<void> {
-  const { error } = await supabase
-    .from('vehicle_images')
-    .update({ category, sort_order: sortOrder })
-    .eq('id', imageId)
-
-  if (error) throw error
+  await apiPatch(`/api/vehicles/images/${imageId}/category`, { category, sortOrder })
 }
 
 export async function updateVehicleImageExpiry(imageId: string, expiryDate: string | null): Promise<void> {
-  const { error } = await supabase
-    .from('vehicle_images')
-    .update({ song_nung_expiry_date: expiryDate })
-    .eq('id', imageId)
-
-  if (error) throw error
+  await apiPatch(`/api/vehicles/images/${imageId}/expiry`, { expiryDate })
 }
 
 // ====== VEHICLE DOCUMENTS ======
 
-function mapDocumentRow(row: Record<string, unknown>): VehicleDocumentRow {
-  return {
-    id: row.id as string,
-    vehicle_id: row.vehicle_id as string,
-    label: row.label as string | null,
-    path: row.path as string,
-    bucket: row.bucket as string,
-    url: row.url as string,
-    size_bytes: row.size_bytes as number | null,
-    mime_type: row.mime_type as string | null,
-    sort_order: row.sort_order as number,
-    created_at: row.created_at as string,
-  }
-}
-
 /**
- * Save document metadata to DB after uploading file to Supabase Storage.
+ * Save document metadata to DB via Express API.
  */
 export async function addVehicleDocument(
   vehicleId: string,
@@ -184,66 +142,36 @@ export async function addVehicleDocument(
   mimeType?: string,
   sortOrder?: number
 ): Promise<VehicleDocumentRow> {
-  const { data, error } = await supabase
-    .from('vehicle_documents')
-    .insert({
-      vehicle_id: vehicleId,
-      path,
-      bucket,
-      url,
-      label: label ?? null,
-      size_bytes: sizeBytes ?? null,
-      mime_type: mimeType ?? null,
-      sort_order: sortOrder ?? 0,
-    })
-    .select()
-    .single()
-
-  if (error) throw error
-  return mapDocumentRow(data as Record<string, unknown>)
+  const data = await apiPost<any>(`/api/vehicles/${vehicleId}/documents`, {
+    path,
+    bucket,
+    url,
+    label,
+    sizeBytes,
+    mimeType,
+    sortOrder,
+  })
+  return mapDocumentRow(data)
 }
 
 /**
  * Get all documents for a specific vehicle, ordered by sort_order.
  */
 export async function getVehicleDocuments(vehicleId: string): Promise<VehicleDocumentRow[]> {
-  const { data, error } = await supabase
-    .from('vehicle_documents')
-    .select('*')
-    .eq('vehicle_id', vehicleId)
-    .order('sort_order', { ascending: true })
-
-  if (error) throw error
-  return (data as Record<string, unknown>[]).map(mapDocumentRow)
+  const data = await apiGet<any[]>(`/api/vehicles/${vehicleId}/documents`)
+  return (data ?? []).map(mapDocumentRow)
 }
 
 /**
- * Delete document metadata + file from Supabase Storage.
+ * Delete document metadata via Express API.
  */
-export async function deleteVehicleDocument(docId: string, storagePath: string): Promise<void> {
-  // Delete from Supabase Storage
-  const { error: storageError } = await supabase.storage
-    .from('vehicle-documents')
-    .remove([storagePath])
-
-  if (storageError) console.error('🔴 [vehicleMedia] Failed to delete storage file:', storageError)
-
-  // Delete DB record
-  const { error: dbError } = await supabase
-    .from('vehicle_documents')
-    .delete()
-    .eq('id', docId)
-
-  if (dbError) throw dbError
+export async function deleteVehicleDocument(docId: string, _storagePath?: string): Promise<void> {
+  await apiDelete(`/api/vehicles/documents/${docId}`)
 }
 
 /**
- * Delete ALL media metadata rows for a vehicle (no storage deletion).
- * Used by deleteVehicle to ensure metadata is cleaned before vehicle row is deleted.
+ * Delete ALL media metadata rows for a vehicle.
  */
 export async function deleteAllVehicleMedia(vehicleId: string): Promise<void> {
-  await Promise.all([
-    supabase.from('vehicle_images').delete().eq('vehicle_id', vehicleId),
-    supabase.from('vehicle_documents').delete().eq('vehicle_id', vehicleId),
-  ])
+  await apiDelete(`/api/vehicles/${vehicleId}/media`)
 }

@@ -3,9 +3,10 @@ import {
   getEmployees,
   getEmployeeById,
   updateEmployee,
+  deleteEmployee,
 } from '../controllers/employees.controller.js';
 import { authenticateJwt } from '../middleware/auth.middleware.js';
-import { requireStaffOrAdmin } from '../middleware/rbac.middleware.js';
+import { requireStaffOrAdmin, requireAdmin } from '../middleware/rbac.middleware.js';
 
 const router = Router();
 
@@ -13,5 +14,6 @@ const router = Router();
 router.get('/', authenticateJwt, requireStaffOrAdmin, getEmployees);
 router.get('/:id', authenticateJwt, requireStaffOrAdmin, getEmployeeById);
 router.put('/:id', authenticateJwt, requireStaffOrAdmin, updateEmployee);
+router.delete('/:id', authenticateJwt, requireAdmin, deleteEmployee);
 
 export default router;

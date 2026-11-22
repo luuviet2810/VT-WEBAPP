@@ -12,6 +12,7 @@ import { useEffect } from 'react'
 import { useAuthStore } from '../store/useAuthStore'
 import { subscribe, unsubscribe, isActive } from '../services/realtime.service'
 import { useStore } from '../store/useStore'
+import { isSupabaseConfigured } from '../lib/supabase'
 import type { RealtimeStoreActions } from '../types/realtime'
 
 // ---- Image/doc URL tracking for DELETE events ----
@@ -101,6 +102,8 @@ export function useRealtimeSync(): void {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
 
   useEffect(() => {
+    if (!isSupabaseConfigured) return
+
     if (!isAuthenticated) {
       if (isActive()) {
         unsubscribe()

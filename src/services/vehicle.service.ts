@@ -146,3 +146,14 @@ export async function upsertVehicle(data: UpsertVehicleInput): Promise<'inserted
   await apiPost('/api/vehicles', data)
   return 'inserted'
 }
+
+export interface MediaStats {
+  errorImages: { vehicleId: string; count: number }[]
+  totalErrors: number
+  categoryImages: { vehicle_id: string; vehicleId?: string; category: string }[]
+}
+
+export async function getVehicleMediaStats(): Promise<MediaStats> {
+  const data = await apiGet<MediaStats>('/api/vehicles/media-stats')
+  return data
+}

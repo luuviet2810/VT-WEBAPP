@@ -1,9 +1,9 @@
-import { supabase } from '../lib/supabase'
+import { apiGet, apiPut } from './api.client'
 
 /**
- * website_settings — cấu hình liên hệ GLOBAL của Public Web (migration 035).
- * Read: mọi role (Public Web dùng anon key).
- * Update: chỉ Admin (RLS check role 'admin' ở tầng DB) — gọi từ Pre-Web.
+ * website_settings — cấu hình liên hệ GLOBAL của Public Web.
+ * Read: mọi role đã xác thực.
+ * Update: chỉ Admin — gọi từ Pre-Web.
  */
 export interface WebsiteSettingsRow {
   id: number
@@ -19,24 +19,16 @@ export interface WebsiteSettingsRow {
   updated_at: string
 }
 
-/** NULL khi bảng chưa tồn tại (migration 035 chưa chạy) → caller dùng defaults. */
 export async function getWebsiteSettings(): Promise<WebsiteSettingsRow | null> {
-  const { data, error } = await supabase
-    .from('website_settings')
-    .select('*')
-    .eq('id', 1)
-    .maybeSingle()
-  if (error) {
-    console.warn('[websiteSettings] read failed (migration 035 chưa chạy?):', error.message)
+  try {
+    const data = await apiGet<WebsiteSettingsRow | null>('/api/website-settings')
+    return data ?? null
+  } catch (err: any) {
+    console.warn('[websiteSettings] read failed:', err.message)
     return null
   }
-  return (data as WebsiteSettingsRow) ?? null
 }
 
 export async function updateWebsiteSettings(patch: Partial<Omit<WebsiteSettingsRow, 'id' | 'updated_at'>>): Promise<void> {
-  const { error } = await supabase
-    .from('website_settings')
-    .update({ ...patch, updated_at: new Date().toISOString() })
-    .eq('id', 1)
-  if (error) throw error
+  await apiPut('/api/website-settings', patch)
 }

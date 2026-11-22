@@ -16,6 +16,7 @@ import { useAuthStore } from '../store/useAuthStore'
 import { useStore } from '../store/useStore'
 import { isWebAuthnSupported } from '../utils/webauthn'
 import type { AuthProfile } from '../services/auth.service'
+import { getUsers, updateUser, deleteUser } from '../services/users.service'
 import { UserStatus } from '../types'
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
@@ -43,39 +44,14 @@ export default function Employees() {
   const approvedUsers = users.filter((u) => u.status === 'approved')
 
   const loadUsers = useCallback(async () => {
-    const { supabase } = await import('../lib/supabase')
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .order('created_at', { ascending: true })
-
-    if (error || !data) {
+    try {
+      const data = await getUsers()
+      setUsers(data)
+    } catch (err) {
+      console.error('[Employees] loadUsers error:', err)
+    } finally {
       setLoading(false)
-      return
     }
-
-    const rows = data as Record<string, unknown>[]
-    setUsers(
-      rows.map((row) => {
-        const name = row.name as string
-        return {
-          id: row.id as string,
-          authId: row.auth_id as string,
-          name,
-          fullName: name,
-          email: row.email as string,
-          role: (row.role as 'admin' | 'staff') ?? 'staff',
-          status: (row.status as 'pending' | 'approved' | 'rejected' | 'disabled') ?? 'pending',
-          disabled: Boolean(row.disabled),
-          passkeyEnabled: Boolean(row.passkey_enabled),
-          phone: (row.phone as string | null) ?? null,
-          avatar: (row.avatar as string | null) ?? null,
-          createdAt: row.created_at as string,
-          updatedAt: row.updated_at as string,
-        } satisfies AuthProfile
-      })
-    )
-    setLoading(false)
   }, [])
 
   useEffect(() => {
@@ -84,48 +60,51 @@ export default function Employees() {
 
   const handleUpdateProfile = async () => {
     if (!currentUser) return
-    const { supabase } = await import('../lib/supabase')
-    await supabase
-      .from('users')
-      .update({ name: fullName, updated_at: new Date().toISOString() })
-      .eq('auth_id', currentUser.authId)
-    await loadUsers()
-    addNotification({ type: 'system', title: 'Hồ sơ', body: 'Hồ sơ đã được cập nhật' })
+    try {
+      await updateUser(currentUser.id, { name: fullName })
+      await loadUsers()
+      addNotification({ type: 'system', title: 'Hồ sơ', body: 'Hồ sơ đã được cập nhật' })
+    } catch (err) {
+      console.error('[Employees] handleUpdateProfile error:', err)
+    }
   }
 
   const handleApprove = async (user: AuthProfile) => {
-    const { supabase } = await import('../lib/supabase')
-    await supabase
-      .from('users')
-      .update({ status: 'approved', updated_at: new Date().toISOString() })
-      .eq('id', user.id)
-    await loadUsers()
-    addNotification({
-      type: 'user_approved',
-      title: 'Phê duyệt tài khoản',
-      body: `Tài khoản "${user.name}" đã được phê duyệt`,
-    })
+    try {
+      await updateUser(user.id, { status: 'approved' })
+      await loadUsers()
+      addNotification({
+        type: 'user_approved',
+        title: 'Phê duyệt tài khoản',
+        body: `Tài khoản "${user.name}" đã được phê duyệt`,
+      })
+    } catch (err) {
+      console.error('[Employees] handleApprove error:', err)
+    }
   }
 
   const handleReject = async (user: AuthProfile) => {
-    const { supabase } = await import('../lib/supabase')
-    await supabase
-      .from('users')
-      .update({ status: 'rejected', updated_at: new Date().toISOString() })
-      .eq('id', user.id)
-    await loadUsers()
-    addNotification({
-      type: 'user_rejected',
-      title: 'Từ chối tài khoản',
-      body: `Tài khoản "${user.name}" đã bị từ chối`,
-    })
+    try {
+      await updateUser(user.id, { status: 'rejected' })
+      await loadUsers()
+      addNotification({
+        type: 'user_rejected',
+        title: 'Từ chối tài khoản',
+        body: `Tài khoản "${user.name}" đã bị từ chối`,
+      })
+    } catch (err) {
+      console.error('[Employees] handleReject error:', err)
+    }
   }
 
   const handleDelete = async (userId: string) => {
-    const { supabase } = await import('../lib/supabase')
-    await supabase.from('users').delete().eq('id', userId)
-    await loadUsers()
-    setShowDeleteConfirm(null)
+    try {
+      await deleteUser(userId)
+      await loadUsers()
+      setShowDeleteConfirm(null)
+    } catch (err) {
+      console.error('[Employees] handleDelete error:', err)
+    }
   }
 
   const handleToggleRole = async (user: AuthProfile) => {
@@ -133,33 +112,29 @@ export default function Employees() {
     if (newRole === 'staff' && user.id === currentUser?.id) {
       if (!confirm('Bạn có chắc muốn gỡ quyền Admin của chính mình?')) return
     }
-    const { supabase } = await import('../lib/supabase')
-    await supabase
-      .from('users')
-      .update({ role: newRole, is_admin: newRole === 'admin', updated_at: new Date().toISOString() })
-      .eq('id', user.id)
-    await loadUsers()
+    try {
+      await updateUser(user.id, { role: newRole })
+      await loadUsers()
+    } catch (err) {
+      console.error('[Employees] handleToggleRole error:', err)
+    }
   }
 
   const handleToggleStatus = async (user: AuthProfile) => {
-    if (user.status === 'disabled') {
-      const { supabase } = await import('../lib/supabase')
-      await supabase
-        .from('users')
-        .update({ disabled: false, status: 'approved', updated_at: new Date().toISOString() })
-        .eq('id', user.id)
-    } else {
-      if (user.id === currentUser?.id) {
-        alert('Bạn không thể vô hiệu hóa tài khoản của chính mình')
-        return
+    try {
+      if (user.status === 'disabled') {
+        await updateUser(user.id, { disabled: false, status: 'approved' })
+      } else {
+        if (user.id === currentUser?.id) {
+          alert('Bạn không thể vô hiệu hóa tài khoản của chính mình')
+          return
+        }
+        await updateUser(user.id, { disabled: true, status: 'disabled' })
       }
-      const { supabase } = await import('../lib/supabase')
-      await supabase
-        .from('users')
-        .update({ disabled: true, status: 'disabled', updated_at: new Date().toISOString() })
-        .eq('id', user.id)
+      await loadUsers()
+    } catch (err) {
+      console.error('[Employees] handleToggleStatus error:', err)
     }
-    await loadUsers()
   }
 
   const getInitials = (name: string) => {

@@ -14,7 +14,7 @@ export interface ReorderItem {
 }
 
 export async function getLocations(): Promise<Location[]> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('locations')
     .select('*')
     .order('sort_order', { ascending: true })
@@ -24,7 +24,7 @@ export async function getLocations(): Promise<Location[]> {
 }
 
 export async function createLocation(name: string): Promise<Location> {
-  const { data: existing, error: selectError } = await supabase
+  const { data: existing, error: selectError } = await (supabase as any)
     .from('locations')
     .select('sort_order')
     .order('sort_order', { ascending: false })
@@ -35,7 +35,7 @@ export async function createLocation(name: string): Promise<Location> {
   const maxSortOrder = existing && existing.length > 0 ? (existing[0] as { sort_order: number }).sort_order : 0
   const newSortOrder = maxSortOrder + 1
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('locations')
     .insert({ name, sort_order: newSortOrder })
     .select()
@@ -46,7 +46,7 @@ export async function createLocation(name: string): Promise<Location> {
 }
 
 export async function updateLocation(id: string, name: string): Promise<Location> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('locations')
     .update({ name, updated_at: new Date().toISOString() })
     .eq('id', id)
@@ -58,7 +58,7 @@ export async function updateLocation(id: string, name: string): Promise<Location
 }
 
 export async function deleteLocation(id: string): Promise<void> {
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from('locations')
     .delete()
     .eq('id', id)
@@ -72,7 +72,7 @@ export async function reorderLocations(items: ReorderItem[]): Promise<void> {
     sort_order: item.sort_order,
   }))
 
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from('locations')
     .upsert(updates, { onConflict: 'id' })
 

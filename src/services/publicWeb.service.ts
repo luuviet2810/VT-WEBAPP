@@ -10,7 +10,7 @@
  * (is_public / public_sort_order đi qua store.updateVehicle như mọi nơi khác.)
  * Không xoá ảnh, không đụng category khác, không đụng dữ liệu xe.
  */
-import { supabase } from '../lib/supabase'
+import { apiGet } from './api.client'
 import * as vehicleMediaService from './vehicleMedia.service'
 import type { VehicleImageRow } from './vehicleMedia.service'
 
@@ -19,7 +19,7 @@ type Row = Record<string, unknown>
 function mapImageRow(r: Row): VehicleImageRow {
   return {
     id: r.id as string,
-    vehicle_id: r.vehicle_id as string,
+    vehicle_id: (r.vehicle_id || (r as any).vehicleId) as string,
     path: r.path as string,
     bucket: r.bucket as string,
     url: r.url as string,
@@ -27,26 +27,21 @@ function mapImageRow(r: Row): VehicleImageRow {
     category: (r.category as string) ?? undefined,
     subtype: (r.subtype as string) ?? null,
     resolved: (r.resolved as boolean) ?? undefined,
-    song_nung_expiry_date: (r.song_nung_expiry_date as string) ?? null,
-    size_bytes: (r.size_bytes as number) ?? null,
-    mime_type: (r.mime_type as string) ?? null,
-    sort_order: (r.sort_order as number) ?? 0,
-    created_at: (r.created_at as string) ?? '',
+    song_nung_expiry_date: (r.song_nung_expiry_date || (r as any).songNungExpiryDate) as string ?? null,
+    size_bytes: (r.size_bytes != null ? Number(r.size_bytes) : ((r as any).sizeBytes != null ? Number((r as any).sizeBytes) : null)),
+    mime_type: (r.mime_type || (r as any).mimeType) as string ?? null,
+    sort_order: Number(r.sort_order ?? (r as any).sortOrder ?? 0),
+    created_at: (r.created_at || (r as any).createdAt) as string ?? '',
   }
 }
 
 /** Toàn bộ ảnh category 'website' của MỌI xe, gộp theo vehicle_id,
  *  đã sắp theo sort_order — dùng render ảnh đại diện trong /pre-web. */
 export async function getWebsiteImagesGrouped(): Promise<Record<string, VehicleImageRow[]>> {
-  const { data, error } = await supabase
-    .from('vehicle_images')
-    .select('*')
-    .eq('category', 'website')
-    .order('sort_order', { ascending: true })
-  if (error) throw error
+  const data = await apiGet<any[]>('/api/vehicles/website-images')
 
   const map: Record<string, VehicleImageRow[]> = {}
-  for (const r of (data ?? []) as Row[]) {
+  for (const r of (data ?? [])) {
     const row = mapImageRow(r)
     if (!map[row.vehicle_id]) map[row.vehicle_id] = []
     map[row.vehicle_id].push(row)

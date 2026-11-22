@@ -10,6 +10,7 @@ import { useDashboardViewModel } from './dashboard/DashboardViewModel'
 import { useStore } from '../../store/useStore'
 import { buildTaskSummary } from '../../utils/taskSummary'
 import { getInputBatteryStatus } from '../../utils/batteryStatus'
+import { getVehicleMediaStats } from '../../services/vehicle.service'
 import type {
   KpiData, LiveFeedItem, LocationItem,
   WarningItem, QuickStats,
@@ -254,25 +255,19 @@ function ErrorImageCard() {
   useEffect(() => {
     let cancelled = false
     async function load() {
-      const { supabase } = await import('../../lib/supabase')
-      const { data: images, error } = await supabase
-        .from('vehicle_images')
-        .select('vehicle_id')
-        .eq('category', 'error')
-        .eq('resolved', false)
-      if (!cancelled && !error && images) {
-        // Group by vehicle_id
-        const map = new Map<string, number>()
-        for (const img of images) {
-          map.set(img.vehicle_id, (map.get(img.vehicle_id) || 0) + 1)
+      try {
+        const stats = await getVehicleMediaStats()
+        if (!cancelled && stats) {
+          setData({
+            vehicles: stats.errorImages,
+            totalImages: stats.totalErrors,
+          })
         }
-        const vehiclesList = Array.from(map.entries()).map(([vehicleId, count]) => ({ vehicleId, count }))
-        setData({
-          vehicles: vehiclesList,
-          totalImages: images.length,
-        })
+      } catch (err) {
+        console.error('[OverviewDashboard] load error images error:', err)
+      } finally {
+        if (!cancelled) setLoading(false)
       }
-      if (!cancelled) setLoading(false)
     }
     load()
     return () => { cancelled = true }
@@ -364,44 +359,42 @@ function MissingImageCards() {
   useEffect(() => {
     let cancelled = false
     async function load() {
-      const { supabase } = await import('../../lib/supabase')
+      try {
+        const res = await getVehicleMediaStats()
+        if (cancelled) { setLoading(false); return }
 
-      // Get all vehicle images grouped by category
-      const { data: images } = await supabase
-        .from('vehicle_images')
-        .select('vehicle_id, category')
+        const images = res?.categoryImages || []
+        const activeVehicles = vehicles.filter((v) => v.status !== 'sold')
 
-      if (cancelled) { setLoading(false); return }
+        const docsVehicles = new Set(images.filter((i) => i.category === 'documents').map((i) => i.vehicle_id || i.vehicleId))
+        const vehicleImageVehicles = new Set(images.filter((i) => i.category === 'vehicle').map((i) => i.vehicle_id || i.vehicleId))
+        const songNungVehicles = new Set(images.filter((i) => i.category === 'song_nung').map((i) => i.vehicle_id || i.vehicleId))
 
-      // Only count active vehicles (not sold) — consistent with dashboard KPI
-      const activeVehicles = vehicles.filter((v) => v.status !== 'sold')
-      const activeIds = new Set(activeVehicles.map((v) => v.id))
+        const missingDocs: string[] = []
+        const missingVehicle: string[] = []
+        const missingSongNung: string[] = []
+        const expiredSongNung: string[] = []
+        const expiredRegistration: string[] = []
 
-      const docsVehicles = new Set(images?.filter((i) => i.category === 'documents').map((i) => i.vehicle_id) ?? [])
-      const vehicleImageVehicles = new Set(images?.filter((i) => i.category === 'vehicle').map((i) => i.vehicle_id) ?? [])
-      const songNungVehicles = new Set(images?.filter((i) => i.category === 'song_nung').map((i) => i.vehicle_id) ?? [])
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
 
-      const missingDocs: string[] = []
-      const missingVehicle: string[] = []
-      const missingSongNung: string[] = []
-      const expiredSongNung: string[] = []
-      const expiredRegistration: string[] = []
+        for (const v of activeVehicles) {
+          if (!docsVehicles.has(v.id)) missingDocs.push(v.id)
+          if (!vehicleImageVehicles.has(v.id)) missingVehicle.push(v.id)
+          if (!songNungVehicles.has(v.id)) missingSongNung.push(v.id)
+          // Check expiry from vehicle-level data
+          if (v.songNungExpiryDate && new Date(v.songNungExpiryDate) < today) expiredSongNung.push(v.id)
+          if (v.registrationExpiryDate && new Date(v.registrationExpiryDate) < today) expiredRegistration.push(v.id)
+        }
 
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-
-      for (const v of activeVehicles) {
-        if (!docsVehicles.has(v.id)) missingDocs.push(v.id)
-        if (!vehicleImageVehicles.has(v.id)) missingVehicle.push(v.id)
-        if (!songNungVehicles.has(v.id)) missingSongNung.push(v.id)
-        // Check expiry from vehicle-level data
-        if (v.songNungExpiryDate && new Date(v.songNungExpiryDate) < today) expiredSongNung.push(v.id)
-        if (v.registrationExpiryDate && new Date(v.registrationExpiryDate) < today) expiredRegistration.push(v.id)
-      }
-
-      if (!cancelled) {
-        setStats({ missingDocuments: missingDocs, missingVehicleImages: missingVehicle, missingSongNung, expiredSongNung, expiredRegistration })
-        setLoading(false)
+        if (!cancelled) {
+          setStats({ missingDocuments: missingDocs, missingVehicleImages: missingVehicle, missingSongNung, expiredSongNung, expiredRegistration })
+          setLoading(false)
+        }
+      } catch (err) {
+        console.error('[OverviewDashboard] load missing photos error:', err)
+        if (!cancelled) setLoading(false)
       }
     }
     load()

@@ -1,9 +1,13 @@
-import { apiGet, apiPut } from './api.client'
-import type { Employee } from '../types'
+import { apiGet, apiPut, apiDelete } from './api.client'
+import type { Employee, UserRole, UserStatus } from '../types'
+import type { AuthProfile } from './auth.service'
 
-type UserRow = {
+export type UserRow = {
   id: string
+  authId?: string
+  auth_id?: string
   name: string
+  fullName?: string
   phone?: string | null
   email?: string | null
   role: string
@@ -11,6 +15,8 @@ type UserRow = {
   is_admin?: boolean
   status: string
   disabled: boolean
+  passkeyEnabled?: boolean
+  passkey_enabled?: boolean
   avatar?: string | null
   createdAt?: string
   created_at?: string
@@ -26,6 +32,39 @@ function mapRowToEmployee(row: UserRow): Employee {
     isAdmin: Boolean(row.isAdmin || row.is_admin || row.role === 'admin'),
     disabled: Boolean(row.disabled),
   }
+}
+
+function mapRowToAuthProfile(row: UserRow): AuthProfile {
+  const name = row.name || ''
+  return {
+    id: row.id,
+    authId: row.authId || row.auth_id || row.id,
+    name,
+    fullName: row.fullName || name,
+    email: row.email || '',
+    role: (row.role as UserRole) || 'staff',
+    status: (row.status as UserStatus) || 'pending',
+    disabled: Boolean(row.disabled),
+    passkeyEnabled: Boolean(row.passkeyEnabled || row.passkey_enabled),
+    phone: row.phone ?? null,
+    avatar: row.avatar ?? null,
+    createdAt: row.createdAt || row.created_at || new Date().toISOString(),
+    updatedAt: row.updatedAt || row.updated_at || new Date().toISOString(),
+  }
+}
+
+export async function getUsers(): Promise<AuthProfile[]> {
+  const data = await apiGet<UserRow[]>('/api/employees')
+  return (data || []).map(mapRowToAuthProfile)
+}
+
+export async function updateUser(id: string, patch: Partial<AuthProfile | { name?: string; role?: string; status?: string; disabled?: boolean; phone?: string | null }>): Promise<AuthProfile> {
+  const data = await apiPut<UserRow>(`/api/employees/${id}`, patch)
+  return mapRowToAuthProfile(data)
+}
+
+export async function deleteUser(id: string): Promise<void> {
+  await apiDelete(`/api/employees/${id}`)
 }
 
 export async function getEmployees(): Promise<Employee[]> {

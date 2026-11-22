@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase'
+import { supabase, isSupabaseConfigured } from '../lib/supabase'
 
 // ====== VEHICLE IMAGES ======
 // Bucket: vehicle-images (public)
@@ -14,6 +14,11 @@ export async function uploadVehicleImage(
 ): Promise<UploadResult> {
   const safeKey = safeStorageKey(file.name, `${Date.now()}`)
   const path = `vehicles/${vehicleId}/${safeKey}`
+
+  if (!isSupabaseConfigured) {
+    console.warn('[Storage] Supabase is disconnected. Upload bypassed.')
+    return { path, url: '' }
+  }
 
   const { data, error } = await supabase.storage
     .from('vehicle-images')
@@ -46,6 +51,10 @@ export async function deleteVehicleImage(url: string): Promise<string | null> {
   const path = extractStoragePath(url, 'vehicle-images')
   if (!path) return null
 
+  if (!isSupabaseConfigured) {
+    return path
+  }
+
   const { error } = await supabase.storage
     .from('vehicle-images')
     .remove([path])
@@ -63,6 +72,11 @@ export async function uploadVehicleDocument(
 ): Promise<UploadResult> {
   const safeKey = safeStorageKey(file.name, `${Date.now()}`)
   const path = `documents/${vehicleId}/${safeKey}`
+
+  if (!isSupabaseConfigured) {
+    console.warn('[Storage] Supabase is disconnected. Document upload bypassed.')
+    return { path, url: '' }
+  }
 
   const { data, error } = await supabase.storage
     .from('vehicle-documents')
@@ -95,6 +109,10 @@ export async function deleteVehicleDocument(url: string): Promise<string | null>
   const path = extractStoragePath(url, 'vehicle-documents')
   if (!path) return null
 
+  if (!isSupabaseConfigured) {
+    return path
+  }
+
   const { error } = await supabase.storage
     .from('vehicle-documents')
     .remove([path])
@@ -113,6 +131,11 @@ export async function uploadExteriorPhoto(
 ): Promise<UploadResult> {
   const safeKey = safeStorageKey(file.name, `${Date.now()}`)
   const path = `checksheets/${vehicleId}/${spotKey}/${safeKey}`
+
+  if (!isSupabaseConfigured) {
+    console.warn('[Storage] Supabase is disconnected. Photo upload bypassed.')
+    return { path, url: '' }
+  }
 
   const { data, error } = await supabase.storage
     .from('checksheet-photos')

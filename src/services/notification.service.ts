@@ -114,7 +114,7 @@ export async function createEvent(event: EventType, data: EventPayload): Promise
   const { title, body } = formatEvent(event, data)
   const notifType = EVENT_TYPE_MAP[event]
 
-  const { data: result, error } = await supabase
+  const { data: result, error } = await (supabase as any)
     .from('notifications')
     .insert({
       type: notifType,
@@ -149,7 +149,7 @@ function mapRow(row: Record<string, unknown>): Notification {
 }
 
 export async function getNotifications(): Promise<Notification[]> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('notifications')
     .select('*')
     .order('created_at', { ascending: false })
@@ -159,7 +159,7 @@ export async function getNotifications(): Promise<Notification[]> {
 }
 
 export async function markNotificationRead(id: string): Promise<void> {
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from('notifications')
     .update({ read: true })
     .eq('id', id)
@@ -168,7 +168,7 @@ export async function markNotificationRead(id: string): Promise<void> {
 }
 
 export async function markAllNotificationsRead(): Promise<void> {
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from('notifications')
     .update({ read: true })
     .eq('read', false)
@@ -177,7 +177,7 @@ export async function markAllNotificationsRead(): Promise<void> {
 }
 
 export async function deleteNotification(id: string): Promise<void> {
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from('notifications')
     .delete()
     .eq('id', id)

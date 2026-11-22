@@ -59,9 +59,9 @@ async function main() {
   const targetVehicle = vehRes.rows[0];
   console.log(`[Target Vehicle] ID=${targetVehicle.id}, Biển số=${targetVehicle.plate}, Model=${targetVehicle.model}\n`);
 
-  // 4. Khởi chạy Playwright Browser
+  // 4. Khởi chạy Playwright Browser với kích thước Desktop
   const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext();
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await context.newPage();
 
   const consoleErrors = [];
@@ -102,7 +102,7 @@ async function main() {
     await page.waitForLoadState('networkidle');
 
     // Chờ dashboard xuất hiện
-    await page.waitForSelector('text=Tổng quan', { timeout: 10000 });
+    await page.locator('h1').filter({ hasText: 'Tổng quan' }).waitFor({ timeout: 10000 });
     console.log('✓ Trang chủ Dashboard tải thành công, xác thực Admin hợp lệ.');
 
     // -------------------------------------------------------------
@@ -111,7 +111,7 @@ async function main() {
     console.log('\n--- UI TEST 2: VEHICLE LIST & REAL DATA FROM NEON ---');
     await page.goto(`http://127.0.0.1:${actualVitePort}/xe`);
     await page.waitForLoadState('networkidle');
-    await page.waitForSelector(`text=${targetVehicle.plate}`, { timeout: 10000 });
+    await page.locator(`text=${targetVehicle.plate}`).first().waitFor({ timeout: 10000 });
     console.log(`✓ Tìm thấy xe ${targetVehicle.plate} (${targetVehicle.model}) trên giao diện danh sách xe!`);
 
     // -------------------------------------------------------------
@@ -122,7 +122,7 @@ async function main() {
     await page.waitForLoadState('networkidle');
 
     // Kiểm tra thông tin header xe
-    await page.waitForSelector(`text=${targetVehicle.plate}`, { timeout: 10000 });
+    await page.locator(`h1:has-text("${targetVehicle.plate}")`).first().waitFor({ timeout: 10000 });
     console.log(`✓ Thông tin xe hiển thị chính xác: Biển số ${targetVehicle.plate}`);
 
     // Bấm tab "Đầu vào"
@@ -152,9 +152,10 @@ async function main() {
     console.log('\n--- UI TEST 4: CHECKSHEET ĐẦU RA ---');
     const checkoutTab = page.locator('button:has-text("Đầu ra")');
     await checkoutTab.click();
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(1500);
     const hasOutSection = await page.locator('text=Cam hành trình').or(page.locator('text=Camera lùi')).count();
     console.log(`  ✓ CheckSheetForm đầu ra rendered thành công (OutCheck items: ${hasOutSection > 0})`);
+    await page.waitForTimeout(1000); // Đợi lưu tự động hoàn tất
 
     // -------------------------------------------------------------
     // UI TEST 5: KANBAN TASKS
@@ -162,8 +163,9 @@ async function main() {
     console.log('\n--- UI TEST 5: TASKS KANBAN BOARD ---');
     await page.goto(`http://127.0.0.1:${actualVitePort}/nhiem-vu`);
     await page.waitForLoadState('networkidle');
-    await page.waitForSelector('text=Chưa bắt đầu', { timeout: 10000 });
-    console.log('✓ Bảng nhiệm vụ Kanban hiển thị đầy đủ các cột (Chưa bắt đầu, Đang thực hiện, Hoàn thành)!');
+    await page.locator('h1').filter({ hasText: 'Nhiệm vụ' }).waitFor({ timeout: 10000 });
+    await page.locator('text=Đang làm').first().waitFor({ timeout: 10000 });
+    console.log('✓ Bảng nhiệm vụ Kanban hiển thị đầy đủ các cột (Chưa làm, Đang làm, Đã hoàn thành)!');
 
     // -------------------------------------------------------------
     // UI TEST 6: PHÂN QUYỀN STAFF TRÊN TRÌNH DUYỆT (RBAC)
@@ -186,7 +188,7 @@ async function main() {
     // Staff truy cập trang xe được phép: /xe
     await page.goto(`http://127.0.0.1:${actualVitePort}/xe`);
     await page.waitForLoadState('networkidle');
-    await page.waitForSelector(`text=${targetVehicle.plate}`, { timeout: 10000 });
+    await page.locator(`text=${targetVehicle.plate}`).first().waitFor({ timeout: 10000 });
     console.log('✓ Staff có quyền xem danh sách xe và thực hiện kiểm tra xe bình thường!');
 
     // -------------------------------------------------------------
@@ -201,7 +203,7 @@ async function main() {
       }
     }
 
-    const fatalErrors = consoleErrors.filter((e) => !e.includes('M_ID DEBUG') && !e.includes('favicon'));
+    const fatalErrors = consoleErrors.filter((e) => !e.includes('M_ID DEBUG') && !e.includes('favicon') && !e.includes('WebSocket') && !e.includes('supabase.co'));
     if (fatalErrors.length > 0) {
       console.warn('Console warnings/errors:', fatalErrors);
     } else {

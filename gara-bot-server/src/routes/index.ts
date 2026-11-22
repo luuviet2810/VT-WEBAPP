@@ -9,6 +9,8 @@ import tasksRoutes from './tasks.routes.js';
 import employeesRoutes from './employees.routes.js';
 import moveLogsRoutes from './move-logs.routes.js';
 import attendanceRoutes from './attendance.routes.js';
+import vehicleOptionsRoutes from './vehicleOptions.routes.js';
+import websiteSettingsRoutes from './websiteSettings.routes.js';
 import telegramRoutes from '../api/telegram.routes.js';
 
 const router = Router();
@@ -21,6 +23,8 @@ router.use('/api/auth', authRoutes);
 router.use('/api/storage', storageRoutes);
 router.use('/api/positions', positionsRoutes);
 router.use('/api/vehicles', vehiclesRoutes);
+router.use('/api/vehicle-options', vehicleOptionsRoutes);
+router.use('/api/website-settings', websiteSettingsRoutes);
 router.use('/api/checksheets', checksheetsRoutes);
 router.use('/api/tasks', tasksRoutes);
 router.use('/api/employees', employeesRoutes);

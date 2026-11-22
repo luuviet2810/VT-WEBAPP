@@ -12,7 +12,7 @@
  * calls back into store actions via `RealtimeStoreActions`.
  */
 
-import { supabase } from '../lib/supabase'
+import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import type {
   RealtimeChannels,
   RealtimeStoreActions,
@@ -52,15 +52,18 @@ function tableChannel(table: TableName): keyof RealtimeChannels {
 
 export function subscribe(store: RealtimeStoreActions): void {
   if (isSubscribed) return
+  if (!isSupabaseConfigured) {
+    return
+  }
   isSubscribed = true
 
   // ====== VEHICLES ======
-  CHANNELS.vehicles = supabase
+  CHANNELS.vehicles = (supabase as any)
     .channel('realtime-vehicles')
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'vehicles' },
-      (payload) => {
+      (payload: any) => {
         if (payload.eventType === 'DELETE') {
           store.deleteVehicle(payload.old.id as string)
         } else {
@@ -75,12 +78,12 @@ export function subscribe(store: RealtimeStoreActions): void {
     .subscribe()
 
   // ====== TASKS ======
-  CHANNELS.tasks = supabase
+  CHANNELS.tasks = (supabase as any)
     .channel('realtime-tasks')
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'tasks' },
-      (payload) => {
+      (payload: any) => {
         if (payload.eventType === 'DELETE') {
           store.deleteTask(payload.old.id as string)
         } else {
@@ -95,12 +98,12 @@ export function subscribe(store: RealtimeStoreActions): void {
     .subscribe()
 
   // ====== POSITIONS ======
-  CHANNELS.positions = supabase
+  CHANNELS.positions = (supabase as any)
     .channel('realtime-positions')
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'positions' },
-      (payload) => {
+      (payload: any) => {
         if (payload.eventType === 'DELETE') {
           store.deletePosition(payload.old.id as string)
         } else {
@@ -111,12 +114,12 @@ export function subscribe(store: RealtimeStoreActions): void {
     .subscribe()
 
   // ====== MOVE LOGS ======
-  CHANNELS.moveLogs = supabase
+  CHANNELS.moveLogs = (supabase as any)
     .channel('realtime-movelogs')
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'move_logs' },
-      (payload) => {
+      (payload: any) => {
         store.upsertMoveLog(payload.new as Record<string, unknown>)
         // Reload timeline for the affected vehicle
         const vehicleId = (payload.new as Record<string, unknown>).vehicle_id as string | undefined
@@ -126,12 +129,12 @@ export function subscribe(store: RealtimeStoreActions): void {
     .subscribe()
 
   // ====== TASK ACTIVITY LOGS ======
-  CHANNELS.taskActivity = supabase
+  CHANNELS.taskActivity = (supabase as any)
     .channel('realtime-taskactivity')
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'task_activity_logs' },
-      (payload) => {
+      (payload: any) => {
         store.upsertTaskActivity(payload.new as Record<string, unknown>)
         // Reload timeline for the affected task's vehicle
         const taskId = (payload.new as Record<string, unknown>).task_id as string | undefined
@@ -141,12 +144,12 @@ export function subscribe(store: RealtimeStoreActions): void {
     .subscribe()
 
   // ====== VEHICLE IMAGES ======
-  CHANNELS.vehicleImages = supabase
+  CHANNELS.vehicleImages = (supabase as any)
     .channel('realtime-vehicleimages')
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'vehicle_images' },
-      (payload) => {
+      (payload: any) => {
         if (payload.eventType === 'DELETE') {
           store.deleteVehicleImage(payload.old.id as string)
         } else {
@@ -157,12 +160,12 @@ export function subscribe(store: RealtimeStoreActions): void {
     .subscribe()
 
   // ====== VEHICLE DOCUMENTS ======
-  CHANNELS.vehicleDocs = supabase
+  CHANNELS.vehicleDocs = (supabase as any)
     .channel('realtime-vehicledocs')
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'vehicle_documents' },
-      (payload) => {
+      (payload: any) => {
         if (payload.eventType === 'DELETE') {
           store.deleteVehicleDoc(payload.old.id as string)
         } else {
@@ -173,26 +176,26 @@ export function subscribe(store: RealtimeStoreActions): void {
     .subscribe()
 
   // ====== NOTIFICATIONS ======
-  CHANNELS.notifications = supabase
+  CHANNELS.notifications = (supabase as any)
     .channel('realtime-notifications')
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'notifications' },
-      (payload) => {
+      (payload: any) => {
         store.upsertNotification(payload.new as Record<string, unknown>)
       }
     )
     .on(
       'postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'notifications' },
-      (payload) => {
+      (payload: any) => {
         store.upsertNotification(payload.new as Record<string, unknown>)
       }
     )
     .on(
       'postgres_changes',
       { event: 'DELETE', schema: 'public', table: 'notifications' },
-      (payload) => {
+      (payload: any) => {
         store.deleteNotification(payload.old.id as string)
       }
     )
@@ -203,9 +206,11 @@ export function unsubscribe(): void {
   if (!isSubscribed) return
   isSubscribed = false
 
+  if (!isSupabaseConfigured) return
+
   const channels = Object.values(CHANNELS) as NonNullable<typeof CHANNELS.vehicles>[]
   for (const channel of channels) {
-    if (channel) supabase.removeChannel(channel)
+    if (channel) (supabase as any).removeChannel(channel)
   }
 
   CHANNELS.vehicles = null
@@ -216,7 +221,7 @@ export function unsubscribe(): void {
   CHANNELS.vehicleImages = null
   CHANNELS.vehicleDocs = null
 
-  if (CHANNELS.notifications) supabase.removeChannel(CHANNELS.notifications)
+  if (CHANNELS.notifications) (supabase as any).removeChannel(CHANNELS.notifications)
   CHANNELS.notifications = null
 }
 

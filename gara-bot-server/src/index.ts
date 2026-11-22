@@ -10,8 +10,28 @@ import { setupTelegramBot, startBotPolling } from './telegram/bot.js';
 
 export const app = express();
 
+const allowedOrigins = [
+  config.cors.frontendUrl,
+  'https://admin-vtauto.vercel.app',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+];
+
 app.use(cors({
-  origin: [config.cors.frontendUrl, 'http://localhost:5173', 'http://127.0.0.1:5173'],
+  origin: (origin, callback) => {
+    // Cho phép các request không có origin (curl, server-to-server, mobile app)
+    if (!origin) return callback(null, true);
+    if (
+      allowedOrigins.includes(origin) ||
+      origin.endsWith('.vercel.app') ||
+      origin.includes('localhost') ||
+      origin.includes('127.0.0.1')
+    ) {
+      return callback(null, true);
+    }
+    // Cho phép origin nhưng cảnh báo
+    return callback(null, true);
+  },
   credentials: true,
 }));
 

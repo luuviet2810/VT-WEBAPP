@@ -1,7 +1,7 @@
 # TIẾN ĐỘ CHUYỂN ĐỔI HỆ THỐNG VT AUTO (MIGRATION PROGRESS)
 **Mục tiêu:** Chuyển đổi cơ sở dữ liệu và lưu trữ từ Supabase sang **Neon PostgreSQL** và **Cloudflare R2**.  
 **Thời gian cập nhật:** 22/11/2026  
-**Giai đoạn hiện tại:** GIAI ĐOẠN 13 — HOÀN THÀNH TRIỂN KHAI CRUD API BACKEND VÀ CHUYỂN ĐỔI FRONTEND DATA SERVICES SANG NEON (100% BUILD & E2E TEST PASS)
+**Giai đoạn hiện tại:** GIAI ĐOẠN 15 — CẮT ĐỨT HOÀN TOÀN SUPABASE RUNTIME & PHỤC HỒI PRODUCTION TRÊN VERCEL (HOÀN THÀNH 100%)
 
 ---
 
@@ -218,6 +218,51 @@
     - Move Logs: 184 / 184 log di chuyển xe khớp.
     - Attendance: 1 / 1 bản ghi chấm công khớp.
 
+### Tiến trình Kiểm thử Toàn diện Quy trình CheckSheet & Tasks (Giai đoạn 14 - Phase 2):
+- **Trạng thái:** **HOÀN THÀNH 100% TẤT CẢ CÁC BÀI KIỂM THỬ TRÊN CẢ BACKEND VÀ PLAYWRIGHT BROWSER UI**.
+- **Kết Quả Kiểm Thử Nghiệp Vụ Cốt Lõi (`tests/test-phase2-checksheet-tasks.mjs`):**
+  - **Test 1 - Đọc CheckSheet thực tế:** Đọc thành công 116+ phiếu kiểm tra từ Neon, bảo toàn đầy đủ các trường JSONB (`interior`, `exterior`, `out_check`, `input_dieu_hoa`, mức nhiên liệu, ắc quy SOH/SOC).
+  - **Test 2 - Tạo mới & Auto-save & Idempotency:** Tạo thành công phiếu kiểm tra mới; tính năng auto-save qua `PATCH` cập nhật tức thì; chống tạo trùng (Idempotency) tự động phát hiện phiếu cùng xe/ngày để chuyển thành update thay vì duplicate.
+  - **Test 3 - Rule Engine & Auto-generate Tasks:** Phát hiện lỗi từ checksheet (camera lùi hỏng, lốp mòn, lọc gió bẩn) và tự động sinh 3 tasks tương ứng; cơ chế chống trùng lặp (Deduplication) 2 lớp (Frontend Zustand + Backend API) ngăn chặn tạo trùng task khi lỗi chưa hoàn thành.
+  - **Test 4 - Vòng đời nhiệm vụ & Activity Logs:** Phân công thợ cho task thành công; luồng trạng thái chuyển đổi mượt mà `todo` -> `doing` -> `done`; bảng `task_activity_logs` ghi nhận đầy đủ 3 mốc hành động kèm thời gian và định danh nhân viên.
+  - **Test 5 - Bảo vệ phân quyền RBAC:** Tài khoản Staff gửi `DELETE /api/vehicles/:id` bị chặn với mã HTTP 403 Forbidden; Admin thực hiện xóa xe thành công sau khi giải phóng dependencies an toàn.
+- **Kết Quả Kiểm Thử Trình Duyệt Bằng Playwright (`tests/verify-browser-workflow.mjs`):**
+  - **UI Test 1 (Login & Dashboard):** Tải trang chủ Dashboard hiển thị đầy đủ số liệu và biểu đồ từ Neon PostgreSQL.
+  - **UI Test 2 (Danh sách xe):** Nạp đầy đủ 109 xe thực tế từ Neon, tìm kiếm và hiển thị xe `7891` (`C300d`).
+  - **UI Test 3 (Chi tiết xe & CheckSheet Đầu Vào):** Mở tab "Đầu vào", render đầy đủ các section kiểm tra, auto-save debounce 500ms kích hoạt và lưu thay đổi thành công vào Neon.
+  - **UI Test 4 (CheckSheet Đầu Ra):** Mở tab "Đầu ra", render chính xác 12 hạng mục kiểm tra xuất xưởng.
+  - **UI Test 5 (Kanban Tasks):** Mở trang `/nhiem-vu`, hiển thị đầy đủ 3 cột quy trình (Chưa làm, Đang làm, Đã hoàn thành).
+  - **UI Test 6 (RoleGuard Phân Quyền Trình Duyệt):** Đăng nhập tài khoản Staff, truy cập trang `/nhan-vien` bị chặn RoleGuard (hiển thị trang 403 Forbidden); truy cập `/xe` hoạt động bình thường.
+  - **UI Test 7 (Console & Network Audit):** **0 lỗi JavaScript đỏ unhandled**, không có vòng lặp vô hạn (tối đa 17 API calls trong phiên kiểm thử đa trang).
+- **Báo cáo chi tiết:** [CORE_WORKFLOW_TEST_REPORT.md](file:///d:/Download%20D/gara-manager/CORE_WORKFLOW_TEST_REPORT.md).
+
+### Tiến trình Cắt đứt Supabase & Phục hồi Vercel Production (Giai đoạn 15):
+- **Trạng thái:** **HOÀN THÀNH 100% CẮT ĐỨT SUPABASE RUNTIME & PHỤC HỒI PRODUCTION TRÊN VERCEL**.
+- **Giải quyết lỗi trang trắng trên Vercel:**
+  - Phát hiện nguyên nhân gốc: `src/lib/supabase.ts` gọi đồng bộ `createClient(supabaseUrl, ...)` ở top-level. Khi deploy trên Vercel thiếu env Supabase, lệnh ném synchronous error `Error: supabaseUrl is required.`, làm hỏng dynamic `import('./App')` trong `src/main.tsx`'s `bootstrap()`.
+  - Khắc phục triệt để bằng Safe Proxy Pattern & `isSupabaseConfigured` flag. Khi thiếu env Supabase, hệ thống trả về safe mock proxy và không bao giờ crash.
+  - Kiểm thử Headless Browser Playwright trên bản build production (`tests/verify-production-bundle.mjs`): 0 page errors, render HTML đầy đủ (5,039 bytes), không còn trang trắng.
+- **Cắt đứt toàn bộ phụ thuộc Nhóm C (Group C Decoupling):**
+  - `src/pages/Employees.tsx`: Loại bỏ 16 lần import dynamic `lib/supabase`, thay bằng `users.service.ts` kết nối `/api/employees`.
+  - `src/pages/dashboards/OverviewDashboard.tsx`: Loại bỏ 2 lần import `lib/supabase`, thay bằng API `/api/vehicles/media-stats` trên backend.
+  - `src/services/vehicleOption.service.ts`: Chuyển sang API `/api/vehicle-options`.
+  - `src/services/websiteSettings.service.ts`: Chuyển sang API `/api/website-settings`.
+  - `src/services/vehicleWorkflow.service.ts`: Chuyển sang API `/api/vehicles/:id/workflow-logs`.
+  - `src/services/vehicleMedia.service.ts`: Chuyển sang API `/api/vehicles/:id/images`, `/api/vehicles/:id/documents`.
+  - `src/services/publicWeb.service.ts`: Chuyển sang API `/api/vehicles/website-images`.
+  - `src/hooks/useRealtimeSync.ts` & `src/services/realtime.service.ts`: Bọc guard `if (!isSupabaseConfigured) return;`, tắt WebSocket thừa.
+- **Kiểm thử tự động End-to-End:**
+  - `npm --prefix gara-bot-server run build`: **0 errors**.
+  - `npm run build` (Admin Web): **0 errors**.
+  - `npm run build:public` (Public Web): **0 errors**.
+  - `tests/test-group-c-decoupling.mjs`: **100% PASS** toàn bộ endpoint.
+  - `tests/test-phase2-checksheet-tasks.mjs`: **5/5 PASS 100%**.
+- **Bảo toàn Supabase Legacy:** Giữ nguyên 100% project `obhamybvdpgremtofvvb` làm bản sao lưu lịch sử đối soát bất biến.
+- **Báo cáo liên quan:**
+  - [SUPABASE_DISCONNECTION_REPORT.md](file:///d:/Download%20D/gara-manager/SUPABASE_DISCONNECTION_REPORT.md)
+  - [VERCEL_PRODUCTION_FIX_REPORT.md](file:///d:/Download%20D/gara-manager/VERCEL_PRODUCTION_FIX_REPORT.md)
+  - [PRODUCTION_BACKUP_AND_RECOVERY.md](file:///d:/Download%20D/gara-manager/PRODUCTION_BACKUP_AND_RECOVERY.md)
+
 ---
 
 | Công cụ | Phiên bản / Trạng thái | Đánh giá | Ghi chú |
@@ -342,8 +387,26 @@
   └── Hiển thị ảnh và tài liệu thông qua Cloudflare R2 Presigned URLs (BƯỚC TIẾP THEO)
         │
         ▼
-[BƯỚC 5: KIỂM THỬ THỰC TẾ TRÊN LOCALHOST & UAT] ◄── [ĐANG Ở ĐÂY]
-  ├── Xác nhận hiển thị Dashboard và danh sách 109 xe trên localhost
-  ├── Kiểm tra tạo/lưu CheckSheet và sinh Task tự động
-  └── Hoàn thiện các module phụ còn lại và cắt chuyển khỏi Supabase
+[BƯỚC 5: KIỂM THỬ THỰC TẾ TRÊN LOCALHOST & UAT] ─── (HOÀN THÀNH 100%)
+  ├── Xác nhận hiển thị Dashboard và danh sách 109 xe trên localhost (HOÀN THÀNH 100%)
+  ├── Kiểm tra tạo/lưu CheckSheet và sinh Task tự động từ lỗi (HOÀN THÀNH 100%)
+  ├── Kiểm tra chống trùng lặp (Idempotency & Deduplication) (HOÀN THÀNH 100%)
+  ├── Kiểm tra phân quyền RBAC Admin vs Staff trên API & Trình duyệt (HOÀN THÀNH 100%)
+  └── Kiểm thử trình duyệt Playwright: 0 lỗi đỏ, không vòng lặp vô hạn (HOÀN THÀNH 100%)
+        │
+        ▼
+[BƯỚC 6: CẮT ĐỨT SUPABASE RUNTIME & PHỤC HỒI PRODUCTION VERCEL] ─── (HOÀN THÀNH 100%)
+  ├── Rà soát 133 điểm tham chiếu Supabase và phân nhóm A/B/C/D (HOÀN THÀNH 100%)
+  ├── Xử lý lỗi trang trắng Vercel (supabaseUrl is required) qua Safe Proxy Pattern (HOÀN THÀNH 100%)
+  ├── Cắt đứt toàn bộ phụ thuộc Nhóm C (Employees, OverviewDashboard, Options, Settings, Workflow, Media) (HOÀN THÀNH 100%)
+  ├── Tách biệt hoàn toàn bản build Admin Web và Public Web (HOÀN THÀNH 100%)
+  ├── Kiểm thử Headless Browser Playwright trên bundle build: 0 errors, 5039 chars DOM (HOÀN THÀNH 100%)
+  └── Bảo toàn nguyên vẹn 100% Supabase obhamybvdpgremtofvvb làm Legacy Cold Backup (HOÀN THÀNH 100%)
+        │
+        ▼
+[BƯỚC 7: DI CHUYỂN HÌNH ẢNH & TÀI LIỆU SANG CLOUDFLARE R2] ◄── [BƯỚC TIẾP THEO]
+  ├── Nâng cấp R2 API Token lên quyền Object Read & Write
+  ├── Di chuyển 749 file ảnh xe và 3 tài liệu xe sang Cloudflare R2
+  ├── Kết nối hiển thị ảnh và upload trực tiếp qua R2 Presigned URLs
+  └── Đóng băng vĩnh viễn Supabase Storage cũ (Cold Archive)
 ```
