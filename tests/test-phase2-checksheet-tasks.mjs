@@ -7,7 +7,7 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 dotenv.config({ path: path.resolve(process.cwd(), 'gara-bot-server/.env') });
 
 import router from '../gara-bot-server/dist/routes/index.js';
-import { query } from '../gara-bot-server/dist/database/index.js';
+import { query, closeDatabasePool } from '../gara-bot-server/dist/database/index.js';
 
 const app = express();
 app.use(express.json());
@@ -120,7 +120,7 @@ async function main() {
         type: 'in',
         checkDate: '2026-11-22',
         fuelLevel: 'half',
-        screen: 'ok',
+        screen: 'normal',
         rearCamera: 'broken', // lỗi để chuẩn bị sinh task
         inputTireState: { status: 'bad', note: 'Lốp mòn rách' },
         cabinAirFilter: 'dirty',
@@ -331,17 +331,29 @@ async function main() {
     console.log(`     Response: ${JSON.stringify(staffDeleteErr)}`);
     console.log('  ✓ Staff bị chặn 403 Forbidden chính xác!');
 
+    // Dọn các nhiệm vụ và phiếu của xe test trước khi xóa xe (đúng quy tắc has_dependencies)
+    console.log('  2. Xóa các nhiệm vụ và phiếu kiểm tra của xe test trước khi xóa xe...');
+    for (const tid of createdTaskIds) {
+      await fetch(`${BASE_URL}/api/tasks/${tid}`, { method: 'DELETE', headers: adminHeaders });
+    }
+    for (const sid of createdSheetIds) {
+      await fetch(`${BASE_URL}/api/checksheets/${sid}`, { method: 'DELETE', headers: adminHeaders });
+    }
+    createdTaskIds.length = 0;
+    createdSheetIds.length = 0;
+
     // Admin xóa xe test hợp lệ
-    console.log('  2. Admin thực hiện xóa xe test sau khi kết thúc kiểm thử...');
+    console.log('  3. Admin thực hiện xóa xe test sau khi kết thúc kiểm thử...');
     const adminDeleteRes = await fetch(`${BASE_URL}/api/vehicles/${testVehicleId}`, {
       method: 'DELETE',
       headers: adminHeaders,
     });
     console.log(`     Admin delete HTTP Status: ${adminDeleteRes.status}`);
     if (adminDeleteRes.status !== 200) {
-      throw new Error(`Admin delete thất bại, status=${adminDeleteRes.status}`);
+      const errBody = await adminDeleteRes.text();
+      throw new Error(`Admin delete thất bại, status=${adminDeleteRes.status}, body=${errBody}`);
     }
-    console.log('  ✓ Admin thực hiện xóa thành công (CASCADE dọn sạch checksheets và tasks liên quan)!');
+    console.log('  ✓ Admin thực hiện xóa thành công (sau khi đã giải phóng dependencies)!');
     testVehicleId = null; // Đã xóa
 
     console.log('✅ TEST 5 PASSED: RBAC Admin vs Staff được bảo vệ nghiêm ngặt!\n');
@@ -362,6 +374,8 @@ async function main() {
       await query('DELETE FROM check_sheets WHERE id = $1', [sid]).catch(() => {});
     }
     if (server) server.close();
+    await closeDatabasePool().catch(() => {});
+    process.exit(0);
   }
 }
 
