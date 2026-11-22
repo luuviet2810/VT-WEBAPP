@@ -1,5 +1,10 @@
 import { Request, Response } from 'express';
 import { query } from '../database/index.js';
+import {
+  generatePresignedDownloadUrl,
+  deleteObject,
+  isR2Configured,
+} from '../storage/r2.service.js';
 
 export function mapImageRow(r: any) {
   return {
@@ -53,9 +58,27 @@ export async function getVehicleImages(req: Request, res: Response) {
       `SELECT * FROM vehicle_images WHERE vehicle_id = $1 ORDER BY sort_order ASC`,
       [id]
     );
+
+    const data = await Promise.all(
+      result.rows.map(async (row) => {
+        const mapped = mapImageRow(row);
+        let downloadUrl = mapped.url;
+        if (isR2Configured() && mapped.path) {
+          try {
+            const presigned = await generatePresignedDownloadUrl('images', mapped.path);
+            downloadUrl = presigned.url;
+          } catch {}
+        }
+        return {
+          ...mapped,
+          downloadUrl,
+        };
+      })
+    );
+
     return res.status(200).json({
       ok: true,
-      data: result.rows.map(mapImageRow),
+      data,
     });
   } catch (err: any) {
     console.error('[VehicleMedia Controller] getVehicleImages error:', err);
@@ -127,12 +150,9 @@ export async function addVehicleImage(req: Request, res: Response) {
 export async function deleteVehicleImage(req: Request, res: Response) {
   try {
     const { id } = req.params;
-    const result = await query(
-      `DELETE FROM vehicle_images WHERE id = $1 RETURNING id`,
-      [id]
-    );
 
-    if (result.rows.length === 0) {
+    const imgCheck = await query(`SELECT id, path, bucket FROM vehicle_images WHERE id = $1`, [id]);
+    if (imgCheck.rows.length === 0) {
       return res.status(404).json({
         ok: false,
         error: 'not_found',
@@ -140,9 +160,24 @@ export async function deleteVehicleImage(req: Request, res: Response) {
       });
     }
 
+    const img = imgCheck.rows[0];
+
+    // Delete object from Cloudflare R2 if configured
+    if (isR2Configured() && img.path) {
+      try {
+        await deleteObject('images', img.path);
+      } catch (r2Err: any) {
+        console.warn(`[VehicleMedia] Warning: could not delete ${img.path} from R2:`, r2Err.message);
+      }
+    }
+
+    // Delete database record
+    await query(`DELETE FROM vehicle_images WHERE id = $1`, [id]);
+
     return res.status(200).json({
       ok: true,
-      message: 'Đã xóa bản ghi ảnh thành công',
+      message: 'Đã xóa bản ghi ảnh và dọn dẹp file lưu trữ thành công',
+      data: { id, path: img.path },
     });
   } catch (err: any) {
     console.error('[VehicleMedia Controller] deleteVehicleImage error:', err);
@@ -278,9 +313,27 @@ export async function getVehicleDocuments(req: Request, res: Response) {
       `SELECT * FROM vehicle_documents WHERE vehicle_id = $1 ORDER BY sort_order ASC`,
       [id]
     );
+
+    const data = await Promise.all(
+      result.rows.map(async (row) => {
+        const mapped = mapDocRow(row);
+        let downloadUrl = mapped.url;
+        if (isR2Configured() && mapped.path) {
+          try {
+            const presigned = await generatePresignedDownloadUrl('documents', mapped.path);
+            downloadUrl = presigned.url;
+          } catch {}
+        }
+        return {
+          ...mapped,
+          downloadUrl,
+        };
+      })
+    );
+
     return res.status(200).json({
       ok: true,
-      data: result.rows.map(mapDocRow),
+      data,
     });
   } catch (err: any) {
     console.error('[VehicleMedia Controller] getVehicleDocuments error:', err);
@@ -338,12 +391,9 @@ export async function addVehicleDocument(req: Request, res: Response) {
 export async function deleteVehicleDocument(req: Request, res: Response) {
   try {
     const { id } = req.params;
-    const result = await query(
-      `DELETE FROM vehicle_documents WHERE id = $1 RETURNING id`,
-      [id]
-    );
 
-    if (result.rows.length === 0) {
+    const docCheck = await query(`SELECT id, path, bucket FROM vehicle_documents WHERE id = $1`, [id]);
+    if (docCheck.rows.length === 0) {
       return res.status(404).json({
         ok: false,
         error: 'not_found',
@@ -351,9 +401,22 @@ export async function deleteVehicleDocument(req: Request, res: Response) {
       });
     }
 
+    const doc = docCheck.rows[0];
+
+    if (isR2Configured() && doc.path) {
+      try {
+        await deleteObject('documents', doc.path);
+      } catch (r2Err: any) {
+        console.warn(`[VehicleMedia] Warning: could not delete ${doc.path} from R2:`, r2Err.message);
+      }
+    }
+
+    await query(`DELETE FROM vehicle_documents WHERE id = $1`, [id]);
+
     return res.status(200).json({
       ok: true,
-      message: 'Đã xóa tài liệu thành công',
+      message: 'Đã xóa tài liệu và dọn dẹp file lưu trữ thành công',
+      data: { id, path: doc.path },
     });
   } catch (err: any) {
     console.error('[VehicleMedia Controller] deleteVehicleDocument error:', err);
@@ -368,6 +431,29 @@ export async function deleteVehicleDocument(req: Request, res: Response) {
 export async function deleteAllVehicleMedia(req: Request, res: Response) {
   try {
     const { id } = req.params;
+
+    const [imagesRes, docsRes] = await Promise.all([
+      query(`SELECT path FROM vehicle_images WHERE vehicle_id = $1`, [id]),
+      query(`SELECT path FROM vehicle_documents WHERE vehicle_id = $1`, [id]),
+    ]);
+
+    if (isR2Configured()) {
+      for (const img of imagesRes.rows) {
+        if (img.path) {
+          try {
+            await deleteObject('images', img.path);
+          } catch {}
+        }
+      }
+      for (const doc of docsRes.rows) {
+        if (doc.path) {
+          try {
+            await deleteObject('documents', doc.path);
+          } catch {}
+        }
+      }
+    }
+
     await Promise.all([
       query(`DELETE FROM vehicle_images WHERE vehicle_id = $1`, [id]),
       query(`DELETE FROM vehicle_documents WHERE vehicle_id = $1`, [id]),

@@ -1,5 +1,10 @@
 import { Request, Response } from 'express';
 import { query } from '../database/index.js';
+import {
+  generatePresignedDownloadUrl,
+  deleteObject,
+  isR2Configured,
+} from '../storage/r2.service.js';
 
 export function mapCheckSheetRow(row: any) {
   return {
@@ -453,6 +458,188 @@ export async function deleteCheckSheet(req: Request, res: Response) {
       ok: false,
       error: 'internal_error',
       message: 'Không thể xóa phiếu kiểm tra',
+    });
+  }
+}
+
+export async function getCheckSheetPhotos(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    const result = await query(
+      `SELECT id, vehicle_id, type, exterior_photos FROM check_sheets WHERE id = $1`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        ok: false,
+        error: 'not_found',
+        message: 'Không tìm thấy phiếu kiểm tra',
+      });
+    }
+
+    const sheet = result.rows[0];
+    const rawPhotos: Record<string, string[]> = sheet.exterior_photos || {};
+    const enrichedPhotos: Record<string, Array<{ key: string; downloadUrl: string }>> = {};
+
+    for (const [spotKey, keyList] of Object.entries(rawPhotos)) {
+      if (Array.isArray(keyList)) {
+        enrichedPhotos[spotKey] = await Promise.all(
+          keyList.map(async (key) => {
+            let downloadUrl = key;
+            if (isR2Configured()) {
+              try {
+                const presigned = await generatePresignedDownloadUrl('photos', key);
+                downloadUrl = presigned.url;
+              } catch {}
+            }
+            return { key, downloadUrl };
+          })
+        );
+      } else {
+        enrichedPhotos[spotKey] = [];
+      }
+    }
+
+    return res.status(200).json({
+      ok: true,
+      data: {
+        checksheetId: sheet.id,
+        vehicleId: sheet.vehicle_id,
+        type: sheet.type,
+        photos: enrichedPhotos,
+      },
+    });
+  } catch (err: any) {
+    console.error('[CheckSheets Controller] getCheckSheetPhotos error:', err);
+    return res.status(500).json({
+      ok: false,
+      error: 'internal_error',
+      message: 'Không thể tải danh sách ảnh phiếu kiểm tra',
+    });
+  }
+}
+
+export async function addCheckSheetPhoto(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    const { spotKey = 'general', key } = req.body;
+
+    if (!key) {
+      return res.status(400).json({
+        ok: false,
+        error: 'bad_request',
+        message: 'Thiếu key của ảnh checksheet',
+      });
+    }
+
+    const csCheck = await query('SELECT id, exterior_photos FROM check_sheets WHERE id = $1', [id]);
+    if (csCheck.rows.length === 0) {
+      return res.status(404).json({
+        ok: false,
+        error: 'not_found',
+        message: 'Không tìm thấy phiếu kiểm tra',
+      });
+    }
+
+    const photos = csCheck.rows[0].exterior_photos || {};
+    const list: string[] = Array.isArray(photos[spotKey]) ? photos[spotKey] : [];
+    if (!list.includes(key)) {
+      list.push(key);
+    }
+    photos[spotKey] = list;
+
+    await query(
+      `UPDATE check_sheets SET exterior_photos = $1, updated_at = now() WHERE id = $2`,
+      [JSON.stringify(photos), id]
+    );
+
+    let downloadUrl = key;
+    if (isR2Configured()) {
+      try {
+        const presigned = await generatePresignedDownloadUrl('photos', key);
+        downloadUrl = presigned.url;
+      } catch {}
+    }
+
+    return res.status(200).json({
+      ok: true,
+      message: 'Đã thêm ảnh vào phiếu kiểm tra thành công',
+      data: {
+        checksheetId: id,
+        spotKey,
+        key,
+        downloadUrl,
+        photos,
+      },
+    });
+  } catch (err: any) {
+    console.error('[CheckSheets Controller] addCheckSheetPhoto error:', err);
+    return res.status(500).json({
+      ok: false,
+      error: 'internal_error',
+      message: 'Không thể thêm ảnh vào phiếu kiểm tra',
+    });
+  }
+}
+
+export async function deleteCheckSheetPhoto(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    const { spotKey = 'general', key } = req.body;
+
+    if (!key) {
+      return res.status(400).json({
+        ok: false,
+        error: 'bad_request',
+        message: 'Thiếu key của ảnh checksheet cần xóa',
+      });
+    }
+
+    const csCheck = await query('SELECT id, exterior_photos FROM check_sheets WHERE id = $1', [id]);
+    if (csCheck.rows.length === 0) {
+      return res.status(404).json({
+        ok: false,
+        error: 'not_found',
+        message: 'Không tìm thấy phiếu kiểm tra',
+      });
+    }
+
+    const photos = csCheck.rows[0].exterior_photos || {};
+    if (Array.isArray(photos[spotKey])) {
+      photos[spotKey] = photos[spotKey].filter((k: string) => k !== key);
+    }
+
+    await query(
+      `UPDATE check_sheets SET exterior_photos = $1, updated_at = now() WHERE id = $2`,
+      [JSON.stringify(photos), id]
+    );
+
+    // Delete from R2 bucket
+    if (isR2Configured()) {
+      try {
+        await deleteObject('photos', key);
+      } catch (r2Err: any) {
+        console.warn(`[CheckSheets] Warning: could not delete ${key} from R2:`, r2Err.message);
+      }
+    }
+
+    return res.status(200).json({
+      ok: true,
+      message: 'Đã xóa ảnh checksheet thành công',
+      data: {
+        checksheetId: id,
+        spotKey,
+        key,
+        photos,
+      },
+    });
+  } catch (err: any) {
+    console.error('[CheckSheets Controller] deleteCheckSheetPhoto error:', err);
+    return res.status(500).json({
+      ok: false,
+      error: 'internal_error',
+      message: 'Không thể xóa ảnh checksheet',
     });
   }
 }
