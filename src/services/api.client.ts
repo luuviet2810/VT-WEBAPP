@@ -8,11 +8,6 @@
 
 import { getAuthToken, clearAuthToken } from './auth.service'
 
-const API_BASE_URL =
-  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) ||
-  (typeof process !== 'undefined' && process.env?.VITE_API_URL) ||
-  'http://localhost:3001'
-
 export class ApiError extends Error {
   public statusCode: number
   public errorCode?: string
@@ -27,8 +22,43 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Lấy API Base URL chuẩn hóa (loại bỏ trailing slash).
+ *
+ * Quy tắc môi trường nghiêm ngặt:
+ * 1. Trong môi trường Production (import.meta.env.PROD):
+ *    - Bắt buộc sử dụng URL từ import.meta.env.VITE_API_URL.
+ *    - Tuyệt đối KHÔNG fallback sang localhost:3001.
+ *    - Nếu thiếu biến môi trường hoặc cấu hình nhầm localhost, ném lỗi cấu hình rõ ràng để phát hiện ngay.
+ * 2. Trong môi trường Development (import.meta.env.DEV):
+ *    - Ưu tiên import.meta.env.VITE_API_URL nếu có.
+ *    - Chỉ cho phép fallback sang http://localhost:3001 khi chạy local dev.
+ */
 export function getApiBaseUrl(): string {
-  return API_BASE_URL.replace(/\/$/, '')
+  // Trong môi trường Development (DEV), cho phép fallback về localhost
+  if (import.meta.env.DEV) {
+    const devUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3001').trim()
+    return devUrl.replace(/\/$/, '')
+  }
+
+  // Trong môi trường Production (PROD), tuyệt đối không chứa hay fallback về localhost
+  const envUrl = (import.meta.env.VITE_API_URL || '').trim()
+
+  if (!envUrl) {
+    const errorMsg =
+      '[CRITICAL CONFIG ERROR] VITE_API_URL chưa được cấu hình cho môi trường Production! Vui lòng thiết lập VITE_API_URL=https://vt-webapp.onrender.com trên Vercel.'
+    console.error(errorMsg)
+    throw new Error(errorMsg)
+  }
+
+  if (envUrl.includes('localhost') || envUrl.includes('127.0.0.1')) {
+    const errorMsg =
+      `[CRITICAL CONFIG ERROR] Phát hiện cấu hình URL localhost trong môi trường Production (${envUrl})! Production bắt buộc phải kết nối Backend Render: https://vt-webapp.onrender.com.`
+    console.error(errorMsg)
+    throw new Error(errorMsg)
+  }
+
+  return envUrl.replace(/\/$/, '')
 }
 
 export async function apiClient<T = any>(endpoint: string, init?: RequestInit): Promise<T> {

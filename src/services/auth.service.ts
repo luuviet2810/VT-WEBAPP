@@ -1,4 +1,5 @@
 import type { UserRole, UserStatus } from '../types'
+import { getApiBaseUrl } from './api.client'
 
 export interface AuthProfile {
   id: string
@@ -42,14 +43,6 @@ export function clearAuthToken(): void {
   } catch {}
 }
 
-function getBaseUrl(): string {
-  const url =
-    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) ||
-    (typeof process !== 'undefined' && process.env?.VITE_API_URL) ||
-    'http://localhost:3001'
-  return url.replace(/\/$/, '')
-}
-
 function mapApiUserToProfile(apiUser: any): AuthProfile {
   const name = apiUser.name || ''
   return {
@@ -89,7 +82,7 @@ export async function signInWithEmail(
   } catch {}
 
   try {
-    const response = await fetch(`${getBaseUrl()}/api/auth/login`, {
+    const response = await fetch(`${getApiBaseUrl()}/api/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -157,7 +150,7 @@ export async function getCurrentProfile(): Promise<AuthProfile | null> {
   }
 
   try {
-    const response = await fetch(`${getBaseUrl()}/api/auth/me`, {
+    const response = await fetch(`${getApiBaseUrl()}/api/auth/me`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -193,7 +186,7 @@ export async function signOut(): Promise<void> {
   const token = getAuthToken()
   if (token) {
     try {
-      await fetch(`${getBaseUrl()}/api/auth/logout`, {
+      await fetch(`${getApiBaseUrl()}/api/auth/logout`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
