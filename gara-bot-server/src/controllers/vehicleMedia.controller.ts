@@ -63,7 +63,8 @@ export async function getVehicleImages(req: Request, res: Response) {
       result.rows.map(async (row) => {
         const mapped = mapImageRow(row);
         let downloadUrl = mapped.url;
-        if (isR2Configured() && mapped.path) {
+        const isLegacySupabase = typeof mapped.url === 'string' && mapped.url.includes('.supabase.co');
+        if (isR2Configured() && mapped.path && !isLegacySupabase) {
           try {
             const presigned = await generatePresignedDownloadUrl('images', mapped.path);
             downloadUrl = presigned.url;
@@ -162,7 +163,10 @@ export async function deleteVehicleImage(req: Request, res: Response) {
 
     const img = imgCheck.rows[0];
 
-    // Delete object from Cloudflare R2 if configured
+    // 1. Delete database record first (ensures DB consistency)
+    await query(`DELETE FROM vehicle_images WHERE id = $1`, [id]);
+
+    // 2. Clean up object from Cloudflare R2 if configured
     if (isR2Configured() && img.path) {
       try {
         await deleteObject('images', img.path);
@@ -170,9 +174,6 @@ export async function deleteVehicleImage(req: Request, res: Response) {
         console.warn(`[VehicleMedia] Warning: could not delete ${img.path} from R2:`, r2Err.message);
       }
     }
-
-    // Delete database record
-    await query(`DELETE FROM vehicle_images WHERE id = $1`, [id]);
 
     return res.status(200).json({
       ok: true,
@@ -318,7 +319,8 @@ export async function getVehicleDocuments(req: Request, res: Response) {
       result.rows.map(async (row) => {
         const mapped = mapDocRow(row);
         let downloadUrl = mapped.url;
-        if (isR2Configured() && mapped.path) {
+        const isLegacySupabase = typeof mapped.url === 'string' && mapped.url.includes('.supabase.co');
+        if (isR2Configured() && mapped.path && !isLegacySupabase) {
           try {
             const presigned = await generatePresignedDownloadUrl('documents', mapped.path);
             downloadUrl = presigned.url;
@@ -403,6 +405,10 @@ export async function deleteVehicleDocument(req: Request, res: Response) {
 
     const doc = docCheck.rows[0];
 
+    // 1. Delete database record first (ensures DB consistency)
+    await query(`DELETE FROM vehicle_documents WHERE id = $1`, [id]);
+
+    // 2. Clean up object from Cloudflare R2 if configured
     if (isR2Configured() && doc.path) {
       try {
         await deleteObject('documents', doc.path);
@@ -410,8 +416,6 @@ export async function deleteVehicleDocument(req: Request, res: Response) {
         console.warn(`[VehicleMedia] Warning: could not delete ${doc.path} from R2:`, r2Err.message);
       }
     }
-
-    await query(`DELETE FROM vehicle_documents WHERE id = $1`, [id]);
 
     return res.status(200).json({
       ok: true,

@@ -183,3 +183,32 @@ export async function getOrCreateCheckSheet(
 export async function deleteCheckSheet(id: string): Promise<void> {
   await apiDelete(`/api/checksheets/${id}`)
 }
+
+export async function getCheckSheetPhotos(
+  checksheetId: string
+): Promise<Record<string, Array<{ key: string; downloadUrl: string }>>> {
+  const res = await apiGet<{ photos: Record<string, Array<{ key: string; downloadUrl: string }>> }>(
+    `/api/checksheets/${checksheetId}/photos`
+  )
+  return res?.photos ?? {}
+}
+
+export async function addCheckSheetPhoto(
+  checksheetId: string,
+  spotKey: string,
+  key: string
+): Promise<{ checksheetId: string; spotKey: string; key: string; downloadUrl: string }> {
+  const res = await apiPost<any>(`/api/checksheets/${checksheetId}/photos`, { spotKey, key })
+  return res
+}
+
+export async function deleteCheckSheetPhoto(
+  checksheetId: string,
+  spotKey: string,
+  key: string
+): Promise<void> {
+  await apiDelete(`/api/checksheets/${checksheetId}/photos`, {
+    body: JSON.stringify({ spotKey, key }),
+    headers: { 'Content-Type': 'application/json' },
+  })
+}

@@ -30,11 +30,12 @@ export const confirmUploadSchema = z.object({
   key: z.string().min(3).max(500),
   vehicleId: z.string().uuid().optional(),
   checksheetId: z.string().uuid().optional(),
-  category: z.enum(['vehicle', 'website', 'error']).optional(),
+  category: z.enum(['website', 'documents', 'error', 'song_nung', 'vehicle'] as const).optional(),
   label: z.string().max(255).optional(),
   spotKey: z.string().max(100).optional(),
   sortOrder: z.number().int().optional(),
   songNungExpiryDate: z.string().optional(),
+  thumbnail: z.string().optional(),
 });
 
 export const presignedDownloadSchema = z.object({
@@ -151,6 +152,7 @@ export async function confirmUpload(req: Request, res: Response) {
     spotKey,
     sortOrder = 0,
     songNungExpiryDate,
+    thumbnail,
   } = req.body;
 
   try {
@@ -191,15 +193,16 @@ export async function confirmUpload(req: Request, res: Response) {
 
       const insertRes = await query(
         `INSERT INTO vehicle_images (
-          vehicle_id, path, bucket, url, size_bytes, mime_type,
+          vehicle_id, path, bucket, url, thumbnail, size_bytes, mime_type,
           category, sort_order, song_nung_expiry_date
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING *`,
         [
           vehicleId,
           key,
           bucket,
-          downloadInfo.url,
+          key, // Store permanent key, NOT temporary expiring Presigned URL
+          thumbnail || null,
           headInfo.contentLength,
           headInfo.contentType,
           category,
@@ -245,7 +248,7 @@ export async function confirmUpload(req: Request, res: Response) {
           label || null,
           key,
           bucket,
-          downloadInfo.url,
+          key, // Store permanent key, NOT temporary expiring Presigned URL
           headInfo.contentLength,
           headInfo.contentType,
           sortOrder,

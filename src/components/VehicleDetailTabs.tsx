@@ -1,5 +1,10 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { ArrowLeft, Clock, Download, FileText, Image as ImageIcon, Info, LogIn, LogOut, ImagePlus, Star, Trash2, GripVertical, X, ChevronLeft, ChevronRight, Calendar, SlidersHorizontal, Pencil, Check, Plus } from 'lucide-react'
+import {
+  ArrowLeft, Clock, Download, FileText, Image as ImageIcon, Info, LogIn,
+  LogOut, ImagePlus, Star, Trash2, GripVertical, X, ChevronLeft, ChevronRight,
+  Calendar, SlidersHorizontal, Pencil, Check, Plus, File as FileIcon, FileUp, ExternalLink,
+  Eye, Loader2, AlertCircle
+} from 'lucide-react'
 import { Modal, EmptyState, Tabs, ConfirmDialog } from '../components/ui'
 import PhotoUploader from '../components/PhotoUploader'
 import CheckSheetForm from '../components/CheckSheetForm'
@@ -9,7 +14,7 @@ import { formatDateTime } from '../utils/format'
 import * as vehicleMediaService from '../services/vehicleMedia.service'
 import * as storageService from '../services/storage.service'
 import * as vehicleOptionService from '../services/vehicleOption.service'
-import type { VehicleImageRow } from '../services/vehicleMedia.service'
+import type { VehicleImageRow, VehicleDocumentRow } from '../services/vehicleMedia.service'
 import type { Vehicle, VehicleOptionDef } from '../types'
 import { DISPLACEMENT_OPTIONS } from '../utils/vehicleDisplacement'
 
@@ -327,21 +332,7 @@ export default function VehicleDetailTabs({ vehicle, tab, onTabChange }: Props) 
 
         {tab === 'docs' && (
           <div className="flex flex-1 flex-col">
-            <PhotoUploader
-              images={vehicle.documents}
-              onChange={(documents) => patch({ documents })}
-              label="Thêm ảnh / giấy tờ"
-              emptyText="Chưa có ảnh"
-              rightContent={
-                <button
-                  className="btn-secondary flex items-center gap-2"
-                  onClick={() => downloadAllImages(vehicle.documents, vehicle.model, vehicle.plate, 'Giayto')}
-                  disabled={!vehicle.documents || vehicle.documents.length === 0}
-                >
-                  <Download size={16} /> Tải tất cả
-                </button>
-              }
-            />
+            <VehicleDocumentManager vehicle={vehicle} />
           </div>
         )}
 
@@ -407,12 +398,313 @@ function FullscreenSheet({ title, vehicle, onBack, children }: { title: string; 
   )
 }
 
+// ====== VEHICLE DOCUMENT MANAGER ======
+
+function VehicleDocumentManager({ vehicle }: { vehicle: Vehicle }) {
+  const [docs, setDocs] = useState<VehicleDocumentRow[]>([])
+  const [loading, setLoading] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null)
+  const [previewDoc, setPreviewDoc] = useState<VehicleDocumentRow | null>(null)
+  const [deleteDoc, setDeleteDoc] = useState<VehicleDocumentRow | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (vehicle?.id) loadDocuments()
+  }, [vehicle?.id])
+
+  async function loadDocuments() {
+    if (!vehicle?.id) return
+    setLoading(true)
+    try {
+      const data = await vehicleMediaService.getVehicleDocuments(vehicle.id)
+      setDocs(data)
+    } catch (err) {
+      console.error('[VehicleDocumentManager] Failed to load documents:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleFiles(files: FileList | null) {
+    if (!files || files.length === 0 || !vehicle?.id) return
+    const fileList = Array.from(files)
+    setUploading(true)
+    setUploadProgress({ current: 0, total: fileList.length })
+
+    for (let i = 0; i < fileList.length; i++) {
+      const file = fileList[i]
+      if (file.size > 25 * 1024 * 1024) {
+        alert(`File "${file.name}" vượt quá giới hạn 25MB.`)
+        continue
+      }
+      try {
+        await storageService.uploadVehicleDocument(vehicle.id, file, file.name, docs.length + i)
+      } catch (err: any) {
+        console.error('[VehicleDocumentManager] Upload error:', file.name, err)
+        alert(`Tải file "${file.name}" thất bại: ${err.message || 'Lỗi tải lên'}`)
+      }
+      setUploadProgress({ current: i + 1, total: fileList.length })
+    }
+
+    setUploading(false)
+    setUploadProgress(null)
+    await loadDocuments()
+  }
+
+  async function handleDelete(doc: VehicleDocumentRow) {
+    try {
+      await vehicleMediaService.deleteVehicleDocument(doc.id, doc.path)
+      setDocs((prev) => prev.filter((d) => d.id !== doc.id))
+      setDeleteDoc(null)
+    } catch (err: any) {
+      console.error('[VehicleDocumentManager] Delete error:', err)
+      alert(`Xóa tài liệu thất bại: ${err.message || 'Lỗi không xác định'}`)
+    }
+  }
+
+  async function downloadDoc(doc: VehicleDocumentRow) {
+    const url = doc.downloadUrl || doc.url
+    if (!url) return
+    try {
+      const res = await fetch(url)
+      const blob = await res.blob()
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.download = doc.label || doc.path.split('/').pop() || 'tai-lieu'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(link.href)
+    } catch (err) {
+      console.error('Download doc failed:', err)
+      window.open(url, '_blank')
+    }
+  }
+
+  function downloadAllDocs() {
+    docs.forEach((d, i) => {
+      setTimeout(() => downloadDoc(d), i * 350)
+    })
+  }
+
+  function formatBytes(bytes: number | null | undefined): string {
+    if (!bytes || bytes <= 0) return '—'
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
+  }
+
+  function getFileIcon(fileName: string, mimeType?: string | null) {
+    const lower = (fileName || '').toLowerCase()
+    const mime = (mimeType || '').toLowerCase()
+    if (lower.endsWith('.pdf') || mime.includes('pdf')) {
+      return <FileText className="text-red-500" size={24} />
+    }
+    if (lower.endsWith('.doc') || lower.endsWith('.docx') || mime.includes('word') || mime.includes('document')) {
+      return <FileText className="text-blue-500" size={24} />
+    }
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.png') || lower.endsWith('.webp') || mime.includes('image')) {
+      return <ImageIcon className="text-emerald-500" size={24} />
+    }
+    return <FileIcon className="text-slate-500" size={24} />
+  }
+
+  const isImage = (doc: VehicleDocumentRow) => {
+    const l = (doc.label || doc.path || '').toLowerCase()
+    const m = (doc.mime_type || '').toLowerCase()
+    return l.endsWith('.jpg') || l.endsWith('.jpeg') || l.endsWith('.png') || l.endsWith('.webp') || m.includes('image')
+  }
+
+  const isPdf = (doc: VehicleDocumentRow) => {
+    const l = (doc.label || doc.path || '').toLowerCase()
+    const m = (doc.mime_type || '').toLowerCase()
+    return l.endsWith('.pdf') || m.includes('pdf')
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Action Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-800">Tài liệu xe ({docs.length})</h3>
+          <p className="text-xs text-slate-500">Hỗ trợ PDF, Word (.doc, .docx) và ảnh. Tối đa 25MB/file.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {docs.length > 0 && (
+            <button onClick={downloadAllDocs} className="btn-secondary flex items-center gap-1.5 text-xs">
+              <Download size={14} /> Tải tất cả
+            </button>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              handleFiles(e.target.files)
+              e.target.value = ''
+            }}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="btn-primary flex items-center gap-1.5 text-xs"
+          >
+            {uploading ? (
+              <>
+                <Loader2 size={14} className="animate-spin" />
+                {uploadProgress ? `Đang tải (${uploadProgress.current}/${uploadProgress.total})...` : 'Đang tải...'}
+              </>
+            ) : (
+              <>
+                <FileUp size={14} /> Tải tài liệu lên
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Document List */}
+      {loading ? (
+        <div className="flex h-40 items-center justify-center">
+          <Loader2 size={24} className="animate-spin text-brand-600" />
+        </div>
+      ) : docs.length === 0 ? (
+        <div
+          onClick={() => fileInputRef.current?.click()}
+          className="cursor-pointer rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-8 text-center transition-colors hover:border-brand-300 hover:bg-brand-50/30"
+        >
+          <FileUp size={36} className="mx-auto text-slate-400" />
+          <p className="mt-2 text-sm font-medium text-slate-700">Chưa có tài liệu nào</p>
+          <p className="mt-1 text-xs text-slate-400">Bấm vào đây để tải tài liệu lên R2 (PDF, DOCX, Ảnh tối đa 25MB)</p>
+        </div>
+      ) : (
+        <div className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          {docs.map((doc) => (
+            <div
+              key={doc.id}
+              className="flex flex-col gap-3 p-3.5 transition-colors hover:bg-slate-50/80 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100">
+                  {getFileIcon(doc.label || doc.path, doc.mime_type)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium text-slate-800" title={doc.label || doc.path}>
+                    {doc.label || doc.path.split('/').pop() || 'Tài liệu'}
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                    <span>{formatBytes(doc.size_bytes)}</span>
+                    <span>•</span>
+                    <span>{doc.created_at ? new Date(doc.created_at).toLocaleDateString('vi-VN') : '—'}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex shrink-0 items-center gap-2 self-end sm:self-center">
+                {(isImage(doc) || isPdf(doc)) && (
+                  <button
+                    onClick={() => setPreviewDoc(doc)}
+                    className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    <Eye size={13} /> Xem
+                  </button>
+                )}
+                <button
+                  onClick={() => downloadDoc(doc)}
+                  className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  <Download size={13} /> Tải về
+                </button>
+                <button
+                  onClick={() => setDeleteDoc(doc)}
+                  className="flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100"
+                >
+                  <Trash2 size={13} /> Xóa
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Preview Modal for Image/PDF */}
+      {previewDoc && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-black/95" onClick={() => setPreviewDoc(null)}>
+          <div className="flex shrink-0 items-center justify-between px-4 py-3 text-white" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setPreviewDoc(null)}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+              >
+                <X size={20} />
+              </button>
+              <span className="truncate text-sm font-medium max-w-xs sm:max-w-md">
+                {previewDoc.label || previewDoc.path.split('/').pop()}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => downloadDoc(previewDoc)}
+                className="flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20"
+              >
+                <Download size={14} /> Tải về
+              </button>
+            </div>
+          </div>
+          <div className="flex min-h-0 flex-1 items-center justify-center p-2" onClick={(e) => e.stopPropagation()}>
+            {isImage(previewDoc) ? (
+              <img
+                src={previewDoc.downloadUrl || previewDoc.url}
+                className="max-h-full max-w-full object-contain select-none"
+                alt="Document Preview"
+              />
+            ) : isPdf(previewDoc) ? (
+              <iframe
+                src={previewDoc.downloadUrl || previewDoc.url}
+                className="h-full w-full rounded-lg bg-white"
+                title="PDF Preview"
+              />
+            ) : null}
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setDeleteDoc(null)}>
+          <div className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h4 className="text-sm font-semibold text-slate-900">Xác nhận xóa tài liệu</h4>
+            <p className="mt-2 text-xs text-slate-500">
+              Bạn có chắc chắn muốn xóa file <strong className="text-slate-700">{deleteDoc.label || deleteDoc.path}</strong>? File sẽ bị xóa vĩnh viễn khỏi hệ thống và Cloudflare R2.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setDeleteDoc(null)} className="btn-secondary px-3 py-1.5 text-xs">
+                Hủy
+              </button>
+              <button onClick={() => handleDelete(deleteDoc)} className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700">
+                Xóa vĩnh viễn
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ====== CATEGORIZED PHOTO VIEWER ======
 
 /** Local row type — `clientKey` keeps the React key stable when a temp
  *  (optimistic blob) row is swapped for the real DB row, so the <img>
  *  element is NOT remounted (no flash) when the upload finishes. */
-type ViewerRow = VehicleImageRow & { clientKey?: string }
+type ViewerRow = VehicleImageRow & {
+  clientKey?: string
+  isUploading?: boolean
+  uploadError?: string | null
+}
 
 function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
   const [imageRows, setImageRows] = useState<ViewerRow[]>([])
@@ -460,16 +752,17 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
     }
   }
 
-  function syncVehicleImages(rows: VehicleImageRow[]) {
+  function syncVehicleImages(rows: (VehicleImageRow | ViewerRow)[]) {
     const vehicleRows = rows
       .filter((r) => r.category === 'vehicle' || !r.category)
       .sort((a, b) => a.sort_order - b.sort_order)
-    const vehicleUrls = vehicleRows.map((r) => r.url)
+    const vehicleUrls = vehicleRows.map((r) => r.downloadUrl || r.url)
     // Keep the url → thumbnail map fresh so list cards can render the small
     // thumbnail instead of falling back to the full-size cover image.
     const thumbs: Record<string, string> = {}
     for (const r of vehicleRows) {
-      if (r.thumbnail) thumbs[r.url] = r.thumbnail
+      const displayUrl = r.downloadUrl || r.url
+      if (r.thumbnail) thumbs[displayUrl] = r.thumbnail
     }
     useStore.getState().setVehicleImages(vehicle.id, vehicleUrls, thumbs)
   }
@@ -492,54 +785,88 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
     if (!files || !files.length || !vehicle?.id) return
     setUploading(category)
     const fileArray = Array.from(files)
-    const tempRows: ViewerRow[] = fileArray.map((f, i) => ({
-      id: 'temp_' + Date.now() + '_' + i,
-      clientKey: 'ck_' + Date.now() + '_' + i,
-      vehicle_id: vehicle.id,
-      path: '',
-      bucket: 'vehicle-images',
-      url: URL.createObjectURL(f),
-      thumbnail: null,
-      category,
-      subtype: null,
-      resolved: false,
-      song_nung_expiry_date: category === 'song_nung' ? (expiryDate ?? null) : null,
-      size_bytes: f.size,
-      mime_type: f.type,
-      sort_order: imageRows.length + i,
-      created_at: new Date().toISOString(),
-    }))
+    const tempRows: ViewerRow[] = fileArray.map((f, i) => {
+      const blobUrl = URL.createObjectURL(f)
+      return {
+        id: 'temp_' + Date.now() + '_' + i,
+        clientKey: 'ck_' + Date.now() + '_' + i,
+        vehicle_id: vehicle.id,
+        path: '',
+        bucket: 'vehicle-images',
+        url: blobUrl,
+        downloadUrl: blobUrl,
+        thumbnail: null,
+        category,
+        subtype: null,
+        resolved: false,
+        song_nung_expiry_date: category === 'song_nung' ? (expiryDate ?? null) : null,
+        size_bytes: f.size,
+        mime_type: f.type,
+        sort_order: imageRows.length + i,
+        created_at: new Date().toISOString(),
+        isUploading: true,
+        uploadError: null,
+      }
+    })
 
-    // Show thumbnails immediately
+    // Show optimistic thumbnails immediately
     setImageRows((prev) => [...prev, ...tempRows])
 
     try {
-      // Upload with limited concurrency (3 at a time)
-      const CONCURRENCY = 3
+      const CONCURRENCY = 2
       const uploadOne = async (file: File, tempRow: ViewerRow) => {
         try {
-          const result = await storageService.uploadVehicleImage(vehicle.id, file)
           let thumbUrl: string | null = null
           try {
             const { resizeImage } = await import('../utils/imageResize')
             const thumbBlob = await resizeImage(file, 600, 0.75)
             const thumbFile = new File([thumbBlob], 'thumb_' + file.name, { type: 'image/jpeg' })
-            const thumbResult = await storageService.uploadVehicleImage(vehicle.id, thumbFile)
-            thumbUrl = thumbResult.url
+            const thumbResult = await storageService.uploadVehicleImage(vehicle.id, thumbFile, {
+              category: category as any,
+              sortOrder: tempRow.sort_order,
+            })
+            thumbUrl = thumbResult.downloadUrl || thumbResult.url
           } catch { /* thumbnail failure is non-critical */ }
-          const dbRow = await vehicleMediaService.addVehicleImage(
-            vehicle.id, result.path, 'vehicle-images', result.url,
-            file.size, file.type, tempRow.sort_order, thumbUrl, category,
-            category === 'song_nung' ? (expiryDate ?? null) : undefined
-          )
-          // Replace temp row with real row — keep clientKey so the tile's
-          // React key (and therefore the <img> element) is NOT remounted.
-          setImageRows((prev) => prev.map((r) => (r.id === tempRow.id ? { ...dbRow, clientKey: tempRow.clientKey } : r)))
+
+          const result = await storageService.uploadVehicleImage(vehicle.id, file, {
+            category: category as any,
+            sortOrder: tempRow.sort_order,
+            songNungExpiryDate: category === 'song_nung' ? (expiryDate ?? null) : undefined,
+            thumbnail: thumbUrl,
+          })
+
+          const confirmedRow: ViewerRow = {
+            id: result.id || tempRow.id,
+            clientKey: tempRow.clientKey,
+            vehicle_id: vehicle.id,
+            path: result.path,
+            bucket: result.bucket || 'vehicle-images',
+            url: result.url,
+            downloadUrl: result.downloadUrl || result.url,
+            thumbnail: thumbUrl,
+            category,
+            subtype: null,
+            resolved: false,
+            song_nung_expiry_date: category === 'song_nung' ? (expiryDate ?? null) : null,
+            size_bytes: file.size,
+            mime_type: file.type,
+            sort_order: tempRow.sort_order,
+            created_at: new Date().toISOString(),
+            isUploading: false,
+            uploadError: null,
+          }
+
+          setImageRows((prev) => prev.map((r) => (r.id === tempRow.id ? confirmedRow : r)))
           URL.revokeObjectURL(tempRow.url)
-        } catch (err) {
+        } catch (err: any) {
           console.error('[upload] Failed:', file.name, err)
-          // Remove failed temp row
-          setImageRows((prev) => prev.filter((r) => r.id !== tempRow.id))
+          setImageRows((prev) =>
+            prev.map((r) =>
+              r.id === tempRow.id
+                ? { ...r, isUploading: false, uploadError: err.message || 'Lỗi tải ảnh' }
+                : r
+            )
+          )
         }
       }
 
@@ -549,9 +876,6 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
         await Promise.all(batch.map((f, bi) => uploadOne(f, tempRows[i + bi])))
       }
 
-      // One sync at the end of the batch (NOT per file): refresh rows for
-      // this vehicle only and push urls + thumbnail map into the global
-      // store so VehicleList/PriceList covers update without a full refetch.
       await loadImages()
     } catch (err) {
       console.error('[upload] Batch failed:', err)
@@ -673,14 +997,15 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
     }
   }
 
-  function downloadOne(url: string, idx: number) {
-    const ext = url.split('.').pop()?.split('?')[0] || 'jpg'
-    downloadFile(url, `${vehicle.model}_${vehicle.plate}_${idx + 1}.${ext}`)
+  function downloadOne(row: ViewerRow, idx: number) {
+    const targetUrl = row.downloadUrl || row.url
+    const ext = targetUrl.split('.').pop()?.split('?')[0] || 'jpg'
+    downloadFile(targetUrl, `${vehicle.model}_${vehicle.plate}_${idx + 1}.${ext}`)
   }
 
   function downloadAll() {
     imageRows.forEach((row, i) => {
-      setTimeout(() => downloadOne(row.url, i), i * 300)
+      setTimeout(() => downloadOne(row, i), i * 300)
     })
   }
 
@@ -774,7 +1099,38 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
                     } ${overIdx?.cat === cat.key && overIdx.idx === idx && dragIdx?.cat === cat.key && dragIdx.idx !== idx ? 'scale-[0.98] border-brand-400' : ''} ${
                       overIdx?.cat === cat.key && overIdx.idx === idx && dragIdx && dragIdx.cat !== cat.key ? 'scale-[0.98] border-violet-400 ring-2 ring-violet-100' : ''}`}
                   >
-                    <img src={row.thumbnail || row.url} className="h-full w-full object-cover" draggable={false} loading="lazy" />
+                    <img
+                      src={row.thumbnail || row.downloadUrl || row.url}
+                      className="h-full w-full object-cover"
+                      draggable={false}
+                      loading="lazy"
+                    />
+
+                    {/* Progress / Loading indicator */}
+                    {row.isUploading && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white backdrop-blur-[1px]">
+                        <Loader2 size={20} className="animate-spin text-white" />
+                        <span className="mt-1 text-[10px] font-medium">Đang tải...</span>
+                      </div>
+                    )}
+
+                    {/* Error indicator */}
+                    {row.uploadError && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-red-900/80 p-1 text-center text-white backdrop-blur-[1px]">
+                        <AlertCircle size={16} className="text-red-300" />
+                        <span className="mt-0.5 line-clamp-2 text-[9px] text-red-100">{row.uploadError}</span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setImageRows((prev) => prev.filter((r) => r.id !== row.id))
+                          }}
+                          className="mt-1 rounded bg-white/20 px-1.5 py-0.5 text-[8px] font-medium hover:bg-white/30"
+                        >
+                          Đóng
+                        </button>
+                      </div>
+                    )}
+
                     {/* Top badges */}
                     <div className="absolute left-1 top-1 flex items-center gap-1">
                       <span className="rounded-md bg-slate-900/60 p-0.5 text-white"><GripVertical size={10} /></span>
@@ -807,7 +1163,7 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
                           Hạn
                         </button>
                       )}
-                      <button onClick={() => downloadOne(row.url, idx)}
+                      <button onClick={() => downloadOne(row, idx)}
                         className="rounded-md bg-slate-900/70 p-1 text-white">
                         <Download size={10} />
                       </button>
@@ -844,14 +1200,14 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
             </div>
             <div className="flex items-center gap-3">
               {previewRows.length > 1 && <span className="text-xs text-white/60">{previewIndex + 1}/{previewRows.length}</span>}
-              <button onClick={() => downloadOne(previewRows[previewIndex].url, previewIndex)}
+              <button onClick={() => downloadOne(previewRows[previewIndex], previewIndex)}
                 className="flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20 transition-colors" title="Tải ảnh">
                 <Download size={14} /> Tải ảnh
               </button>
             </div>
           </div>
           <div className="flex min-h-0 flex-1 items-center justify-center px-2" onClick={(e) => e.stopPropagation()}>
-            <img src={previewRows[previewIndex].url} className="max-h-full max-w-full object-contain select-none" draggable={false} />
+            <img src={previewRows[previewIndex].downloadUrl || previewRows[previewIndex].url} className="max-h-full max-w-full object-contain select-none" draggable={false} />
           </div>
           {previewRows.length > 1 && (
             <div className="flex shrink-0 items-center justify-center gap-6 px-4 py-4" onClick={(e) => e.stopPropagation()}>

@@ -17,6 +17,8 @@ export interface VehicleImageRow {
   mime_type: string | null
   sort_order: number
   created_at: string
+  downloadUrl?: string
+  clientKey?: string
 }
 
 export interface VehicleDocumentRow {
@@ -30,6 +32,7 @@ export interface VehicleDocumentRow {
   mime_type: string | null
   sort_order: number
   created_at: string
+  downloadUrl?: string
 }
 
 // ====== VEHICLE IMAGES ======
@@ -41,6 +44,7 @@ function mapImageRow(row: Record<string, any>): VehicleImageRow {
     path: row.path as string,
     bucket: row.bucket as string,
     url: row.url as string,
+    downloadUrl: (row.downloadUrl || row.download_url || row.url) as string,
     thumbnail: (row.thumbnail as string | null) ?? null,
     category: (row.category as string) ?? undefined,
     subtype: (row.subtype as string) ?? null,
@@ -61,6 +65,7 @@ function mapDocumentRow(row: Record<string, any>): VehicleDocumentRow {
     path: row.path as string,
     bucket: row.bucket as string,
     url: row.url as string,
+    downloadUrl: (row.downloadUrl || row.download_url || row.url) as string,
     size_bytes: row.size_bytes != null ? Number(row.size_bytes) : (row.sizeBytes != null ? Number(row.sizeBytes) : null),
     mime_type: (row.mime_type || row.mimeType) ?? null,
     sort_order: Number(row.sort_order ?? row.sortOrder ?? 0),

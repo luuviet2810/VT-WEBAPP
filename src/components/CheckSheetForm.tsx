@@ -1,9 +1,13 @@
 // ====== CHECKSHEET FORM COMPONENT ======
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CheckCircle2, XCircle, Minus, StickyNote, Wrench, Plus, Minus as MinusIcon, X, ListChecks } from 'lucide-react'
+import {
+  CheckCircle2, XCircle, Minus, StickyNote, Wrench, Plus, Minus as MinusIcon,
+  X, ListChecks, Camera, ImagePlus, Trash2, Eye, Loader2
+} from 'lucide-react'
 import { useStore } from '../store/useStore'
 import * as checksheetService from '../services/checksheet.service'
+import * as storageService from '../services/storage.service'
 import { EMPTY_CHECK_SHEET } from '../services/checksheet.service'
 import {
   CheckOutCheck,
@@ -264,6 +268,9 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
   const [dashcam, setDashcam] = useState<DashcamState | undefined>(undefined)
   const [interior, setInterior] = useState<InteriorCheck>(EMPTY_CHECK_SHEET.interior)
   const [exterior, setExterior] = useState<ExteriorCheck>(emptyExteriorCheck())
+  const [exteriorPhotos, setExteriorPhotos] = useState<Record<string, Array<{ key: string; downloadUrl: string }>>>({})
+  const [uploadingSpot, setUploadingSpot] = useState<string | null>(null)
+  const [previewPhoto, setPreviewPhoto] = useState<{ url: string; title: string } | null>(null)
 
   // ====== STATE ĐẦU RA ======
   const [outCheck, setOutCheck] = useState<CheckOutCheck>(EMPTY_CHECK_SHEET.outCheck)
@@ -447,6 +454,25 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
           setOutKeyType(sheet.outKeyType ?? undefined)
           setOutSmartkeyStatus(sheet.outSmartkeyStatus ?? undefined)
         }
+
+        // Load exterior photos with presigned download URLs if sheet exists
+        if (sheet.id) {
+          try {
+            const photos = await checksheetService.getCheckSheetPhotos(sheet.id)
+            setExteriorPhotos(photos || {})
+          } catch (pErr) {
+            console.warn('[CheckSheetForm] Could not load photos via API, falling back to sheet row:', pErr)
+            const raw = (sheet.exteriorPhotos || (sheet as any).exterior_photos || {}) as Record<string, string[]>
+            const fallbackMap: Record<string, Array<{ key: string; downloadUrl: string }>> = {}
+            for (const [sKey, kList] of Object.entries(raw)) {
+              if (Array.isArray(kList)) {
+                fallbackMap[sKey] = kList.map((k) => ({ key: k, downloadUrl: k }))
+              }
+            }
+            setExteriorPhotos(fallbackMap)
+          }
+        }
+
         // Mark init complete so auto-save can start
         initRef.current = true
 
@@ -464,10 +490,65 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
     init()
   }, [vehicle.id, type])
 
+  // ====== CHECKSHEET PHOTO ACTIONS ======
+  async function handleSpotPhotoUpload(spotKey: string, files: FileList | null) {
+    if (!files || files.length === 0) return
+    const sheetTargetId = sheetId
+    if (!sheetTargetId) {
+      alert('Vui lòng đợi phiếu kiểm tra được khởi tạo trước khi tải ảnh.')
+      return
+    }
+
+    setUploadingSpot(spotKey)
+    const fileList = Array.from(files)
+    for (const file of fileList) {
+      if (file.size > 10 * 1024 * 1024) {
+        alert(`Ảnh "${file.name}" vượt quá giới hạn 10MB.`)
+        continue
+      }
+      try {
+        const result = await storageService.uploadExteriorPhoto(vehicle.id, spotKey, file, sheetTargetId)
+        setExteriorPhotos((prev) => {
+          const current = prev[spotKey] || []
+          return {
+            ...prev,
+            [spotKey]: [...current, { key: result.key || result.path, downloadUrl: result.downloadUrl || result.url }],
+          }
+        })
+      } catch (err: any) {
+        console.error('CheckSheet photo upload failed:', err)
+        alert(`Tải ảnh thất bại: ${err.message || 'Lỗi không xác định'}`)
+      }
+    }
+    setUploadingSpot(null)
+  }
+
+  async function handleSpotPhotoDelete(spotKey: string, key: string) {
+    const sheetTargetId = sheetId
+    if (!sheetTargetId) return
+    try {
+      await checksheetService.deleteCheckSheetPhoto(sheetTargetId, spotKey, key)
+      setExteriorPhotos((prev) => ({
+        ...prev,
+        [spotKey]: (prev[spotKey] || []).filter((p) => p.key !== key),
+      }))
+    } catch (err: any) {
+      console.error('CheckSheet photo delete failed:', err)
+      alert(`Xóa ảnh thất bại: ${err.message || 'Lỗi không xác định'}`)
+    }
+  }
+
   // ====== AUTO-SAVE DEBOUNCE ======
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   function buildPatch(): Partial<CheckSheet> {
+    const rawExteriorPhotos: Record<string, string[]> = {}
+    for (const [k, v] of Object.entries(exteriorPhotos)) {
+      if (Array.isArray(v) && v.length > 0) {
+        rawExteriorPhotos[k] = v.map((item) => item.key)
+      }
+    }
+
     const base: Partial<CheckSheet> = {
       checkerId,
       checkDate,
@@ -479,6 +560,7 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
       dashcam,
       interior,
       exterior,
+      exteriorPhotos: rawExteriorPhotos,
       inputDieuHoa,
       inputSuoiGhe,
       inputTireState,
@@ -521,7 +603,7 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current)
     }
-  }, [sheetId, checkerId, checkDate, fuelLevel, screen, rearCamera, hipass, rearSensor, dashcam, interior, exterior, inputDieuHoa, inputSuoiGhe, inputTireState, inputTireInflated, outputTireInflated, cabinAirFilter, engineOilLevel, engineAirFilter, inputDenPhaCot, inputMotorGuongNutBam, inputCuaSo, inputGheChinhDien, inputNotes, outCheck, outNotes, inputAcquySOH, inputAcquySOC, acquySOH, acquySOC, songNungResultStatus, undercarriageStatus, keyType, smartkeyStatus, outKeyType, outSmartkeyStatus])
+  }, [sheetId, checkerId, checkDate, fuelLevel, screen, rearCamera, hipass, rearSensor, dashcam, interior, exterior, exteriorPhotos, inputDieuHoa, inputSuoiGhe, inputTireState, inputTireInflated, outputTireInflated, cabinAirFilter, engineOilLevel, engineAirFilter, inputDenPhaCot, inputMotorGuongNutBam, inputCuaSo, inputGheChinhDien, inputNotes, outCheck, outNotes, inputAcquySOH, inputAcquySOC, acquySOH, acquySOC, songNungResultStatus, undercarriageStatus, keyType, smartkeyStatus, outKeyType, outSmartkeyStatus])
 
   // ====== SUMMARY COUNTS ======
   const summaryCounts = useMemo(() => {
@@ -1308,7 +1390,18 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
 
               <div ref={exteriorRef}>
                 {EXTERIOR_SPOTS.map(([key, spotLabel]) => (
-                  <ExteriorRow key={key} label={spotLabel} entry={exterior[key]} onChange={(p) => updateExterior(key, p)} />
+                  <ExteriorRow
+                    key={key}
+                    label={spotLabel}
+                    spotKey={key}
+                    entry={exterior[key]}
+                    photos={exteriorPhotos[key] || []}
+                    isUploading={uploadingSpot === key}
+                    onChange={(p) => updateExterior(key, p)}
+                    onUploadPhotos={(files) => handleSpotPhotoUpload(key, files)}
+                    onDeletePhoto={(photoKey) => handleSpotPhotoDelete(key, photoKey)}
+                    onPreviewPhoto={(url, title) => setPreviewPhoto({ url, title })}
+                  />
                 ))}
               </div>
 
@@ -1590,6 +1683,24 @@ const [showTaskSummary, setShowTaskSummary] = useState(false)
           </div>
         )
       })()}
+
+      {/* Photo Preview Modal */}
+      {previewPhoto && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-black/95" onClick={() => setPreviewPhoto(null)}>
+          <div className="flex shrink-0 items-center justify-between px-4 py-3 text-white" onClick={(e) => e.stopPropagation()}>
+            <span className="text-sm font-medium">{previewPhoto.title}</span>
+            <button
+              onClick={() => setPreviewPhoto(null)}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+            >
+              <X size={18} />
+            </button>
+          </div>
+          <div className="flex min-h-0 flex-1 items-center justify-center p-3" onClick={(e) => e.stopPropagation()}>
+            <img src={previewPhoto.url} className="max-h-full max-w-full object-contain select-none" alt="Preview" />
+          </div>
+        </div>
+      )}
     </>
   )
 }
@@ -1640,17 +1751,129 @@ function InteriorRow({
 
 function ExteriorRow({
   label,
+  spotKey,
   entry,
+  photos = [],
+  isUploading = false,
   onChange,
+  onUploadPhotos,
+  onDeletePhoto,
+  onPreviewPhoto,
 }: {
   label: string
+  spotKey: ExteriorSpotKey
   entry: { condition: ExteriorCondition }
+  photos?: Array<{ key: string; downloadUrl: string }>
+  isUploading?: boolean
   onChange: (p: { condition: ExteriorCondition }) => void
+  onUploadPhotos: (files: FileList | null) => void
+  onDeletePhoto: (key: string) => void
+  onPreviewPhoto: (url: string, title: string) => void
 }) {
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const hasIssues = entry.condition === 'dent' || entry.condition === 'discolor'
+
   return (
-    <div className="mb-3">
-      <label className="label">{label}</label>
-      <SegButton options={EXTERIOR_OPTIONS} value={entry.condition} onChange={(v) => onChange({ condition: v as ExteriorCondition })} />
+    <div className={`mb-3 rounded-xl border p-3 transition-colors ${hasIssues ? 'border-amber-200 bg-amber-50/30' : 'border-slate-100 bg-white'}`}>
+      <div className="flex items-center justify-between gap-2">
+        <label className="text-sm font-medium text-slate-800">{label}</label>
+        {photos.length > 0 && (
+          <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold text-brand-600">
+            {photos.length} ảnh
+          </span>
+        )}
+      </div>
+
+      <div className="mt-2">
+        <SegButton options={EXTERIOR_OPTIONS} value={entry.condition} onChange={(v) => onChange({ condition: v as ExteriorCondition })} />
+      </div>
+
+      {/* Photo Controls & Thumbnails */}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {/* Hidden inputs for camera and gallery */}
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={(e) => {
+            onUploadPhotos(e.target.files)
+            e.target.value = ''
+          }}
+        />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            onUploadPhotos(e.target.files)
+            e.target.value = ''
+          }}
+        />
+
+        {/* Buttons */}
+        <button
+          type="button"
+          onClick={() => cameraInputRef.current?.click()}
+          disabled={isUploading}
+          className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50 active:scale-95 transition-all"
+        >
+          <Camera size={13} className="text-brand-600" /> Chụp ảnh
+        </button>
+
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploading}
+          className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50 active:scale-95 transition-all"
+        >
+          <ImagePlus size={13} className="text-slate-600" /> Chọn từ máy
+        </button>
+
+        {isUploading && (
+          <div className="flex items-center gap-1 text-xs text-brand-600 font-medium">
+            <Loader2 size={13} className="animate-spin" /> Đang tải...
+          </div>
+        )}
+      </div>
+
+      {/* Thumbnails row */}
+      {photos.length > 0 && (
+        <div className="mt-2.5 flex flex-wrap gap-2 pt-1">
+          {photos.map((photo, pIdx) => (
+            <div
+              key={photo.key || pIdx}
+              className="group relative h-14 w-14 overflow-hidden rounded-lg border border-slate-200 bg-slate-100 shadow-sm"
+            >
+              <img
+                src={photo.downloadUrl}
+                alt={`${label} ${pIdx + 1}`}
+                className="h-full w-full cursor-pointer object-cover transition-transform group-hover:scale-105"
+                onClick={() => onPreviewPhoto(photo.downloadUrl, `${label} (Ảnh ${pIdx + 1})`)}
+                loading="lazy"
+              />
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (confirm('Xác nhận xóa ảnh này?')) {
+                    onDeletePhoto(photo.key)
+                  }
+                }}
+                className="absolute right-0.5 top-0.5 rounded-full bg-black/60 p-1 text-white hover:bg-red-600 transition-colors"
+                title="Xóa ảnh"
+              >
+                <Trash2 size={10} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
