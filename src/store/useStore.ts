@@ -24,6 +24,7 @@ import { getVehicleWorkflowStatus, WORKFLOW_STATUS_LABEL } from '../utils/vehicl
 import { taskCreated, taskCompleted, vehicleAdded } from '../utils/notificationTemplates'
 import { todayISO, uid } from '../utils/format'
 import * as vehicleService from '../services/vehicle.service'
+import { getAuthToken } from '../services/auth.service'
 import * as positionService from '../services/position.service'
 import * as usersService from '../services/users.service'
 import * as taskService from '../services/task.service'
@@ -67,6 +68,13 @@ const defaultSettings: Settings = {
 }
 
 export async function initializeFromSupabase(): Promise<void> {
+  const token = getAuthToken()
+  if (!token) {
+    console.log('[STORE] initializeFromSupabase: Chưa có token xác thực, bỏ qua nạp dữ liệu ban đầu.')
+    useStore.setState({ isLoading: false, isInitialized: false })
+    return
+  }
+
   useStore.setState({ isLoading: true, initError: null, errorModules: [] })
 
   const modules = [

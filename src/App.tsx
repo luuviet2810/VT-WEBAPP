@@ -4,7 +4,7 @@ import { Route, Routes, Navigate } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import NotificationCenter from './components/NotificationCenter'
 import { useEffect } from 'react'
-import { initializeFromSupabase } from './store/useStore'
+import { useStore, initializeFromSupabase } from './store/useStore'
 import { useRealtimeSync } from './hooks/useRealtimeSync'
 
 import VehicleList from './pages/VehicleList'
@@ -59,8 +59,16 @@ function MainLayout({ children }: { children: React.ReactNode }) {
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, authLoading, currentUser } = useAuthStore()
+  const isInitialized = useStore((s) => s.isInitialized)
+  const isLoading = useStore((s) => s.isLoading)
 
-  if (authLoading) {
+  useEffect(() => {
+    if (isAuthenticated && currentUser && !isInitialized && !isLoading) {
+      initializeFromSupabase()
+    }
+  }, [isAuthenticated, currentUser, isInitialized, isLoading])
+
+  if (authLoading || (isAuthenticated && !isInitialized && isLoading)) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-600 border-t-transparent" />
@@ -77,8 +85,16 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function RoleGuard({ allowedRoles, children }: { allowedRoles: UserRole[]; children: React.ReactNode }) {
   const { isAuthenticated, authLoading, currentUser } = useAuthStore()
+  const isInitialized = useStore((s) => s.isInitialized)
+  const isLoading = useStore((s) => s.isLoading)
 
-  if (authLoading) {
+  useEffect(() => {
+    if (isAuthenticated && currentUser && !isInitialized && !isLoading) {
+      initializeFromSupabase()
+    }
+  }, [isAuthenticated, currentUser, isInitialized, isLoading])
+
+  if (authLoading || (isAuthenticated && !isInitialized && isLoading)) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-600 border-t-transparent" />
@@ -117,7 +133,6 @@ export default function App() {
 
   useEffect(() => {
     initializeAuth()
-    initializeFromSupabase()
   }, [])
 
   // Debug unhandled promise rejections — remove after finding M_ID root cause

@@ -23,21 +23,34 @@ export type AuthResult =
 
 export const TOKEN_STORAGE_KEY = 'vtauto_auth_token'
 
+let inMemoryToken: string | null = null
+
 export function getAuthToken(): string | null {
-  try {
-    return localStorage.getItem(TOKEN_STORAGE_KEY)
-  } catch {
-    return null
+  if (inMemoryToken && inMemoryToken.trim() && inMemoryToken !== 'undefined' && inMemoryToken !== 'null') {
+    return inMemoryToken.trim()
   }
+  try {
+    const stored = localStorage.getItem(TOKEN_STORAGE_KEY)
+    if (stored && stored.trim() && stored !== 'undefined' && stored !== 'null') {
+      inMemoryToken = stored.trim()
+      return inMemoryToken
+    }
+  } catch {}
+  return null
 }
 
 export function setAuthToken(token: string): void {
+  if (!token || typeof token !== 'string' || token === 'undefined' || token === 'null' || !token.trim()) {
+    return
+  }
+  inMemoryToken = token.trim()
   try {
-    localStorage.setItem(TOKEN_STORAGE_KEY, token)
+    localStorage.setItem(TOKEN_STORAGE_KEY, inMemoryToken)
   } catch {}
 }
 
 export function clearAuthToken(): void {
+  inMemoryToken = null
   try {
     localStorage.removeItem(TOKEN_STORAGE_KEY)
   } catch {}

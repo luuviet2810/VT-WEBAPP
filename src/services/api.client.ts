@@ -66,11 +66,30 @@ export async function apiClient<T = any>(endpoint: string, init?: RequestInit): 
     ? endpoint
     : `${getApiBaseUrl()}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`
 
-  const token = getAuthToken()
+  const token = (getAuthToken() || '').trim()
   const headers = new Headers(init?.headers || {})
 
-  if (token && !headers.has('Authorization')) {
-    headers.set('Authorization', `Bearer ${token}`)
+  // Tự động gắn header Authorization Bearer nếu có token hợp lệ
+  if (token && token !== 'undefined' && token !== 'null') {
+    const existingAuth = headers.get('Authorization')
+    if (!existingAuth || existingAuth.includes('undefined') || existingAuth.includes('null')) {
+      headers.set('Authorization', `Bearer ${token}`)
+    }
+  } else {
+    // Nếu chưa đăng nhập và gọi API nghiệp vụ yêu cầu quyền, từ chối sớm để tránh spam request 401 lên server
+    const isPublic = endpoint.startsWith('/api/auth/login') || endpoint.startsWith('/api/auth/verify')
+    if (!isPublic && (
+      endpoint.startsWith('/api/vehicles') ||
+      endpoint.startsWith('/api/positions') ||
+      endpoint.startsWith('/api/employees') ||
+      endpoint.startsWith('/api/tasks') ||
+      endpoint.startsWith('/api/checksheets') ||
+      endpoint.startsWith('/api/attendance') ||
+      endpoint.startsWith('/api/move-logs')
+    )) {
+      console.warn(`[API Client] Hủy request đến "${endpoint}" do chưa có JWT Token xác thực.`)
+      throw new ApiError('Chưa đăng nhập. Vui lòng đăng nhập để truy cập dữ liệu.', 401, 'unauthorized')
+    }
   }
 
   if (!headers.has('Content-Type') && !(init?.body instanceof FormData)) {

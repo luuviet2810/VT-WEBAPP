@@ -6,7 +6,7 @@ import {
   getAuthToken,
 } from '../services/auth.service'
 import type { AuthProfile } from '../services/auth.service'
-import { useStore } from './useStore'
+import { useStore, initializeFromSupabase } from './useStore'
 import { useViewModeStore } from './viewModeStore'
 
 interface AuthState {
@@ -54,6 +54,13 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
         try {
           useStore.getState().loadTemplates()
         } catch {}
+
+        // Tải dữ liệu nghiệp vụ sau khi khôi phục phiên thành công
+        try {
+          await initializeFromSupabase()
+        } catch (dataErr) {
+          console.error('[AuthStore] Lỗi khi nạp dữ liệu phiên làm việc:', dataErr)
+        }
       } else {
         console.log('[AuthStore] initializeAuth — Token không hợp lệ hoặc đã hết hạn, kết thúc session')
         set({ currentUser: null, isAuthenticated: false, authLoading: false })
@@ -82,6 +89,13 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       try {
         useViewModeStore.getState().resetToActualRole(result.user.role)
       } catch {}
+
+      // Tải dữ liệu nghiệp vụ ngay khi đăng nhập thành công
+      try {
+        await initializeFromSupabase()
+      } catch (dataErr) {
+        console.error('[AuthStore] Lỗi khi nạp dữ liệu sau đăng nhập:', dataErr)
+      }
 
       return { success: true }
     }
