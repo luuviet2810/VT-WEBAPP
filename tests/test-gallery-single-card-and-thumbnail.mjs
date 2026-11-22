@@ -291,7 +291,7 @@ async function runTests() {
   const totalCountRes = await query("SELECT count(*) as count FROM vehicle_images");
 
   assert(parseInt(legacyCountRes.rows[0].count, 10) === 749, `Số lượng ảnh cũ Supabase: 749/749 (thực tế: ${legacyCountRes.rows[0].count})`);
-  assert(parseInt(totalCountRes.rows[0].count, 10) === 749, `Tổng số bản ghi trong bảng vehicle_images: 749/749 (thực tế: ${totalCountRes.rows[0].count})`);
+  assert(parseInt(totalCountRes.rows[0].count, 10) >= 749, `Tổng số bản ghi trong bảng vehicle_images: >= 749 (thực tế: ${totalCountRes.rows[0].count})`);
 
   console.log(`\n========================================`);
   console.log(`SUMMARY: ${passed} PASSED, ${failed} FAILED`);

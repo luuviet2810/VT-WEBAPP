@@ -6,6 +6,11 @@ import {
   isR2Configured,
 } from '../storage/r2.service.js';
 
+export function isThumbnailRow(r: any): boolean {
+  const p = String(r.path || r.url || '');
+  return p.includes('_thumb_') || p.includes('/thumb_') || p.startsWith('thumb_');
+}
+
 export function mapImageRow(r: any) {
   return {
     id: r.id,
@@ -55,12 +60,31 @@ export async function getVehicleImages(req: Request, res: Response) {
   try {
     const { id } = req.params;
     const result = await query(
-      `SELECT * FROM vehicle_images WHERE vehicle_id = $1 ORDER BY sort_order ASC`,
+      `SELECT * FROM vehicle_images WHERE vehicle_id = $1 ORDER BY sort_order ASC, created_at ASC`,
       [id]
     );
 
+    // Filter out accidental thumbnail records from earlier upload bug
+    const physicalRows = result.rows.filter((row) => !isThumbnailRow(row));
+    const thumbRows = result.rows.filter((row) => isThumbnailRow(row));
+
+    // If an original image lacks a thumbnail reference, match it from thumbRows
+    for (const row of physicalRows) {
+      if (!row.thumbnail && thumbRows.length > 0) {
+        const origPath = String(row.path || '');
+        const origBase = origPath.split('/').pop() || '';
+        const matchedThumb = thumbRows.find((t) => {
+          const tPath = String(t.path || '');
+          return origBase && tPath.includes(origBase);
+        });
+        if (matchedThumb) {
+          row.thumbnail = matchedThumb.path;
+        }
+      }
+    }
+
     const data = await Promise.all(
-      result.rows.map(async (row) => {
+      physicalRows.map(async (row) => {
         const mapped = mapImageRow(row);
         let downloadUrl = mapped.url;
         const isLegacySupabase = typeof mapped.url === 'string' && mapped.url.includes('.supabase.co');
@@ -198,14 +222,25 @@ export async function deleteVehicleImage(req: Request, res: Response) {
       }
     }
 
-    // 3. Clean up thumbnail from Cloudflare R2 if it is a private R2 object key
-    if (isR2Configured() && img.thumbnail) {
-      const isFullUrl = img.thumbnail.startsWith('http://') || img.thumbnail.startsWith('https://');
-      if (!isFullUrl) {
+    // 3. Clean up thumbnail from Cloudflare R2 if present
+    if (isR2Configured() && typeof img.thumbnail === 'string' && img.thumbnail.length > 0) {
+      const thumbStr: string = img.thumbnail;
+      let finalKey: string | null = thumbStr;
+      if (thumbStr.startsWith('http://') || thumbStr.startsWith('https://')) {
+        const match = thumbStr.match(/(?:vehicle-images\/)(vehicles\/[^?]+)/);
+        finalKey = match && match[1] ? match[1] : null;
+      }
+      if (finalKey) {
         try {
-          await deleteObject('images', img.thumbnail);
+          await deleteObject('images', finalKey);
         } catch (r2ThumbErr: any) {
-          console.warn(`[VehicleMedia] Warning: could not delete thumbnail ${img.thumbnail} from R2:`, r2ThumbErr.message);
+          console.warn(`[VehicleMedia] Warning: could not delete thumbnail ${finalKey} from R2:`, r2ThumbErr.message);
+        }
+        // Also remove any accidental duplicate thumbnail row in DB matching this key
+        try {
+          await query(`DELETE FROM vehicle_images WHERE vehicle_id = $1 AND path = $2`, [img.vehicle_id || img.vehicleId, finalKey]);
+        } catch (dbThumbErr: any) {
+          console.warn(`[VehicleMedia] Warning: could not delete duplicate thumb row from DB:`, dbThumbErr.message);
         }
       }
     }
@@ -515,11 +550,29 @@ export async function deleteAllVehicleMedia(req: Request, res: Response) {
 export async function getWebsiteImages(req: Request, res: Response) {
   try {
     const result = await query(
-      `SELECT * FROM vehicle_images WHERE category = 'website' ORDER BY sort_order ASC`
+      `SELECT * FROM vehicle_images WHERE category = 'website' ORDER BY sort_order ASC, created_at ASC`
     );
 
+    // Filter out accidental thumbnail records from earlier upload bug
+    const physicalRows = result.rows.filter((row) => !isThumbnailRow(row));
+    const thumbRows = result.rows.filter((row) => isThumbnailRow(row));
+
+    for (const row of physicalRows) {
+      if (!row.thumbnail && thumbRows.length > 0) {
+        const origPath = String(row.path || '');
+        const origBase = origPath.split('/').pop() || '';
+        const matchedThumb = thumbRows.find((t) => {
+          const tPath = String(t.path || '');
+          return origBase && tPath.includes(origBase);
+        });
+        if (matchedThumb) {
+          row.thumbnail = matchedThumb.path;
+        }
+      }
+    }
+
     const data = await Promise.all(
-      result.rows.map(async (row) => {
+      physicalRows.map(async (row) => {
         const mapped = mapImageRow(row);
         let downloadUrl = mapped.url;
         const isLegacySupabase = typeof mapped.url === 'string' && mapped.url.includes('.supabase.co');

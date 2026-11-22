@@ -41,8 +41,8 @@ export default function VehicleGallery({
   const [overIdx, setOverIdx] = useState<number | null>(null)
   const [multiSelect, setMultiSelect] = useState<Set<number>>(new Set())
 
-  // Deduplicate images to guarantee every image appears only ONCE
-  const displayImages = useMemo(() => Array.from(new Set(images)), [images])
+  // Deduplicate images to guarantee every image appears only ONCE, excluding accidental thumb strings
+  const displayImages = useMemo(() => Array.from(new Set(images.filter((img) => !img || (!img.includes('_thumb_') && !img.includes('/thumb_'))))), [images])
 
   function openPreview(idx: number) {
     setZoomLevel(1)
@@ -163,8 +163,9 @@ export default function VehicleGallery({
               onDragLeave={() => setOverIdx(null)}
               onDrop={() => { if (dragIdx !== null) reorder(dragIdx, idx); setDragIdx(null); setOverIdx(null) }}
               onDragEnd={() => { setDragIdx(null); setOverIdx(null) }}
+              onClick={() => openPreview(idx)}
               className={clsx(
-                'group relative aspect-square cursor-grab overflow-hidden rounded-xl bg-slate-50 transition-all',
+                'group relative aspect-square cursor-pointer overflow-hidden rounded-xl bg-slate-50 transition-all',
                 idx === 0 ? 'ring-2 ring-blue-400 ring-offset-1' : 'border',
                 overIdx === idx && dragIdx !== idx && 'scale-95 ring-2 ring-blue-400',
               )}
@@ -183,7 +184,10 @@ export default function VehicleGallery({
               </div>
 
               {/* Hover controls */}
-              <div className="absolute inset-x-1.5 bottom-1.5 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+              <div
+                className="absolute inset-x-1.5 bottom-1.5 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <button type="button" onClick={() => openPreview(idx)}
                   className="flex-1 rounded-lg bg-white/90 py-1 text-[10px] font-medium text-slate-700 shadow-sm hover:bg-white">
                   Xem

@@ -739,10 +739,17 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
     if (!vehicle?.id) return
     try {
       const rows = await vehicleMediaService.getVehicleImages(vehicle.id)
+      // Guard against orphan thumbnail records that might have been uploaded separately
+      const isThumbRecord = (r: VehicleImageRow) => {
+        const p = r.path || r.url || ''
+        return p.includes('_thumb_') || p.includes('/thumb_') || p.startsWith('thumb_')
+      }
+
       // De-duplicate by id & path
       const seenIds = new Set<string>()
       const seenPaths = new Set<string>()
       const uniqueRows = rows.filter((r) => {
+        if (isThumbRecord(r)) return false
         if (seenIds.has(r.id)) return false
         seenIds.add(r.id)
         if (r.path) {
@@ -794,7 +801,7 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
 
       // Guard against orphan thumbnail records that might have been uploaded separately
       const rowPath = row.path || row.url || ''
-      if (rowPath && (rowPath.includes('/thumb_') || rowPath.startsWith('thumb_'))) continue
+      if (rowPath && (rowPath.includes('_thumb_') || rowPath.includes('/thumb_') || rowPath.startsWith('thumb_'))) continue
 
       if (row.path && seenPaths.has(row.path)) continue
       if (row.path) seenPaths.add(row.path)
@@ -1119,7 +1126,8 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
                       setDragIdx(null); setOverIdx(null)
                     }}
                     onDragEnd={() => { setDragIdx(null); setOverIdx(null) }}
-                    className={`group relative aspect-[4/3] cursor-grab overflow-hidden rounded-lg border bg-slate-50 ${
+                    onClick={() => { setPreviewRows(items); setPreviewIndex(idx); }}
+                    className={`group relative aspect-[4/3] cursor-pointer overflow-hidden rounded-lg border bg-slate-50 ${
                       (cat.key === 'vehicle' || cat.key === 'website') && idx === 0 ? 'border-brand-400 ring-2 ring-brand-100' : 'border-slate-200'
                     } ${overIdx?.cat === cat.key && overIdx.idx === idx && dragIdx?.cat === cat.key && dragIdx.idx !== idx ? 'scale-[0.98] border-brand-400' : ''} ${
                       overIdx?.cat === cat.key && overIdx.idx === idx && dragIdx && dragIdx.cat !== cat.key ? 'scale-[0.98] border-violet-400 ring-2 ring-violet-100' : ''}`}
@@ -1171,7 +1179,10 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
                       )}
                     </div>
                     {/* Hover controls */}
-                    <div className="absolute inset-x-1 bottom-1 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                    <div
+                      className="absolute inset-x-1 bottom-1 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <button onClick={() => { setPreviewRows(items); setPreviewIndex(idx) }}
                         className="flex-1 rounded-md bg-white/95 py-0.5 text-[9px] font-medium text-slate-700 shadow-sm">
                         Xem
