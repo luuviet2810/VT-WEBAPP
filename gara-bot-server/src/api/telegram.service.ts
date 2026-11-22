@@ -1,5 +1,5 @@
 import type { LinkedTelegramUser } from '../telegram/types.js'
-import { supabaseAdmin } from '../supabase.js'
+import { supabaseAdmin, isSupabaseConfigured } from '../supabase.js'
 
 export async function getStatus() {
   const linked = await getLinked()
@@ -8,12 +8,14 @@ export async function getStatus() {
     botConfigured: Boolean(process.env.TELEGRAM_BOT_TOKEN),
     webhookConfigured: Boolean(process.env.TELEGRAM_WEBHOOK_URL),
     linkedUsersCount: linked.length,
+    supabaseConnected: isSupabaseConfigured,
   }
 
   return { ok: true, data: health }
 }
 
 export async function getLinked() {
+  if (!isSupabaseConfigured) return []
   const rows = await supabaseAdmin
     .from('telegram_users')
     .select('employee_id, telegram_user_id, chat_id, username, first_name, last_name, language_code, is_active, last_seen, created_at')

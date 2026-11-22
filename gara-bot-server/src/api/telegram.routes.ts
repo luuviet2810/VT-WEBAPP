@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { sendTaskNotification, sendCallbackAnswer } from '../telegram/bot.js'
 import { getLinked, testMessage, getStatus as getBotStatus } from './telegram.service.js'
-import { supabaseAdmin } from '../supabase.js'
+import { supabaseAdmin, isSupabaseConfigured } from '../supabase.js'
 
 const router = Router()
 
@@ -47,30 +47,38 @@ router.post('/notify', async (req, res) => {
       return res.status(400).json({ ok: false, error: 'missing_fields' })
     }
 
-    const telegramUserId = Number(chatId)
-    const linked = await supabaseAdmin
-      .from('telegram_users')
-      .select('telegram_user_id, chat_id, is_active')
-      .eq('chat_id', telegramUserId)
-      .eq('is_active', true)
-      .maybeSingle()
+    const targetChatId = Number(chatId)
+    if (!targetChatId) {
+      return res.status(400).json({ ok: false, error: 'invalid_chat_id' })
+    }
 
-    if (linked.error || !linked.data) {
-      return res.status(404).json({ ok: false, error: 'not_linked' })
+    if (isSupabaseConfigured) {
+      const linked = await supabaseAdmin
+        .from('telegram_users')
+        .select('telegram_user_id, chat_id, is_active')
+        .eq('chat_id', targetChatId)
+        .eq('is_active', true)
+        .maybeSingle()
+
+      if (linked.error || !linked.data) {
+        return res.status(404).json({ ok: false, error: 'not_linked' })
+      }
     }
 
     await sendTaskNotification({
-      chatId: Number(linked.data.chat_id),
+      chatId: targetChatId,
       title,
       body,
       buttons: Array.isArray(buttons) ? buttons : undefined,
     })
 
-    await supabaseAdmin.from('telegram_logs').insert({
-      level: 'sent',
-      chat_id: linked.data.chat_id,
-      event_type: eventType ?? null,
-    })
+    if (isSupabaseConfigured) {
+      await supabaseAdmin.from('telegram_logs').insert({
+        level: 'sent',
+        chat_id: targetChatId,
+        event_type: eventType ?? null,
+      })
+    }
 
     res.json({ ok: true })
   } catch (err) {

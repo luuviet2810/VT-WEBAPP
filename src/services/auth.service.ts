@@ -42,10 +42,13 @@ export function clearAuthToken(): void {
   } catch {}
 }
 
-const API_BASE_URL =
-  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) ||
-  (typeof process !== 'undefined' && process.env?.VITE_API_URL) ||
-  'http://localhost:3001'
+function getBaseUrl(): string {
+  const url =
+    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) ||
+    (typeof process !== 'undefined' && process.env?.VITE_API_URL) ||
+    'http://localhost:3001'
+  return url.replace(/\/$/, '')
+}
 
 function mapApiUserToProfile(apiUser: any): AuthProfile {
   const name = apiUser.name || ''
@@ -86,7 +89,7 @@ export async function signInWithEmail(
   } catch {}
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+    const response = await fetch(`${getBaseUrl()}/api/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -154,7 +157,7 @@ export async function getCurrentProfile(): Promise<AuthProfile | null> {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+    const response = await fetch(`${getBaseUrl()}/api/auth/me`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -190,7 +193,7 @@ export async function signOut(): Promise<void> {
   const token = getAuthToken()
   if (token) {
     try {
-      await fetch(`${API_BASE_URL}/api/auth/logout`, {
+      await fetch(`${getBaseUrl()}/api/auth/logout`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,

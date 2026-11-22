@@ -44,8 +44,9 @@ app.use(routes);
 app.use(errorHandler);
 
 export async function startServer(port = config.port) {
-  const server = app.listen(port, async () => {
-    console.log(`[VT AUTO API Server] listening on port :${port}`);
+  const host = '0.0.0.0';
+  const server = app.listen(port, host, async () => {
+    console.log(`[VT AUTO API Server] listening on http://${host}:${port}`);
 
     // Test Neon PostgreSQL connection on startup
     const dbHealth = await checkDatabaseHealth();

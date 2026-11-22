@@ -1,7 +1,8 @@
 import type { LinkedTelegramUser } from './types.js'
-import { supabaseAdmin } from '../supabase.js'
+import { supabaseAdmin, isSupabaseConfigured } from '../supabase.js'
 
 export async function findLinkedUser(telegramUserId: number): Promise<LinkedTelegramUser | null> {
+  if (!isSupabaseConfigured) return null
   const { data, error } = await supabaseAdmin
     .from('telegram_users')
     .select('*')
@@ -22,6 +23,13 @@ export async function linkTelegramToEmployee(params: {
   lastName?: string
   languageCode?: string
 }): Promise<{ ok: boolean; error?: string }> {
+  if (!isSupabaseConfigured) {
+    return {
+      ok: false,
+      error: 'Hệ thống liên kết tài khoản Telegram đang trong quá trình chuyển đổi sang Neon.',
+    }
+  }
+
   const payload = {
     employee_id: params.employeeId,
     telegram_user_id: params.telegramUserId,
@@ -58,6 +66,7 @@ export async function linkTelegramToEmployee(params: {
 }
 
 export async function getLinkedEmployeeIdForChatId(chatId: number): Promise<string | null> {
+  if (!isSupabaseConfigured) return null
   const { data, error } = await supabaseAdmin
     .from('telegram_users')
     .select('employee_id')
@@ -70,6 +79,7 @@ export async function getLinkedEmployeeIdForChatId(chatId: number): Promise<stri
 }
 
 export async function markLastSeen(chatId: number): Promise<void> {
+  if (!isSupabaseConfigured) return
   await supabaseAdmin
     .from('telegram_users')
     .update({ last_seen: new Date().toISOString() })
@@ -77,6 +87,7 @@ export async function markLastSeen(chatId: number): Promise<void> {
 }
 
 export async function getLinkedEmployees(): Promise<LinkedTelegramUser[]> {
+  if (!isSupabaseConfigured) return []
   const { data, error } = await supabaseAdmin
     .from('telegram_users')
     .select('*')
