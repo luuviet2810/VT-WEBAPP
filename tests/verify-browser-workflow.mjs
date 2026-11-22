@@ -68,13 +68,15 @@ async function main() {
   const apiCallStats = {};
 
   page.on('console', (msg) => {
+    const text = msg.text();
     if (msg.type() === 'error') {
-      const text = msg.text();
-      // Bỏ qua lỗi ảnh missing từ Cloudflare R2 (do ảnh chưa migrate)
       if (text.includes('Failed to load resource') && (text.includes('images') || text.includes('.jpg') || text.includes('.png'))) {
         return;
       }
       consoleErrors.push(text);
+      console.log(`    [Browser Error] ${text}`);
+    } else if (text.startsWith('[AuthStore]') || text.startsWith('[STORE]') || text.startsWith('[CHK TRACE]')) {
+      console.log(`    ${text}`);
     }
   });
 
@@ -100,7 +102,7 @@ async function main() {
     await page.waitForLoadState('networkidle');
 
     // Chờ dashboard xuất hiện
-    await page.waitForSelector('text=VT AUTO', { timeout: 10000 });
+    await page.waitForSelector('text=Tổng quan', { timeout: 10000 });
     console.log('✓ Trang chủ Dashboard tải thành công, xác thực Admin hợp lệ.');
 
     // -------------------------------------------------------------
