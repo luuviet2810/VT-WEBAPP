@@ -84,16 +84,26 @@ export async function putDirectToR2(
 export async function confirmUpload(params: {
   bucketType: StorageBucketType
   key: string
-  vehicleId?: string
-  checksheetId?: string
-  category?: 'website' | 'documents' | 'error' | 'song_nung' | 'vehicle'
-  label?: string
-  spotKey?: string
-  sortOrder?: number
+  vehicleId?: string | null
+  checksheetId?: string | null
+  category?: 'website' | 'documents' | 'error' | 'song_nung' | 'vehicle' | null
+  label?: string | null
+  spotKey?: string | null
+  sortOrder?: number | null
   songNungExpiryDate?: string | null
   thumbnail?: string | null
+  fileName?: string | null
+  mimeType?: string | null
+  fileSize?: number | null
+  sizeBytes?: number | null
 }): Promise<ConfirmUploadResponse> {
-  return await apiPost<ConfirmUploadResponse>('/api/storage/confirm-upload', params)
+  const cleanBody: Record<string, any> = {}
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined) {
+      cleanBody[k] = v
+    }
+  }
+  return await apiPost<ConfirmUploadResponse>('/api/storage/confirm-upload', cleanBody)
 }
 
 /**
@@ -151,8 +161,8 @@ export async function uploadVehicleImage(
         vehicleId: safeVehicleId,
         category: options?.category || 'vehicle',
         sortOrder: options?.sortOrder ?? 0,
-        songNungExpiryDate: options?.songNungExpiryDate ?? null,
-        thumbnail: options?.thumbnail ?? null,
+        songNungExpiryDate: options?.songNungExpiryDate || undefined,
+        thumbnail: options?.thumbnail || undefined,
       })
 
       return {

@@ -19,35 +19,39 @@ export const presignedUploadSchema = z.object({
   fileName: z.string().min(1).max(255),
   fileSize: z.number().int().positive(),
   mimeType: z.string().min(3).max(100),
-  vehicleId: z.string().uuid().optional(),
-  checksheetId: z.string().uuid().optional(),
-  spotKey: z.string().max(100).optional(),
-  expiresInSeconds: z.number().int().min(60).max(3600).optional(),
+  vehicleId: z.string().uuid().optional().nullable(),
+  checksheetId: z.string().uuid().optional().nullable(),
+  spotKey: z.string().max(100).optional().nullable(),
+  expiresInSeconds: z.number().int().min(60).max(3600).optional().nullable(),
 });
 
 export const confirmUploadSchema = z.object({
   bucketType: z.enum(['images', 'documents', 'photos'] as const),
   key: z.string().min(3).max(500),
-  vehicleId: z.string().uuid().optional(),
-  checksheetId: z.string().uuid().optional(),
-  category: z.enum(['website', 'documents', 'error', 'song_nung', 'vehicle'] as const).optional(),
-  label: z.string().max(255).optional(),
-  spotKey: z.string().max(100).optional(),
-  sortOrder: z.number().int().optional(),
-  songNungExpiryDate: z.string().optional(),
-  thumbnail: z.string().optional(),
+  vehicleId: z.string().uuid().optional().nullable(),
+  checksheetId: z.string().uuid().optional().nullable(),
+  category: z.enum(['website', 'documents', 'error', 'song_nung', 'vehicle'] as const).optional().nullable(),
+  label: z.string().max(255).optional().nullable(),
+  spotKey: z.string().max(100).optional().nullable(),
+  sortOrder: z.number().int().optional().nullable(),
+  songNungExpiryDate: z.string().optional().nullable(),
+  thumbnail: z.string().optional().nullable(),
+  fileName: z.string().max(255).optional().nullable(),
+  mimeType: z.string().max(100).optional().nullable(),
+  fileSize: z.number().optional().nullable(),
+  sizeBytes: z.number().optional().nullable(),
 });
 
 export const presignedDownloadSchema = z.object({
   bucketType: z.enum(['images', 'documents', 'photos'] as const),
   key: z.string().min(3).max(500),
-  expiresInSeconds: z.number().int().min(60).max(86400).optional(),
+  expiresInSeconds: z.number().int().min(60).max(86400).optional().nullable(),
 });
 
 export const deleteFileSchema = z.object({
   bucketType: z.enum(['images', 'documents', 'photos'] as const),
   key: z.string().min(3).max(500),
-  id: z.string().uuid().optional(),
+  id: z.string().uuid().optional().nullable(),
 });
 
 /**
@@ -147,13 +151,29 @@ export async function confirmUpload(req: Request, res: Response) {
     key,
     vehicleId,
     checksheetId,
-    category = 'vehicle',
+    category,
     label,
     spotKey,
-    sortOrder = 0,
+    sortOrder,
     songNungExpiryDate,
     thumbnail,
   } = req.body;
+
+  const safeCategory = (category && typeof category === 'string' && category.trim() !== '')
+    ? category
+    : 'vehicle';
+  const safeSortOrder = (typeof sortOrder === 'number' && !isNaN(sortOrder))
+    ? sortOrder
+    : 0;
+  const safeSongNungExpiry = (songNungExpiryDate && typeof songNungExpiryDate === 'string' && songNungExpiryDate.trim() !== '')
+    ? songNungExpiryDate.trim()
+    : null;
+  const safeThumbnail = (thumbnail && typeof thumbnail === 'string' && thumbnail.trim() !== '')
+    ? thumbnail.trim()
+    : null;
+  const safeLabel = (label && typeof label === 'string' && label.trim() !== '')
+    ? label.trim()
+    : null;
 
   try {
     const bucket = resolveBucketName(bucketType as R2BucketType);
@@ -202,12 +222,12 @@ export async function confirmUpload(req: Request, res: Response) {
           key,
           bucket,
           key, // Store permanent key, NOT temporary expiring Presigned URL
-          thumbnail || null,
+          safeThumbnail,
           headInfo.contentLength,
           headInfo.contentType,
-          category,
-          sortOrder,
-          songNungExpiryDate || null,
+          safeCategory,
+          safeSortOrder,
+          safeSongNungExpiry,
         ]
       );
 
@@ -245,13 +265,13 @@ export async function confirmUpload(req: Request, res: Response) {
         RETURNING *`,
         [
           vehicleId,
-          label || null,
+          safeLabel,
           key,
           bucket,
           key, // Store permanent key, NOT temporary expiring Presigned URL
           headInfo.contentLength,
           headInfo.contentType,
-          sortOrder,
+          safeSortOrder,
         ]
       );
 
