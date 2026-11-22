@@ -1,127 +1,52 @@
-import { supabase } from '../lib/supabase'
+import { apiGet, apiPost, apiPut, apiDelete } from './api.client'
 import type { Position } from '../types'
 
 export async function getPositions(): Promise<Position[]> {
-  const { data, error, status, statusText } = await supabase
-    .from('positions')
-    .select('*')
-    .order('sort_order', { ascending: true })
-
-  console.log('🔵 [position.service] getPositions()')
-  console.log('   data:', JSON.stringify(data, null, 2))
-  console.log('   error:', error)
-  console.log('   status:', status)
-  console.log('   statusText:', statusText)
-
-  if (error) throw error
-  return (data as Array<{
-    id: string
-    name: string
-    sort_order: number
-    created_at?: string
-    updated_at?: string
-  }>).map((row) => ({
+  const data = await apiGet<Position[]>('/api/positions')
+  return (data || []).map((row) => ({
     id: row.id,
     name: row.name,
-    order: row.sort_order,
+    order: (row as any).order ?? (row as any).sort_order ?? 0,
   }))
 }
 
 export async function getPositionById(id: string): Promise<Position | null> {
-  const { data, error } = await supabase
-    .from('positions')
-    .select('*')
-    .eq('id', id)
-    .single()
-
-  if (error) {
-    if (error.code === 'PGRST116') return null
-    throw error
+  try {
+    const row = await apiGet<Position>(`/api/positions/${id}`)
+    if (!row) return null
+    return {
+      id: row.id,
+      name: row.name,
+      order: (row as any).order ?? (row as any).sort_order ?? 0,
+    }
+  } catch (err: any) {
+    if (err.statusCode === 404) return null
+    throw err
   }
-  const row = data as {
-    id: string
-    name: string
-    sort_order: number
-    created_at?: string
-    updated_at?: string
-  }
-  return { id: row.id, name: row.name, order: row.sort_order }
 }
 
 export async function createPosition(name: string): Promise<Position> {
-  const { data: existing, error: selectError } = await supabase
-    .from('positions')
-    .select('sort_order')
-    .order('sort_order', { ascending: false })
-    .limit(1)
-
-  if (selectError) throw selectError
-
-  const maxOrder = existing && existing.length > 0
-    ? (existing[0] as { sort_order: number }).sort_order
-    : -1
-
-  const { data, error } = await supabase
-    .from('positions')
-    .insert({ name, sort_order: maxOrder + 1 })
-    .select()
-    .single()
-
-  if (error) throw error
-
-  const row = data as {
-    id: string
-    name: string
-    sort_order: number
-    created_at?: string
-    updated_at?: string
+  const row = await apiPost<Position>('/api/positions', { name })
+  return {
+    id: row.id,
+    name: row.name,
+    order: (row as any).order ?? (row as any).sort_order ?? 0,
   }
-  return { id: row.id, name: row.name, order: row.sort_order }
 }
 
 export async function updatePosition(id: string, patch: Partial<Position>): Promise<Position> {
-  const updateData: Record<string, unknown> = {}
-  if (patch.name !== undefined) updateData.name = patch.name
-  if (patch.order !== undefined) updateData.sort_order = patch.order
-
-  updateData.updated_at = new Date().toISOString()
-
-  const { data, error } = await supabase
-    .from('positions')
-    .update(updateData)
-    .eq('id', id)
-    .select()
-    .single()
-
-  if (error) throw error
-
-  const row = data as {
-    id: string
-    name: string
-    sort_order: number
-    created_at?: string
-    updated_at?: string
+  const row = await apiPut<Position>(`/api/positions/${id}`, patch)
+  return {
+    id: row.id,
+    name: row.name,
+    order: (row as any).order ?? (row as any).sort_order ?? 0,
   }
-  return { id: row.id, name: row.name, order: row.sort_order }
 }
 
 export async function deletePosition(id: string): Promise<void> {
-  const { error } = await supabase
-    .from('positions')
-    .delete()
-    .eq('id', id)
-
-  if (error) throw error
+  await apiDelete(`/api/positions/${id}`)
 }
 
 export async function reorderPositions(items: Array<{ id: string; sort_order: number }>): Promise<void> {
-  // Update each row individually. upsert() with only {id, sort_order} would
-  // reset other NOT NULL columns (e.g. name) to DEFAULT and fail silently.
-  const results = await Promise.all(
-    items.map((item) =>
-      supabase.from('positions').update({ sort_order: item.sort_order }).eq('id', item.id)
-    )
-  )
-  const firstError = results.find((r) => r.error)
-  if (firstError?.error) throw firstError.error
+  await apiPut('/api/positions/reorder', { items })
 }

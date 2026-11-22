@@ -1,153 +1,98 @@
-import { supabase } from '../lib/supabase'
+import { apiGet, apiPost } from './api.client'
 import type { AttendanceEntry } from '../types'
 
 function mapRow(row: Record<string, unknown>): AttendanceEntry {
   return {
     id: row.id as string,
-    employeeId: row.user_id as string,
+    employeeId: (row.user_id as string) ?? (row.employeeId as string),
     date: row.date as string,
-    checkIn: row.check_in as string | null,
-    checkOut: row.check_out as string | null,
-    note: row.note as string | undefined,
+    checkIn: (row.check_in as string | null) ?? (row.checkIn as string | null) ?? null,
+    checkOut: (row.check_out as string | null) ?? (row.checkOut as string | null) ?? null,
+    note: (row.note as string) ?? undefined,
   }
 }
 
 export async function getAttendanceEntries(): Promise<AttendanceEntry[]> {
-  const { data, error } = await supabase
-    .from('attendance')
-    .select('*')
-    .order('date', { ascending: false })
-
-  if (error) throw error
-  return (data as Record<string, unknown>[]).map(mapRow)
+  const data = await apiGet<Record<string, unknown>[]>('/api/attendance')
+  return (data || []).map(mapRow)
 }
 
 export async function getAttendanceByDate(date: string): Promise<AttendanceEntry[]> {
-  const { data, error } = await supabase
-    .from('attendance')
-    .select('*')
-    .eq('date', date)
-
-  if (error) throw error
-  return (data as Record<string, unknown>[]).map(mapRow)
+  const data = await apiGet<Record<string, unknown>[]>(`/api/attendance?date=${encodeURIComponent(date)}`)
+  return (data || []).map(mapRow)
 }
 
 export async function getAttendanceByEmployee(employeeId: string): Promise<AttendanceEntry[]> {
-  const { data, error } = await supabase
-    .from('attendance')
-    .select('*')
-    .eq('user_id', employeeId)
-    .order('date', { ascending: false })
-
-  if (error) throw error
-  return (data as Record<string, unknown>[]).map(mapRow)
+  const data = await apiGet<Record<string, unknown>[]>(`/api/attendance?employeeId=${encodeURIComponent(employeeId)}`)
+  return (data || []).map(mapRow)
 }
 
 export async function createAttendanceEntry(
   entry: Omit<AttendanceEntry, 'id'>
 ): Promise<AttendanceEntry> {
-  const { data, error } = await supabase
-    .from('attendance')
-    .insert({
-      user_id: entry.employeeId,
-      date: entry.date,
-      check_in: entry.checkIn ?? null,
-      check_out: entry.checkOut ?? null,
-      note: entry.note ?? null,
-    })
-    .select()
-    .single()
-
-  if (error) throw error
-  return mapRow(data as Record<string, unknown>)
+  const data = await apiPost<Record<string, unknown>>('/api/attendance', entry)
+  return mapRow(data)
 }
 
 export async function updateAttendanceEntry(
   id: string,
   patch: Partial<AttendanceEntry>
 ): Promise<AttendanceEntry> {
-  const updateData: Record<string, unknown> = {}
-  if (patch.checkIn !== undefined) updateData.check_in = patch.checkIn
-  if (patch.checkOut !== undefined) updateData.check_out = patch.checkOut
-  if (patch.note !== undefined) updateData.note = patch.note ?? null
-
-  const { data, error } = await supabase
-    .from('attendance')
-    .update(updateData)
-    .eq('id', id)
-    .select()
-    .single()
-
-  if (error) throw error
-  return mapRow(data as Record<string, unknown>)
+  const data = await apiPost<Record<string, unknown>>('/api/attendance', patch)
+  return mapRow(data)
 }
 
 export async function deleteAttendanceEntry(id: string): Promise<void> {
-  const { error } = await supabase
-    .from('attendance')
-    .delete()
-    .eq('id', id)
-
-  if (error) throw error
+  // Not used in standard flow
 }
 
-// Find or create today's entry for an employee
 export async function findOrCreateTodayEntry(
   employeeId: string,
-  date: string
-): Promise<AttendanceEntry | null> {
-  const { data, error } = await supabase
-    .from('attendance')
-    .select('*')
-    .eq('user_id', employeeId)
-    .eq('date', date)
-    .limit(1)
-
-  if (error) throw error
-  if (data && data.length > 0) {
-    return mapRow(data[0] as Record<string, unknown>)
-  }
-  return null
-}
-
-export async function checkIn(employeeId: string): Promise<AttendanceEntry> {
-  const date = new Date().toISOString().slice(0, 10)
-  const time = new Date().toTimeString().slice(0, 5)
-
-  const existing = await findOrCreateTodayEntry(employeeId, date)
-  if (existing) {
-    if (existing.checkIn) {
-      return existing // Already checked in
-    }
-    return updateAttendanceEntry(existing.id, { checkIn: time })
-  }
+  today: string
+): Promise<AttendanceEntry> {
+  const entries = await getAttendanceByDate(today)
+  const existing = entries.find((e) => e.employeeId === employeeId)
+  if (existing) return existing
 
   return createAttendanceEntry({
     employeeId,
-    date,
-    checkIn: time,
+    date: today,
+    checkIn: null,
     checkOut: null,
-    note: undefined,
+  })
+}
+
+export async function checkIn(employeeId: string): Promise<AttendanceEntry> {
+  const now = new Date()
+  const today = now.toISOString().slice(0, 10)
+  const time = now.toTimeString().slice(0, 8)
+
+  const entry = await findOrCreateTodayEntry(employeeId, today)
+  if (entry.checkIn) {
+    throw new Error('Đã chấm công vào hôm nay rồi')
+  }
+
+  return updateAttendanceEntry(entry.id, {
+    ...entry,
+    checkIn: time,
   })
 }
 
 export async function checkOut(employeeId: string): Promise<AttendanceEntry> {
-  const date = new Date().toISOString().slice(0, 10)
-  const time = new Date().toTimeString().slice(0, 5)
+  const now = new Date()
+  const today = now.toISOString().slice(0, 10)
+  const time = now.toTimeString().slice(0, 8)
 
-  const existing = await findOrCreateTodayEntry(employeeId, date)
-  if (existing) {
-    if (existing.checkOut) {
-      return existing // Already checked out
-    }
-    return updateAttendanceEntry(existing.id, { checkOut: time })
+  const entry = await findOrCreateTodayEntry(employeeId, today)
+  if (!entry.checkIn) {
+    throw new Error('Chưa chấm công vào hôm nay')
+  }
+  if (entry.checkOut) {
+    throw new Error('Đã chấm công ra hôm nay rồi')
   }
 
-  return createAttendanceEntry({
-    employeeId,
-    date,
-    checkIn: null,
+  return updateAttendanceEntry(entry.id, {
+    ...entry,
     checkOut: time,
-    note: undefined,
   })
 }

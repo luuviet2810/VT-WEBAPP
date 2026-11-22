@@ -1,10 +1,8 @@
-import { supabase } from '../lib/supabase'
-import type { Session, AuthUser, AuthError } from '@supabase/supabase-js'
 import type { UserRole, UserStatus } from '../types'
 
 export interface AuthProfile {
   id: string
-  authId: string
+  authId?: string
   name: string
   fullName: string
   email: string
@@ -19,75 +17,65 @@ export interface AuthProfile {
 }
 
 export type AuthResult =
-  | { ok: true; user: AuthProfile }
-  | { ok: false; error: string }
+  | { ok: true; user: AuthProfile; token: string }
+  | { ok: false; error: string; statusCode?: number }
 
-const AUTH_ERROR_MAP: Record<string, string> = {
-  'Invalid login credentials': 'Email hoặc mật khẩu không đúng',
-  'User already registered': 'Email đã được sử dụng',
-  'Email not confirmed': 'Email chưa được xác nhận',
-  'Invalid email': 'Email không hợp lệ',
-  'Password should be at least 6 characters': 'Mật khẩu phải có ít nhất 6 ký tự',
+export const TOKEN_STORAGE_KEY = 'vtauto_auth_token'
+
+export function getAuthToken(): string | null {
+  try {
+    return localStorage.getItem(TOKEN_STORAGE_KEY)
+  } catch {
+    return null
+  }
 }
 
-function normalizeAuthError(err: unknown): string {
-  if (!err || typeof err !== 'object' || !('message' in err)) {
-    return 'Đã xảy ra lỗi. Vui lòng thử lại.'
-  }
-  const message = (err as { message?: string }).message ?? 'Đã xảy ra lỗi. Vui lòng thử lại.'
-  return AUTH_ERROR_MAP[message] ?? message
+export function setAuthToken(token: string): void {
+  try {
+    localStorage.setItem(TOKEN_STORAGE_KEY, token)
+  } catch {}
 }
 
-export async function signUpWithEmail(
-  fullName: string,
-  email: string,
-  password: string
-): Promise<AuthResult> {
-  const normalizedEmail = email.trim().toLowerCase()
-  const trimmedName = fullName.trim()
-
-  if (!trimmedName) {
-    return { ok: false, error: 'Vui lòng nhập họ tên' }
-  }
-  if (!normalizedEmail.includes('@')) {
-    return { ok: false, error: 'Email không hợp lệ' }
-  }
-  if (password.length < 6) {
-    return { ok: false, error: 'Mật khẩu phải có ít nhất 6 ký tự' }
-  }
-
-  const { data, error } = await supabase.auth.signUp({
-    email: normalizedEmail,
-    password,
-    options: {
-      data: {
-        full_name: trimmedName,
-      },
-    },
-  })
-
-  if (error || !data.user) {
-    return { ok: false, error: normalizeAuthError(error) }
-  }
-
-  const profile = await loadOrCreateProfile(data.user.id, normalizedEmail, trimmedName)
-  if (!profile) {
-    return { ok: false, error: 'Không thể tạo hồ sơ người dùng' }
-  }
-
-  return { ok: true, user: profile }
+export function clearAuthToken(): void {
+  try {
+    localStorage.removeItem(TOKEN_STORAGE_KEY)
+  } catch {}
 }
 
+const API_BASE_URL =
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) ||
+  (typeof process !== 'undefined' && process.env?.VITE_API_URL) ||
+  'http://localhost:3001'
+
+function mapApiUserToProfile(apiUser: any): AuthProfile {
+  const name = apiUser.name || ''
+  return {
+    id: apiUser.id,
+    name,
+    fullName: name,
+    email: apiUser.email || '',
+    role: (apiUser.role as UserRole) || 'staff',
+    status: (apiUser.status as UserStatus) || 'approved',
+    disabled: Boolean(apiUser.disabled),
+    passkeyEnabled: false,
+    phone: apiUser.phone || null,
+    avatar: apiUser.avatar || null,
+    createdAt: apiUser.createdAt || new Date().toISOString(),
+    updatedAt: apiUser.updatedAt || new Date().toISOString(),
+  }
+}
+
+/**
+ * Đăng nhập qua Express Backend API (Neon PostgreSQL)
+ * Sử dụng POST /api/auth/login
+ */
 export async function signInWithEmail(
   email: string,
   password: string
 ): Promise<AuthResult> {
-  const normalizedEmail = email.trim().toLowerCase()
+  const normalizedEmail = (email || '').trim().toLowerCase()
 
-  // Clear any stale Supabase session storage before login.
-  // When switching users (Staff → Admin), the old session's refresh token
-  // can still be present in localStorage and cause "Invalid login credentials"
-  // even if the new credentials are correct.
+  // Dọn dẹp token Supabase cũ nếu còn lưu trong localStorage để tránh xung đột
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i)
@@ -97,139 +85,169 @@ export async function signInWithEmail(
     }
   } catch {}
 
-  console.log('[AUDIT] signInWithEmail — calling supabase.auth.signInWithPassword for', normalizedEmail)
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: normalizedEmail,
-    password,
-  })
-
-  if (error || !data.user) {
-    console.log('[AUDIT] signInWithEmail FAILED — code:', (error as any)?.code, 'message:', (error as any)?.message)
-    return { ok: false, error: normalizeAuthError(error) }
-  }
-
-  console.log('[AUDIT] signInWithEmail SUCCESS — user:', data.user.id, 'email:', data.user.email)
-
-  const profile = await loadOrCreateProfile(data.user.id, normalizedEmail, data.user.user_metadata?.full_name ?? normalizedEmail.split('@')[0])
-  if (!profile) {
-    return { ok: false, error: 'Không tìm thấy hồ sơ người dùng' }
-  }
-
-  if (profile.status === 'pending') {
-    await supabase.auth.signOut()
-    return { ok: false, error: 'Tài khoản đang chờ Admin phê duyệt' }
-  }
-
-  if (profile.status === 'rejected') {
-    await supabase.auth.signOut()
-    return { ok: false, error: 'Tài khoản chưa được phê duyệt' }
-  }
-
-  if (profile.disabled) {
-    await supabase.auth.signOut()
-    return { ok: false, error: 'Tài khoản đã bị vô hiệu hóa' }
-  }
-
-  return { ok: true, user: profile }
-}
-
-export async function signOut(): Promise<void> {
-  await supabase.auth.signOut()
-}
-
-export async function getCurrentSession(): Promise<Session | null> {
-  const { data } = await supabase.auth.getSession()
-  return data.session
-}
-
-export async function getCurrentProfile(): Promise<AuthProfile | null> {
-  const { data } = await supabase.auth.getUser()
-  const authUser = data.user
-  if (!authUser) {
-    return null
-  }
-  return loadProfile(authUser.id)
-}
-
-export function onAuthStateChanged(
-  callback: (session: Session | null) => void
-): () => void {
-  const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-    callback(session)
-  })
-  return () => listener.subscription.unsubscribe()
-}
-
-async function loadOrCreateProfile(
-  authId: string,
-  email: string,
-  fullName: string
-): Promise<AuthProfile | null> {
-  const existing = await loadProfile(authId)
-  if (existing) {
-    return existing
-  }
-
-  const { data: admins } = await supabase
-    .from('users')
-    .select('id')
-    .eq('role', 'admin')
-    .limit(1)
-
-  const isFirstAdmin = !admins || admins.length === 0
-
-  const { data, error } = await supabase
-    .from('users')
-    .insert({
-      auth_id: authId,
-      name: fullName,
-      email,
-      role: isFirstAdmin ? 'admin' : 'staff',
-      status: isFirstAdmin ? 'approved' : 'pending',
-      is_admin: isFirstAdmin,
-      disabled: false,
-      passkey_enabled: false,
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: normalizedEmail,
+        password,
+      }),
     })
-    .select('*')
-    .single()
 
-  if (error || !data) {
-    console.error('[auth] failed to create profile', error)
+    const data = await response.json().catch(() => ({}))
+
+    if (!response.ok || !data.ok) {
+      const errorMessage = data.message || 'Đăng nhập không thành công.'
+      return {
+        ok: false,
+        error: errorMessage,
+        statusCode: response.status,
+      }
+    }
+
+    const { token, user } = data.data
+    if (!token || !user) {
+      return {
+        ok: false,
+        error: 'Phản hồi từ máy chủ không hợp lệ.',
+        statusCode: 500,
+      }
+    }
+
+    // Lưu token duy nhất vào localStorage
+    setAuthToken(token)
+
+    const profile = mapApiUserToProfile(user)
+    return {
+      ok: true,
+      user: profile,
+      token,
+    }
+  } catch (err: any) {
+    const msg = err instanceof Error ? err.message : String(err)
+    if (msg.includes('fetch') || msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+      return {
+        ok: false,
+        error: 'Không thể kết nối đến máy chủ xác thực. Vui lòng kiểm tra kết nối mạng.',
+        statusCode: 0,
+      }
+    }
+    return {
+      ok: false,
+      error: 'Đã xảy ra lỗi trong quá trình đăng nhập. Vui lòng thử lại.',
+      statusCode: 500,
+    }
+  }
+}
+
+/**
+ * Lấy thông tin tài khoản hiện tại từ Express Backend API
+ * Sử dụng GET /api/auth/me
+ */
+export async function getCurrentProfile(): Promise<AuthProfile | null> {
+  const token = getAuthToken()
+  if (!token) {
     return null
   }
 
-  return mapProfileRow(data as Record<string, unknown>)
-}
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
 
-async function loadProfile(authId: string): Promise<AuthProfile | null> {
-  const { data, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('auth_id', authId)
-    .maybeSingle()
+    if (!response.ok) {
+      // Nếu token hết hạn (401) hoặc tài khoản bị khóa (403), xóa token
+      if (response.status === 401 || response.status === 403) {
+        clearAuthToken()
+      }
+      return null
+    }
 
-  if (error || !data) {
+    const data = await response.json().catch(() => ({}))
+    if (!data.ok || !data.data?.user) {
+      clearAuthToken()
+      return null
+    }
+
+    return mapApiUserToProfile(data.data.user)
+  } catch (err) {
+    console.warn('[AuthService] Lỗi khi lấy profile từ backend API:', err)
     return null
   }
-
-  return mapProfileRow(data as Record<string, unknown>)
 }
 
-function mapProfileRow(row: Record<string, unknown>): AuthProfile {
-  const name = row.name as string
+/**
+ * Đăng xuất tài khoản qua Express Backend API
+ * Sử dụng POST /api/auth/logout
+ */
+export async function signOut(): Promise<void> {
+  const token = getAuthToken()
+  if (token) {
+    try {
+      await fetch(`${API_BASE_URL}/api/auth/logout`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }).catch(() => {})
+    } catch {}
+  }
+
+  // Xóa token ở client
+  clearAuthToken()
+}
+
+/**
+ * Khôi phục phiên làm việc (Backward compatibility)
+ */
+export async function getCurrentSession(): Promise<{ user: { id: string; email: string } } | null> {
+  const profile = await getCurrentProfile()
+  if (!profile) return null
   return {
-    id: row.id as string,
-    authId: row.auth_id as string,
-    name,
-    fullName: name,
-    email: row.email as string,
-    role: (row.role as UserRole) ?? 'staff',
-    status: (row.status as UserStatus) ?? 'pending',
-    disabled: Boolean(row.disabled),
-    passkeyEnabled: Boolean(row.passkey_enabled),
-    phone: (row.phone as string | null) ?? null,
-    avatar: (row.avatar as string | null) ?? null,
-    createdAt: row.created_at as string,
-    updatedAt: row.updated_at as string,
+    user: {
+      id: profile.id,
+      email: profile.email,
+    },
   }
+}
+
+/**
+ * Đăng ký tài khoản mới (Tạm giữ placeholder để không làm hỏng Register.tsx)
+ */
+export async function signUpWithEmail(
+  fullName: string,
+  email: string,
+  password: string
+): Promise<AuthResult> {
+  return {
+    ok: false,
+    error: 'Tính năng tự đăng ký đang tạm khóa. Vui lòng liên hệ Quản trị viên để được cấp tài khoản.',
+  }
+}
+
+/**
+ * Lắng nghe thay đổi auth (In-memory observer để tương thích ngược)
+ */
+type AuthListener = (session: any) => void
+const authListeners = new Set<AuthListener>()
+
+export function onAuthStateChanged(callback: AuthListener): () => void {
+  authListeners.add(callback)
+  return () => {
+    authListeners.delete(callback)
+  }
+}
+
+export function notifyAuthListeners(session: any) {
+  authListeners.forEach((fn) => {
+    try {
+      fn(session)
+    } catch {}
+  })
 }

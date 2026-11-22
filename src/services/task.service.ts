@@ -1,5 +1,37 @@
-import { supabase } from '../lib/supabase'
-import type { Task, TaskActivityLogEntry, TaskChecklistItem } from '../types'
+import { apiGet, apiPost, apiPut, apiDelete } from './api.client'
+import type { Task, TaskActivityLogEntry } from '../types'
+
+function mapRow(row: Record<string, unknown>): Task {
+  return {
+    id: row.id as string,
+    title: row.title as string,
+    description: (row.description as string) ?? undefined,
+    checklist: Array.isArray(row.checklist) ? (row.checklist as Task['checklist']) : [],
+    priority: (row.priority as Task['priority']) || 'low',
+    status: (row.status as Task['status']) || 'todo',
+    assigneeId: (row.assignee_id as string) ?? (row.assigneeId as string) ?? null,
+    vehicleId: (row.vehicle_id as string) ?? (row.vehicleId as string) ?? null,
+    dueDate: (row.due_date as string) ?? (row.dueDate as string) ?? null,
+    dueTime: (row.due_time as string) ?? (row.dueTime as string) ?? null,
+    ruleId: (row.rule_id as string) ?? (row.ruleId as string) ?? null,
+    source: ((row.source as Task['source']) || undefined),
+    deferred: Boolean(row.deferred ?? false),
+    soldHandled: Boolean(row.sold_handled ?? row.soldHandled ?? false),
+    vehicleModelSnapshot: (row.vehicle_model_snapshot as string) ?? (row.vehicleModelSnapshot as string) ?? null,
+    vehiclePlateSnapshot: (row.vehicle_plate_snapshot as string) ?? (row.vehiclePlateSnapshot as string) ?? null,
+    createdAt: (row.created_at as string) ?? (row.createdAt as string),
+  }
+}
+
+function mapActivityRow(row: Record<string, unknown>): TaskActivityLogEntry {
+  return {
+    id: row.id as string,
+    taskId: (row.task_id as string) ?? (row.taskId as string),
+    action: row.action as string,
+    employeeId: (row.user_id as string) ?? (row.employeeId as string) ?? null,
+    createdAt: (row.created_at as string) ?? (row.createdAt as string),
+  }
+}
 
 export async function getTasks(filters?: {
   status?: Task['status']
@@ -7,146 +39,52 @@ export async function getTasks(filters?: {
   assigneeId?: string
   vehicleId?: string
 }): Promise<Task[]> {
-  const { status, priority, assigneeId, vehicleId } = filters || {}
-  let query = supabase.from('tasks').select('*')
+  const params = new URLSearchParams()
+  if (filters?.status) params.append('status', filters.status)
+  if (filters?.priority) params.append('priority', filters.priority)
+  if (filters?.assigneeId) params.append('assigneeId', filters.assigneeId)
+  if (filters?.vehicleId) params.append('vehicleId', filters.vehicleId)
 
-  if (status) query = query.eq('status', status)
-  if (priority) query = query.eq('priority', priority)
-  if (assigneeId) query = query.eq('assignee_id', assigneeId)
-  if (vehicleId) query = query.eq('vehicle_id', vehicleId)
+  const queryStr = params.toString()
+  const endpoint = queryStr ? `/api/tasks?${queryStr}` : '/api/tasks'
 
-  const { data, error } = await query.order('created_at', { ascending: false })
+  const data = await apiGet<Record<string, unknown>[]>(endpoint)
+  return (data || []).map(mapRow)
+}
 
-  if (error) throw error
-
-  return (data as Record<string, unknown>[]).map(mapRow)
+export async function getTaskById(id: string): Promise<Task | null> {
+  try {
+    const data = await apiGet<Record<string, unknown>>(`/api/tasks/${id}`)
+    if (!data) return null
+    return mapRow(data)
+  } catch (err: any) {
+    if (err.statusCode === 404) return null
+    throw err
+  }
 }
 
 export async function createTask(task: Omit<Task, 'id' | 'createdAt'>): Promise<Task> {
-  const { data, error } = await supabase
-    .from('tasks')
-    .insert({
-      title: task.title,
-      description: task.description || null,
-      checklist: task.checklist || [],
-      priority: task.priority || 'low',
-      status: task.status || 'todo',
-      assignee_id: task.assigneeId || null,
-      vehicle_id: task.vehicleId || null,
-      due_date: task.dueDate || null,
-      due_time: task.dueTime || null,
-      rule_id: task.ruleId || null,
-      source: task.source || null,
-      deferred: task.deferred ?? false,
-      sold_handled: task.soldHandled ?? false,
-      vehicle_model_snapshot: task.vehicleModelSnapshot ?? null,
-      vehicle_plate_snapshot: task.vehiclePlateSnapshot ?? null,
-    })
-    .select()
-    .single()
-
-  if (error) throw error
-
-  const taskId = (data as Record<string, unknown>).id as string
-  await addTaskActivity(taskId, 'Tạo nhiệm vụ', task.assigneeId ?? null)
-
-  return mapRow(data as Record<string, unknown>)
+  const data = await apiPost<Record<string, unknown>>('/api/tasks', task)
+  return mapRow(data)
 }
 
 export async function updateTask(id: string, patch: Partial<Task>): Promise<Task> {
-  const updateData: Record<string, unknown> = {}
-
-  if (patch.title !== undefined) updateData.title = patch.title
-  if (patch.description !== undefined) updateData.description = patch.description || null
-  if (patch.checklist !== undefined) updateData.checklist = patch.checklist
-  if (patch.priority !== undefined) updateData.priority = patch.priority
-  if (patch.status !== undefined) updateData.status = patch.status
-  if (patch.assigneeId !== undefined) updateData.assignee_id = patch.assigneeId || null
-  if (patch.vehicleId !== undefined) updateData.vehicle_id = patch.vehicleId || null
-  if (patch.dueDate !== undefined) updateData.due_date = patch.dueDate || null
-  if (patch.dueTime !== undefined) updateData.due_time = patch.dueTime || null
-  if (patch.deferred !== undefined) updateData.deferred = patch.deferred
-  if (patch.soldHandled !== undefined) updateData.sold_handled = patch.soldHandled
-  if (patch.vehicleModelSnapshot !== undefined) updateData.vehicle_model_snapshot = patch.vehicleModelSnapshot
-  if (patch.vehiclePlateSnapshot !== undefined) updateData.vehicle_plate_snapshot = patch.vehiclePlateSnapshot
-
-  const { data, error } = await supabase
-    .from('tasks')
-    .update(updateData)
-    .eq('id', id)
-    .select()
-    .single()
-
-  if (error) throw error
-
-  const row = data as Record<string, unknown>
-  if (patch.status) {
-    const label: Record<string, string> = {
-      todo: 'Chưa bắt đầu',
-      doing: 'Đang thực hiện',
-      done: 'Hoàn thành',
-    }
-    const statusLabel = label[patch.status] || patch.status
-
-    await addTaskActivity(id, `Cập nhật trạng thái: ${statusLabel}`, null)
-  }
-
-  return mapRow(row)
+  const data = await apiPut<Record<string, unknown>>(`/api/tasks/${id}`, patch)
+  return mapRow(data)
 }
 
 export async function deleteTask(id: string): Promise<void> {
-  const { error } = await supabase
-    .from('tasks')
-    .delete()
-    .eq('id', id)
-
-  if (error) throw error
+  await apiDelete(`/api/tasks/${id}`)
 }
 
-// Task activity log
 export async function getTaskActivity(taskId: string): Promise<TaskActivityLogEntry[]> {
-  const { data, error } = await supabase
-    .from('task_activity_logs')
-    .select('*')
-    .eq('task_id', taskId)
-    .order('created_at', { ascending: false })
-
-  if (error) throw error
-  return (data as Array<{
-    id: string
-    task_id: string
-    action: string
-    user_id: string | null
-    created_at: string
-  }>).map((row) => ({
-    id: row.id,
-    taskId: row.task_id,
-    action: row.action,
-    employeeId: row.user_id,
-    createdAt: row.created_at,
-  }))
+  const data = await apiGet<Record<string, unknown>[]>(`/api/tasks/${taskId}/activity`)
+  return (data || []).map(mapActivityRow)
 }
 
 export async function getAllTaskActivity(): Promise<TaskActivityLogEntry[]> {
-  const { data, error } = await supabase
-    .from('task_activity_logs')
-    .select('*')
-    .order('created_at', { ascending: false })
-
-  if (error) throw error
-  return (data as Array<{
-    id: string
-    task_id: string
-    action: string
-    user_id: string | null
-    created_at: string
-  }>).map((row) => ({
-    id: row.id,
-    taskId: row.task_id,
-    action: row.action,
-    employeeId: row.user_id,
-    createdAt: row.created_at,
-  }))
+  const data = await apiGet<Record<string, unknown>[]>('/api/tasks/activity/all')
+  return (data || []).map(mapActivityRow)
 }
 
 export async function addTaskActivity(
@@ -154,52 +92,9 @@ export async function addTaskActivity(
   action: string,
   employeeId?: string | null
 ): Promise<TaskActivityLogEntry> {
-  const { data, error } = await supabase
-    .from('task_activity_logs')
-    .insert({
-      task_id: taskId,
-      action,
-      user_id: employeeId || null,
-    })
-    .select()
-    .single()
-
-  if (error) throw error
-
-  const row = data as {
-    id: string
-    task_id: string
-    action: string
-    user_id: string | null
-    created_at: string
-  }
-  return {
-    id: row.id,
-    taskId: row.task_id,
-    action: row.action,
-    employeeId: row.user_id,
-    createdAt: row.created_at,
-  }
-}
-
-function mapRow(row: Record<string, unknown>): Task {
-  return {
-    id: row.id as string,
-    title: row.title as string,
-    description: (row.description as string) || undefined,
-    checklist: (row.checklist as TaskChecklistItem[]) || [],
-    priority: (row.priority as Task['priority']) || 'low',
-    status: (row.status as Task['status']) || 'todo',
-    assigneeId: (row.assignee_id as string) || undefined,
-    vehicleId: (row.vehicle_id as string) || undefined,
-    dueDate: (row.due_date as string) || undefined,
-    dueTime: (row.due_time as string) || undefined,
-    ruleId: (row.rule_id as string) || undefined,
-    source: (row.source as Task['source']) || undefined,
-    deferred: Boolean(row.deferred),
-    soldHandled: Boolean(row.sold_handled),
-    vehicleModelSnapshot: (row.vehicle_model_snapshot as string) || undefined,
-    vehiclePlateSnapshot: (row.vehicle_plate_snapshot as string) || undefined,
-    createdAt: row.created_at as string,
-  }
+  const data = await apiPost<Record<string, unknown>>(`/api/tasks/${taskId}/activity`, {
+    action,
+    employeeId,
+  })
+  return mapActivityRow(data)
 }

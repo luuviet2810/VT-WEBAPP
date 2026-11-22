@@ -1,56 +1,30 @@
-import { supabase } from '../lib/supabase'
+import { apiGet, apiPost } from './api.client'
 import type { MoveLog } from '../types'
 
 function mapRow(row: Record<string, unknown>): MoveLog {
   return {
     id: row.id as string,
-    vehicleId: row.vehicle_id as string,
-    fromPositionId: row.from_position_id as string | null,
-    toPositionId: row.to_position_id as string,
-    employeeId: row.user_id as string | null,
-    createdAt: row.created_at as string,
+    vehicleId: (row.vehicle_id as string) ?? (row.vehicleId as string),
+    fromPositionId: (row.from_position_id as string | null) ?? (row.fromPositionId as string | null) ?? null,
+    toPositionId: (row.to_position_id as string) ?? (row.toPositionId as string),
+    employeeId: (row.user_id as string | null) ?? (row.employeeId as string | null) ?? null,
+    createdAt: (row.created_at as string) ?? (row.createdAt as string),
   }
 }
 
 export async function getMoveLogs(): Promise<MoveLog[]> {
-  const { data, error } = await supabase
-    .from('move_logs')
-    .select('*')
-    .order('created_at', { ascending: false })
-
-  if (error) throw error
-  return (data as Record<string, unknown>[]).map(mapRow)
+  const data = await apiGet<Record<string, unknown>[]>('/api/move-logs')
+  return (data || []).map(mapRow)
 }
 
 export async function getMoveLogsByVehicle(vehicleId: string): Promise<MoveLog[]> {
-  const { data, error } = await supabase
-    .from('move_logs')
-    .select('*')
-    .eq('vehicle_id', vehicleId)
-    .order('created_at', { ascending: true })
-
-  if (error) throw error
-  return (data as Record<string, unknown>[]).map(mapRow)
+  const data = await apiGet<Record<string, unknown>[]>(`/api/move-logs?vehicleId=${encodeURIComponent(vehicleId)}`)
+  return (data || []).map(mapRow)
 }
 
 export async function createMoveLog(
   log: Omit<MoveLog, 'id' | 'createdAt'>
 ): Promise<MoveLog> {
-  const { data, error } = await supabase
-    .from('move_logs')
-    .insert({
-      vehicle_id: log.vehicleId,
-      from_position_id: log.fromPositionId,
-      to_position_id: log.toPositionId,
-      user_id: log.employeeId || null,
-    })
-    .select()
-    .single()
-
-  if (error) {
-    console.error('🔴 [moveLog.service] CREATE MOVE LOG ERROR:', error)
-    throw error
-  }
-
-  return mapRow(data as Record<string, unknown>)
+  const data = await apiPost<Record<string, unknown>>('/api/move-logs', log)
+  return mapRow(data)
 }

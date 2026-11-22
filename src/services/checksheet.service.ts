@@ -1,27 +1,6 @@
-import { supabase } from '../lib/supabase'
-import type {
-  CheckOutCheck,
-  CheckOutItem,
-  CheckSheet,
-  ConSeongnyeongItem,
-  ConSeongnyeongStatus,
-  DauMayItem,
-  DauMayStatus,
-  DieuHoaItem,
-  DieuHoaStatus,
-  ExteriorCheck,
-  InteriorCheck,
-  NuocLamMatItem,
-  NuocLamMatStatus,
-  SuoiGheItem,
-  SuoiGheStatus,
-} from '../types'
+import { apiGet, apiPost, apiPut, apiDelete } from './api.client'
+import type { CheckOutCheck, CheckSheet, InteriorCheck } from '../types'
 
-/**
- * Single source of truth for an empty checksheet.
- * Every field is null/undefined — no pre-selected values.
- * Used by both the service layer and the form component.
- */
 export const EMPTY_CHECK_SHEET = {
   interior: {
     driverSeat: { condition: '' as any },
@@ -48,15 +27,15 @@ export const EMPTY_CHECK_SHEET = {
 function mapRow(row: Record<string, unknown>): CheckSheet {
   return {
     id: row.id as string,
-    vehicleId: row.vehicle_id as string,
+    vehicleId: (row.vehicle_id as string) ?? (row.vehicleId as string),
     type: row.type as 'in' | 'out',
-    checkerId: row.checker_id as string | null,
-    checkDate: row.check_date as string,
-    fuelLevel: row.fuel_level as CheckSheet['fuelLevel'],
+    checkerId: (row.checker_id as string) ?? (row.checkerId as string) ?? null,
+    checkDate: (row.check_date as string) ?? (row.checkDate as string),
+    fuelLevel: (row.fuel_level ?? row.fuelLevel) as CheckSheet['fuelLevel'],
     screen: row.screen as CheckSheet['screen'],
-    rearCamera: row.rear_camera as CheckSheet['rearCamera'],
+    rearCamera: (row.rear_camera ?? row.rearCamera) as CheckSheet['rearCamera'],
     hipass: row.hipass as CheckSheet['hipass'],
-    rearSensor: row.rear_sensor as CheckSheet['rearSensor'],
+    rearSensor: (row.rear_sensor ?? row.rearSensor) as CheckSheet['rearSensor'],
     dashcam: row.dashcam as CheckSheet['dashcam'],
     interior: (row.interior as CheckSheet['interior']) ?? ({
       driverSeat: { condition: '' } as any,
@@ -64,192 +43,71 @@ function mapRow(row: Record<string, unknown>): CheckSheet {
       rearSeat: { condition: '' } as any,
     }),
     exterior: (row.exterior as CheckSheet['exterior']) ?? {},
-    exteriorPhotos: row.exterior_photos as CheckSheet['exteriorPhotos'],
-    inputDieuHoa: row.input_dieu_hoa as CheckSheet['inputDieuHoa'],
-    inputSuoiGhe: row.input_suoi_ghe as CheckSheet['inputSuoiGhe'],
-    inputTireState: row.input_tire_state as CheckSheet['inputTireState'],
-    inputTireInflated: row.input_tire_inflated as CheckSheet['inputTireInflated'],
-    cabinAirFilter: row.cabin_air_filter as CheckSheet['cabinAirFilter'],
-    engineOilLevel: row.engine_oil_level as CheckSheet['engineOilLevel'],
-    engineAirFilter: row.engine_air_filter as CheckSheet['engineAirFilter'],
-    inputDenPhaCot: row.input_den_pha_cot as CheckSheet['inputDenPhaCot'],
-    inputMotorGuongNutBam: row.input_motor_guong_nut_bam as CheckSheet['inputMotorGuongNutBam'],
-    inputCuaSo: row.input_cua_so as CheckSheet['inputCuaSo'],
-    inputGheChinhDien: row.input_ghe_chinh_dien as CheckSheet['inputGheChinhDien'],
-    outputTireInflated: row.output_tire_inflated as CheckSheet['outputTireInflated'],
-    inputNotes: row.input_notes as string | undefined,
-    outCheck: row.out_check as CheckSheet['outCheck'],
-    outNotes: row.out_notes as string | undefined,
-    inputAcquySOH: row.input_acquy_soh as number | undefined,
-    inputAcquySOC: row.input_acquy_soc as number | undefined,
-    acquySOH: row.acquy_soh as number | undefined,
-    acquySOC: row.acquy_soc as number | undefined,
-    songNungResultStatus: row.song_nung_result_status as CheckSheet['songNungResultStatus'],
-    undercarriageStatus: row.undercarriage_status as CheckSheet['undercarriageStatus'],
-    keyType: row.key_type as CheckSheet['keyType'],
-    smartkeyStatus: row.smartkey_status as CheckSheet['smartkeyStatus'],
-    outKeyType: row.out_key_type as CheckSheet['outKeyType'],
-    outSmartkeyStatus: row.out_smartkey_status as CheckSheet['outSmartkeyStatus'],
-    createdAt: row.created_at as string,
+    exteriorPhotos: (row.exterior_photos ?? row.exteriorPhotos) as CheckSheet['exteriorPhotos'],
+    inputDieuHoa: (row.input_dieu_hoa ?? row.inputDieuHoa) as CheckSheet['inputDieuHoa'],
+    inputSuoiGhe: (row.input_suoi_ghe ?? row.inputSuoiGhe) as CheckSheet['inputSuoiGhe'],
+    inputTireState: (row.input_tire_state ?? row.inputTireState) as CheckSheet['inputTireState'],
+    inputTireInflated: (row.input_tire_inflated ?? row.inputTireInflated) as CheckSheet['inputTireInflated'],
+    cabinAirFilter: (row.cabin_air_filter ?? row.cabinAirFilter) as CheckSheet['cabinAirFilter'],
+    engineOilLevel: (row.engine_oil_level ?? row.engineOilLevel) as CheckSheet['engineOilLevel'],
+    engineAirFilter: (row.engine_air_filter ?? row.engineAirFilter) as CheckSheet['engineAirFilter'],
+    inputDenPhaCot: (row.input_den_pha_cot ?? row.inputDenPhaCot) as CheckSheet['inputDenPhaCot'],
+    inputMotorGuongNutBam: (row.input_motor_guong_nut_bam ?? row.inputMotorGuongNutBam) as CheckSheet['inputMotorGuongNutBam'],
+    inputCuaSo: (row.input_cua_so ?? row.inputCuaSo) as CheckSheet['inputCuaSo'],
+    inputGheChinhDien: (row.input_ghe_chinh_dien ?? row.inputGheChinhDien) as CheckSheet['inputGheChinhDien'],
+    outputTireInflated: (row.output_tire_inflated ?? row.outputTireInflated) as CheckSheet['outputTireInflated'],
+    inputNotes: (row.input_notes ?? row.inputNotes) as string | undefined,
+    outCheck: (row.out_check ?? row.outCheck) as CheckSheet['outCheck'],
+    outNotes: (row.out_notes ?? row.outNotes) as string | undefined,
+    outTireState: (row.out_tire_state ?? row.outTireState) as CheckSheet['outTireState'],
+    inputAcquySOH: (row.input_acquy_soh ?? row.inputAcquySOH) as number | undefined,
+    inputAcquySOC: (row.input_acquy_soc ?? row.inputAcquySOC) as number | undefined,
+    acquySOH: (row.acquy_soh ?? row.acquySOH) as number | undefined,
+    acquySOC: (row.acquy_soc ?? row.acquySOC) as number | undefined,
+    songNungResultStatus: (row.song_nung_result_status ?? row.songNungResultStatus) as CheckSheet['songNungResultStatus'],
+    undercarriageStatus: (row.undercarriage_status ?? row.undercarriageStatus) as CheckSheet['undercarriageStatus'],
+    keyType: (row.key_type ?? row.keyType) as CheckSheet['keyType'],
+    smartkeyStatus: (row.smartkey_status ?? row.smartkeyStatus) as CheckSheet['smartkeyStatus'],
+    outKeyType: (row.out_key_type ?? row.outKeyType) as CheckSheet['outKeyType'],
+    outSmartkeyStatus: (row.out_smartkey_status ?? row.outSmartkeyStatus) as CheckSheet['outSmartkeyStatus'],
+    createdAt: (row.created_at ?? row.createdAt) as string,
   }
 }
 
 export async function getCheckSheets(): Promise<CheckSheet[]> {
-  const { data, error, status, statusText } = await supabase
-    .from('check_sheets')
-    .select('*')
-    .order('created_at', { ascending: false })
-
-  if (error) throw error
-  return (data as Record<string, unknown>[]).map(mapRow)
+  const data = await apiGet<Record<string, unknown>[]>('/api/checksheets')
+  return (data || []).map(mapRow)
 }
 
 export async function getCheckSheetsByVehicle(vehicleId: string): Promise<CheckSheet[]> {
-  const { data, error } = await supabase
-    .from('check_sheets')
-    .select('*')
-    .eq('vehicle_id', vehicleId)
-    .order('created_at', { ascending: false })
-
-  if (error) throw error
-  return (data as Record<string, unknown>[]).map(mapRow)
+  const data = await apiGet<Record<string, unknown>[]>(`/api/checksheets?vehicleId=${encodeURIComponent(vehicleId)}`)
+  return (data || []).map(mapRow)
 }
 
 export async function getCheckSheetById(id: string): Promise<CheckSheet | null> {
-  const { data, error } = await supabase
-    .from('check_sheets')
-    .select('*')
-    .eq('id', id)
-    .single()
-
-  if (error) {
-    if (error.code === 'PGRST116') return null
-    throw error
+  try {
+    const data = await apiGet<Record<string, unknown>>(`/api/checksheets/${id}`)
+    if (!data) return null
+    return mapRow(data)
+  } catch (err: any) {
+    if (err.statusCode === 404) return null
+    throw err
   }
-  return mapRow(data as Record<string, unknown>)
 }
 
 export async function createCheckSheet(
-  sheet: Omit<CheckSheet, 'id' | 'createdAt'>
+  sheet: Omit<CheckSheet, 'id' | 'createdAt'> & { id?: string }
 ): Promise<CheckSheet> {
-  const payload = {
-    vehicle_id: sheet.vehicleId,
-    type: sheet.type,
-    checker_id: sheet.checkerId || null,
-    check_date: sheet.checkDate,
-    fuel_level: sheet.fuelLevel,
-    screen: sheet.screen,
-    rear_camera: sheet.rearCamera,
-    hipass: sheet.hipass,
-    rear_sensor: sheet.rearSensor,
-    dashcam: sheet.dashcam,
-    interior: sheet.interior,
-    exterior: sheet.exterior,
-    exterior_photos: sheet.exteriorPhotos,
-    input_dieu_hoa: sheet.inputDieuHoa,
-    input_suoi_ghe: sheet.inputSuoiGhe,
-    input_tire_state: sheet.inputTireState,
-    input_tire_inflated: sheet.inputTireInflated,
-    cabin_air_filter: sheet.cabinAirFilter,
-    engine_oil_level: sheet.engineOilLevel,
-    engine_air_filter: sheet.engineAirFilter,
-    input_den_pha_cot: sheet.inputDenPhaCot,
-    input_motor_guong_nut_bam: sheet.inputMotorGuongNutBam,
-    input_cua_so: sheet.inputCuaSo,
-    input_ghe_chinh_dien: sheet.inputGheChinhDien,
-    output_tire_inflated: sheet.outputTireInflated,
-    input_notes: sheet.inputNotes,
-    out_check: sheet.outCheck,
-    out_notes: sheet.outNotes,
-    input_acquy_soh: sheet.inputAcquySOH,
-    input_acquy_soc: sheet.inputAcquySOC,
-    acquy_soh: sheet.acquySOH,
-    acquy_soc: sheet.acquySOC,
-    song_nung_result_status: sheet.songNungResultStatus,
-    undercarriage_status: sheet.undercarriageStatus,
-    key_type: sheet.keyType,
-    smartkey_status: sheet.smartkeyStatus,
-    out_key_type: sheet.outKeyType,
-    out_smartkey_status: sheet.outSmartkeyStatus,
-  }
-
-  const { data, error } = await supabase
-    .from('check_sheets')
-    .insert(payload)
-    .select()
-    .single()
-
-  if (error) {
-    throw error
-  }
-  return mapRow(data as Record<string, unknown>)
+  const data = await apiPost<Record<string, unknown>>('/api/checksheets', sheet)
+  return mapRow(data)
 }
 
 export async function updateCheckSheet(
   id: string,
   patch: Partial<CheckSheet>
 ): Promise<CheckSheet> {
-  console.log('[CHK TRACE] service.updateCheckSheet — id:', id, 'type:', (patch as any).type)
-  const updateData: Record<string, unknown> = {}
-
-  if (patch.vehicleId !== undefined) updateData.vehicle_id = patch.vehicleId
-  if (patch.type !== undefined) updateData.type = patch.type
-  if (patch.checkerId !== undefined) updateData.checker_id = patch.checkerId || null
-  if (patch.checkDate !== undefined) updateData.check_date = patch.checkDate
-  if (patch.fuelLevel !== undefined) updateData.fuel_level = patch.fuelLevel
-  if (patch.screen !== undefined) updateData.screen = patch.screen
-  if (patch.rearCamera !== undefined) updateData.rear_camera = patch.rearCamera
-  if (patch.hipass !== undefined) updateData.hipass = patch.hipass
-  if (patch.rearSensor !== undefined) updateData.rear_sensor = patch.rearSensor
-  if (patch.dashcam !== undefined) updateData.dashcam = patch.dashcam
-  if (patch.interior !== undefined) updateData.interior = patch.interior
-  if (patch.exterior !== undefined) updateData.exterior = patch.exterior
-  if (patch.exteriorPhotos !== undefined) updateData.exterior_photos = patch.exteriorPhotos
-  if (patch.inputDieuHoa !== undefined) updateData.input_dieu_hoa = patch.inputDieuHoa
-  if (patch.inputSuoiGhe !== undefined) updateData.input_suoi_ghe = patch.inputSuoiGhe
-  if (patch.inputTireState !== undefined) updateData.input_tire_state = patch.inputTireState
-  if (patch.inputTireInflated !== undefined) updateData.input_tire_inflated = patch.inputTireInflated
-  if (patch.cabinAirFilter !== undefined) updateData.cabin_air_filter = patch.cabinAirFilter
-  if (patch.engineOilLevel !== undefined) updateData.engine_oil_level = patch.engineOilLevel
-  if (patch.engineAirFilter !== undefined) updateData.engine_air_filter = patch.engineAirFilter
-  if (patch.inputDenPhaCot !== undefined) updateData.input_den_pha_cot = patch.inputDenPhaCot
-  if (patch.inputMotorGuongNutBam !== undefined) updateData.input_motor_guong_nut_bam = patch.inputMotorGuongNutBam
-  if (patch.inputCuaSo !== undefined) updateData.input_cua_so = patch.inputCuaSo
-  if (patch.inputGheChinhDien !== undefined) updateData.input_ghe_chinh_dien = patch.inputGheChinhDien
-  if (patch.outputTireInflated !== undefined) updateData.output_tire_inflated = patch.outputTireInflated
-  if (patch.inputNotes !== undefined) updateData.input_notes = patch.inputNotes
-  if (patch.outCheck !== undefined) updateData.out_check = patch.outCheck
-  if (patch.outNotes !== undefined) updateData.out_notes = patch.outNotes
-  if (patch.inputAcquySOH !== undefined) updateData.input_acquy_soh = patch.inputAcquySOH
-  if (patch.inputAcquySOC !== undefined) updateData.input_acquy_soc = patch.inputAcquySOC
-  if (patch.acquySOH !== undefined) updateData.acquy_soh = patch.acquySOH
-  if (patch.acquySOC !== undefined) updateData.acquy_soc = patch.acquySOC
-  if (patch.songNungResultStatus !== undefined) updateData.song_nung_result_status = patch.songNungResultStatus
-  if (patch.undercarriageStatus !== undefined) updateData.undercarriage_status = patch.undercarriageStatus
-  if (patch.keyType !== undefined) updateData.key_type = patch.keyType
-  if (patch.smartkeyStatus !== undefined) updateData.smartkey_status = patch.smartkeyStatus
-  if (patch.outKeyType !== undefined) updateData.out_key_type = patch.outKeyType
-  if (patch.outSmartkeyStatus !== undefined) updateData.out_smartkey_status = patch.outSmartkeyStatus
-
-  // Drop empty-string UUIDs to avoid Postgres 22P02
-  Object.keys(updateData).forEach((key) => {
-    if (updateData[key] === '') updateData[key] = null
-  })
-
-  const { data, error } = await supabase
-    .from('check_sheets')
-    .update(updateData)
-    .eq('id', id)
-    .select()
-    .single()
-
-  console.log('[CHK TRACE] Supabase update result:', error ? 'ERROR' : 'OK', 'id:', id, 'data?.id:', (data as any)?.id)
-
-  if (error) {
-    console.log('[CHK TRACE] Supabase update ERROR:', error.message, 'code:', error.code)
-    throw error
-  }
-  return mapRow(data as Record<string, unknown>)
+  const data = await apiPut<Record<string, unknown>>(`/api/checksheets/${id}`, patch)
+  return mapRow(data)
 }
 
 /**
@@ -277,21 +135,11 @@ export async function getOrCreateCheckSheet(
     inputAcquySOC?: number
   }
 ): Promise<{ sheet: CheckSheet; isNew: boolean }> {
-  const { data, error } = await supabase
-    .from('check_sheets')
-    .select('*')
-    .eq('vehicle_id', vehicleId)
-    .eq('type', type)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+  const list = await getCheckSheetsByVehicle(vehicleId)
+  const existing = list.find((s) => s.type === type)
 
-  if (error && error.code !== 'PGRST116') {
-    throw error
-  }
-
-  if (data) {
-    return { sheet: mapRow(data as Record<string, unknown>), isNew: false }
+  if (existing) {
+    return { sheet: existing, isNew: false }
   }
 
   // No record exists — create a brand-new empty sheet
@@ -333,10 +181,5 @@ export async function getOrCreateCheckSheet(
 }
 
 export async function deleteCheckSheet(id: string): Promise<void> {
-  const { error } = await supabase
-    .from('check_sheets')
-    .delete()
-    .eq('id', id)
-
-  if (error) throw error
+  await apiDelete(`/api/checksheets/${id}`)
 }

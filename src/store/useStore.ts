@@ -67,50 +67,91 @@ const defaultSettings: Settings = {
 }
 
 export async function initializeFromSupabase(): Promise<void> {
-  try {
-    const [vehicles, positions, employees, tasks, checkSheets, attendance, moveLogs] = await Promise.all([
-      vehicleService.getVehicles().catch(() => []),
-      positionService.getPositions().catch(() => []),
-      usersService.getEmployees().catch(() => []),
-      taskService.getTasks().catch(() => []),
-      checksheetService.getCheckSheets().catch(() => []),
-      attendanceService.getAttendanceEntries().catch(() => []),
-      moveLogService.getMoveLogs().catch(() => []),
-    ])
+  useStore.setState({ isLoading: true, initError: null, errorModules: [] })
 
-    const mappedVehicles = vehicles.map((v) => {
-      const record = v as unknown as Record<string, unknown>
-      return {
-        ...v,
-        createdAt: v.createdAt ?? (record.created_at as string) ?? todayISO(),
-        updatedAt: v.updatedAt ?? (record.updated_at as string) ?? todayISO(),
-      }
-    })
+  const modules = [
+    { name: 'vehicles', promise: vehicleService.getVehicles() },
+    { name: 'positions', promise: positionService.getPositions() },
+    { name: 'employees', promise: usersService.getEmployees() },
+    { name: 'tasks', promise: taskService.getTasks() },
+    { name: 'checkSheets', promise: checksheetService.getCheckSheets() },
+    { name: 'attendance', promise: attendanceService.getAttendanceEntries() },
+    { name: 'moveLogs', promise: moveLogService.getMoveLogs() },
+  ]
 
-    const mappedEmployees: Employee[] = (employees as Employee[]).map((u) => ({
-      id: u.id,
-      name: u.name,
-      phone: u.phone ?? undefined,
-      isAdmin: u.isAdmin,
-      disabled: u.disabled ?? false,
-    }))
+  const results = await Promise.allSettled(modules.map((m) => m.promise))
 
+  const failedModules: string[] = []
+  const values: Record<string, any> = {}
+
+  results.forEach((res, index) => {
+    const mod = modules[index].name
+    if (res.status === 'fulfilled') {
+      values[mod] = res.value
+    } else {
+      failedModules.push(mod)
+      console.error(`[STORE] Lỗi khi tải module ${mod}:`, res.reason)
+    }
+  })
+
+  // Nếu bất kỳ module cốt lõi nào bị lỗi, không đánh dấu initialized thành công!
+  const coreModules = ['vehicles', 'positions', 'tasks', 'checkSheets', 'employees']
+  const failedCore = failedModules.filter((m) => coreModules.includes(m))
+
+  if (failedCore.length > 0) {
+    const errorMsg = `Không thể tải dữ liệu cốt lõi từ máy chủ: ${failedCore.join(', ')}`
+    console.error(`[STORE] ${errorMsg}`)
     useStore.setState({
-      vehicles: mappedVehicles,
-      positions,
-      employees: mappedEmployees,
-      tasks,
-      checkSheets,
-      attendance,
-      notifications: [],
-      moveLogs,
-      isInitialized: true,
+      isLoading: false,
+      isInitialized: false,
+      initError: errorMsg,
+      errorModules: failedModules,
     })
-    useStore.getState().loadTemplates()
-  } catch (err) {
-    console.error('\uD83D\uDD34 [STORE] Failed to initialize from Supabase:', err)
-    useStore.setState({ isInitialized: true })
+    return
   }
+
+  const vehicles = (values.vehicles as Vehicle[]) || []
+  const positions = (values.positions as Position[]) || []
+  const employees = (values.employees as Employee[]) || []
+  const tasks = (values.tasks as Task[]) || []
+  const checkSheets = (values.checkSheets as CheckSheet[]) || []
+  const attendance = (values.attendance as AttendanceEntry[]) || []
+  const moveLogs = (values.moveLogs as MoveLog[]) || []
+
+  const mappedVehicles = vehicles.map((v) => {
+    const record = v as unknown as Record<string, unknown>
+    return {
+      ...v,
+      createdAt: v.createdAt ?? (record.created_at as string) ?? todayISO(),
+      updatedAt: v.updatedAt ?? (record.updated_at as string) ?? todayISO(),
+    }
+  })
+
+  const mappedEmployees: Employee[] = employees.map((u) => ({
+    id: u.id,
+    name: u.name,
+    phone: u.phone ?? undefined,
+    isAdmin: u.isAdmin,
+    disabled: u.disabled ?? false,
+  }))
+
+  useStore.setState({
+    vehicles: mappedVehicles,
+    positions,
+    employees: mappedEmployees,
+    tasks,
+    checkSheets,
+    attendance,
+    notifications: [],
+    moveLogs,
+    isInitialized: true,
+    isLoading: false,
+    initError: null,
+    errorModules: failedModules,
+  })
+  useStore.getState().loadTemplates()
+  console.log(`[STORE] Đã nạp thành công: ${mappedVehicles.length} xe, ${positions.length} vị trí, ${tasks.length} nhiệm vụ, ${checkSheets.length} phiếu checksheet, ${mappedEmployees.length} nhân viên.`)
+  return
 }
 
 interface StoreState {
@@ -127,6 +168,9 @@ interface StoreState {
   vehicleTimelines: Record<string, TimelineItem[]>
   currentEmployeeId: string
   isInitialized: boolean
+  isLoading: boolean
+  initError: string | null
+  errorModules: string[]
   templates: TaskTemplate[]
 
   addVehicle: (v: Partial<Vehicle>) => Promise<Vehicle>
@@ -197,6 +241,9 @@ export const useStore = create<StoreState>()(
     vehicleTimelines: {},
     currentEmployeeId: '',
     isInitialized: false,
+    isLoading: false,
+    initError: null,
+    errorModules: [],
     templates: [],
 
     addVehicle: async (v) => {

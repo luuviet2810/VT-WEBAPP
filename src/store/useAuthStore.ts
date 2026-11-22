@@ -1,9 +1,13 @@
 import { create } from 'zustand'
-import { supabase } from '../lib/supabase'
-import { signInWithEmail, signUpWithEmail, signOut as authSignOut, onAuthStateChanged } from '../services/auth.service'
+import {
+  signInWithEmail,
+  signOut as authSignOut,
+  getCurrentProfile,
+  getAuthToken,
+} from '../services/auth.service'
 import type { AuthProfile } from '../services/auth.service'
-import type { UserRole, UserStatus } from '../types'
 import { useStore } from './useStore'
+import { useViewModeStore } from './viewModeStore'
 
 interface AuthState {
   currentUser: AuthProfile | null
@@ -12,61 +16,85 @@ interface AuthState {
 
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
   logout: () => Promise<void>
-  initializeAuth: () => void
+  initializeAuth: () => Promise<void>
 }
 
 let authInitialized = false
-let unsubscribe: (() => void) | null = null
 
 export const useAuthStore = create<AuthState>()((set, get) => ({
   currentUser: null,
   isAuthenticated: false,
   authLoading: true,
 
-  initializeAuth: () => {
+  initializeAuth: async () => {
     if (authInitialized) return
     authInitialized = true
 
-    console.log('[AUDIT] initializeAuth — checking existing session')
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) {
-        console.log('[AUDIT] getSession found session for user', data.session.user.id)
-        loadProfileIntoStore(data.session.user.id)
-      } else {
-        console.log('[AUDIT] getSession — no session')
-        set({ authLoading: false })
-      }
-    })
+    console.log('[AuthStore] initializeAuth — kiểm tra phiên làm việc từ Express Backend API...')
 
-    unsubscribe = onAuthStateChanged((session) => {
-      if (session) {
-        console.log('[AUDIT] onAuthStateChanged SIGNED_IN / TOKEN_REFRESHED — user', session.user.id)
-        loadProfileIntoStore(session.user.id)
+    const token = getAuthToken()
+    if (!token) {
+      console.log('[AuthStore] initializeAuth — Không tìm thấy token trong localStorage')
+      set({ currentUser: null, isAuthenticated: false, authLoading: false })
+      return
+    }
+
+    try {
+      // Khôi phục session bằng cách kiểm tra token qua GET /api/auth/me
+      const profile = await getCurrentProfile()
+
+      if (profile) {
+        console.log('[AuthStore] initializeAuth — Khôi phục phiên thành công:', profile.email, 'Role:', profile.role)
+        set({ currentUser: profile, isAuthenticated: true, authLoading: false })
+
+        // Đồng bộ employee ID vào store chính
+        useStore.getState().setCurrentEmployee(profile.id)
+
+        // Tải danh sách templates/cấu hình ban đầu
+        try {
+          useStore.getState().loadTemplates()
+        } catch {}
       } else {
-        console.log('[AUDIT] onAuthStateChanged SIGNED_OUT — clearing auth')
+        console.log('[AuthStore] initializeAuth — Token không hợp lệ hoặc đã hết hạn, kết thúc session')
         set({ currentUser: null, isAuthenticated: false, authLoading: false })
       }
-    })
+    } catch (err) {
+      console.error('[AuthStore] initializeAuth — Lỗi khi kết nối xác thực:', err)
+      set({ currentUser: null, isAuthenticated: false, authLoading: false })
+    }
   },
 
   login: async (email, password) => {
-    console.log('[AUDIT] login starting for', email)
+    console.log('[AuthStore] Bắt đầu đăng nhập cho:', email)
     const result = await signInWithEmail(email, password)
+
     if (result.ok) {
-      console.log('[AUDIT] login success for user', result.user.id, 'role', result.user.role)
+      console.log('[AuthStore] Đăng nhập thành công:', result.user.email, 'Role:', result.user.role)
       set({ currentUser: result.user, isAuthenticated: true, authLoading: false })
-      // Re-initialize app data for the new user session
-      useStore.getState().loadTemplates()
+
+      // Đồng bộ thông tin người dùng hiện tại vào useStore
+      useStore.getState().setCurrentEmployee(result.user.id)
+      try {
+        useStore.getState().loadTemplates()
+      } catch {}
+
+      // Đồng bộ View Mode với vai trò thực tế
+      try {
+        useViewModeStore.getState().resetToActualRole(result.user.role)
+      } catch {}
+
       return { success: true }
     }
-    console.log('[AUDIT] login failed:', result.error)
+
+    console.log('[AuthStore] Đăng nhập thất bại:', result.error)
     return { success: false, error: result.error }
   },
 
   logout: async () => {
-    console.log('[AUDIT] logout starting')
+    console.log('[AuthStore] Bắt đầu đăng xuất...')
     await authSignOut()
-    // Reset ALL user-related data in the main store
+
+    // Xóa toàn bộ dữ liệu người dùng tạm thời trong store chính
     useStore.setState({
       vehicles: [],
       tasks: [],
@@ -80,54 +108,14 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       currentEmployeeId: '',
       isInitialized: false,
       templates: [],
-      // settings: preserved — these are app-wide preferences
     })
-    // Reset persisted view mode store to default
+
+    // Xóa persisted view mode trong localStorage
     try {
       localStorage.removeItem('gara-view-mode')
     } catch {}
-    set({ currentUser: null, isAuthenticated: false })
-    console.log('[AUDIT] logout complete — auth + app state cleared')
+
+    set({ currentUser: null, isAuthenticated: false, authLoading: false })
+    console.log('[AuthStore] Đăng xuất hoàn tất — token và trạng thái đã được dọn sạch')
   },
 }))
-
-async function loadProfileIntoStore(authId: string) {
-  const { data, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('auth_id', authId)
-    .maybeSingle()
-
-  if (error || !data) {
-    // Profile not found yet — don't set authLoading:false here.
-    // The login() function will handle this after creating the profile.
-    // Otherwise the UI would see "no user" and redirect to /login prematurely.
-    console.log('[AUDIT] loadProfileIntoStore — profile not found yet for authId', authId)
-    return
-  }
-
-  const row = data as Record<string, unknown>
-  const name = row.name as string
-  const profile: AuthProfile = {
-    id: row.id as string,
-    authId: row.auth_id as string,
-    name,
-    fullName: name,
-    email: row.email as string,
-    role: (row.role as UserRole) ?? 'staff',
-    status: (row.status as UserStatus) ?? 'pending',
-    disabled: Boolean(row.disabled),
-    passkeyEnabled: Boolean(row.passkey_enabled),
-    phone: (row.phone as string | null) ?? null,
-    avatar: (row.avatar as string | null) ?? null,
-    createdAt: row.created_at as string,
-    updatedAt: row.updated_at as string,
-  }
-
-  console.log('[AUDIT] loadProfileIntoStore — profile loaded for', profile.name, 'role', profile.role)
-  useAuthStore.setState({ currentUser: profile, isAuthenticated: true, authLoading: false })
-
-  // Sync the current employee ID to the main store so attendance and other
-  // features that depend on currentEmployeeId work correctly.
-  useStore.getState().setCurrentEmployee(profile.id)
-}

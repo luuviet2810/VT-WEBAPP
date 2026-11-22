@@ -3,3 +3,11 @@ dist
 .DS_Store
 *.local
 screenshots/
+.env
+.env*
+*.env
+**/.env
+**/.env*
+.env.local
+.neon
+backups/
