@@ -3,7 +3,7 @@ import {
   ArrowLeft, Clock, Download, FileText, Image as ImageIcon, Info, LogIn,
   LogOut, ImagePlus, Star, Trash2, GripVertical, X, ChevronLeft, ChevronRight,
   Calendar, SlidersHorizontal, Pencil, Check, Plus, File as FileIcon, FileUp, ExternalLink,
-  Eye, Loader2, AlertCircle
+  Eye, Loader2, AlertCircle, ZoomIn, ZoomOut, RotateCcw
 } from 'lucide-react'
 import { Modal, EmptyState, Tabs, ConfirmDialog } from '../components/ui'
 import PhotoUploader from '../components/PhotoUploader'
@@ -710,6 +710,7 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
   const [imageRows, setImageRows] = useState<ViewerRow[]>([])
   const [uploading, setUploading] = useState<string | null>(null)
   const [previewIndex, setPreviewIndex] = useState<number | null>(null)
+  const [zoomLevel, setZoomLevel] = useState<number>(1)
   const [previewRows, setPreviewRows] = useState<ViewerRow[]>([])
   const [dragIdx, setDragIdx] = useState<{ cat: string; idx: number } | null>(null)
   const [overIdx, setOverIdx] = useState<{ cat: string; idx: number } | null>(null)
@@ -738,15 +739,28 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
     if (!vehicle?.id) return
     try {
       const rows = await vehicleMediaService.getVehicleImages(vehicle.id)
+      // De-duplicate by id & path
+      const seenIds = new Set<string>()
+      const seenPaths = new Set<string>()
+      const uniqueRows = rows.filter((r) => {
+        if (seenIds.has(r.id)) return false
+        seenIds.add(r.id)
+        if (r.path) {
+          if (seenPaths.has(r.path)) return false
+          seenPaths.add(r.path)
+        }
+        return true
+      })
+
       // Preserve clientKey of rows already on screen so React keys stay
       // stable across reloads (prevents <img> remount / flicker).
       setImageRows((prev) =>
-        rows.map((r) => {
+        uniqueRows.map((r) => {
           const old = prev.find((p) => p.id === r.id)
           return old?.clientKey ? { ...r, clientKey: old.clientKey } : r
         })
       )
-      syncVehicleImages(rows)
+      syncVehicleImages(uniqueRows)
     } catch (err) {
       console.error('Failed to load images:', err)
     }
@@ -770,7 +784,21 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
   const byCategory = useMemo(() => {
     const map: Record<string, ViewerRow[]> = {}
     for (const cat of CATEGORIES) map[cat.key] = []
+
+    const seenIds = new Set<string>()
+    const seenPaths = new Set<string>()
+
     for (const row of imageRows) {
+      if (seenIds.has(row.id)) continue
+      seenIds.add(row.id)
+
+      // Guard against orphan thumbnail records that might have been uploaded separately
+      const rowPath = row.path || row.url || ''
+      if (rowPath && (rowPath.includes('/thumb_') || rowPath.startsWith('thumb_'))) continue
+
+      if (row.path && seenPaths.has(row.path)) continue
+      if (row.path) seenPaths.add(row.path)
+
       const cat = row.category || 'vehicle'
       if (map[cat]) map[cat].push(row)
       else map[cat] = [row]
@@ -816,23 +844,20 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
       const CONCURRENCY = 2
       const uploadOne = async (file: File, tempRow: ViewerRow) => {
         try {
-          let thumbUrl: string | null = null
+          // Upload thumbnail directly to R2 (without inserting a separate row in Neon DB!)
+          let thumbKey: string | null = null
           try {
             const { resizeImage } = await import('../utils/imageResize')
             const thumbBlob = await resizeImage(file, 600, 0.75)
-            const thumbFile = new File([thumbBlob], 'thumb_' + file.name, { type: 'image/jpeg' })
-            const thumbResult = await storageService.uploadVehicleImage(vehicle.id, thumbFile, {
-              category: category as any,
-              sortOrder: tempRow.sort_order,
-            })
-            thumbUrl = thumbResult.downloadUrl || thumbResult.url
+            thumbKey = await storageService.uploadThumbnailToR2(vehicle.id, thumbBlob, file.name)
           } catch { /* thumbnail failure is non-critical */ }
 
+          // Upload original image with thumbnail metadata — exactly ONE record in DB!
           const result = await storageService.uploadVehicleImage(vehicle.id, file, {
             category: category as any,
             sortOrder: tempRow.sort_order,
             songNungExpiryDate: category === 'song_nung' ? (expiryDate ?? null) : undefined,
-            thumbnail: thumbUrl,
+            thumbnail: thumbKey,
           })
 
           const confirmedRow: ViewerRow = {
@@ -843,7 +868,7 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
             bucket: result.bucket || 'vehicle-images',
             url: result.url,
             downloadUrl: result.downloadUrl || result.url,
-            thumbnail: thumbUrl,
+            thumbnail: result.downloadUrl || result.url,
             category,
             subtype: null,
             resolved: false,
@@ -1188,35 +1213,81 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
         )
       })}
 
-      {/* Preview Modal */}
+      {/* Preview Modal / Lightbox */}
       {previewIndex !== null && previewRows[previewIndex] && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-black/95" onClick={() => setPreviewIndex(null)}>
+        <div className="fixed inset-0 z-50 flex flex-col bg-black/95" onClick={() => { setZoomLevel(1); setPreviewIndex(null); }}>
           <div className="flex shrink-0 items-center justify-between px-4 py-3 text-white" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3">
-              <button onClick={() => setPreviewIndex(null)} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20">
+              <button
+                onClick={() => { setZoomLevel(1); setPreviewIndex(null); }}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+                title="Đóng (Esc)"
+              >
                 <X size={20} />
               </button>
               <span className="text-sm font-medium">{vehicle.plate} — {vehicle.model}</span>
             </div>
             <div className="flex items-center gap-3">
+              {/* Zoom controls */}
+              <div className="flex items-center gap-1 bg-white/10 rounded-lg p-1">
+                <button
+                  type="button"
+                  onClick={() => setZoomLevel((z) => Math.min(3, z + 0.5))}
+                  className="rounded p-1 text-white hover:bg-white/20 transition-colors"
+                  title="Phóng to"
+                >
+                  <ZoomIn size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setZoomLevel((z) => Math.max(1, z - 0.5))}
+                  className="rounded p-1 text-white hover:bg-white/20 transition-colors"
+                  title="Thu nhỏ"
+                >
+                  <ZoomOut size={16} />
+                </button>
+                {zoomLevel > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setZoomLevel(1)}
+                    className="rounded p-1 text-white hover:bg-white/20 transition-colors"
+                    title="Về kích thước chuẩn (100%)"
+                  >
+                    <RotateCcw size={14} />
+                  </button>
+                )}
+                <span className="text-xs text-white/70 px-1 font-mono">{Math.round(zoomLevel * 100)}%</span>
+              </div>
+
               {previewRows.length > 1 && <span className="text-xs text-white/60">{previewIndex + 1}/{previewRows.length}</span>}
               <button onClick={() => downloadOne(previewRows[previewIndex], previewIndex)}
-                className="flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20 transition-colors" title="Tải ảnh">
+                className="flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/20 transition-colors" title="Tải ảnh gốc">
                 <Download size={14} /> Tải ảnh
               </button>
             </div>
           </div>
-          <div className="flex min-h-0 flex-1 items-center justify-center px-2" onClick={(e) => e.stopPropagation()}>
-            <img src={previewRows[previewIndex].downloadUrl || previewRows[previewIndex].url} className="max-h-full max-w-full object-contain select-none" draggable={false} />
+          {/* Main Full-Size Image in Lightbox — loads downloadUrl (original full quality photo) */}
+          <div className="flex min-h-0 flex-1 items-center justify-center px-2 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={previewRows[previewIndex].downloadUrl || previewRows[previewIndex].url}
+              className="max-h-full max-w-full object-contain select-none transition-transform duration-200"
+              style={{
+                transform: `scale(${zoomLevel})`,
+                cursor: zoomLevel > 1 ? 'grab' : 'zoom-in',
+              }}
+              onClick={() => setZoomLevel((z) => (z > 1 ? 1 : 2))}
+              draggable={false}
+              alt={`${vehicle.plate} ${previewIndex + 1}`}
+            />
           </div>
           {previewRows.length > 1 && (
             <div className="flex shrink-0 items-center justify-center gap-6 px-4 py-4" onClick={(e) => e.stopPropagation()}>
-              <button disabled={previewIndex === 0} onClick={() => setPreviewIndex(previewIndex - 1)}
+              <button disabled={previewIndex === 0} onClick={() => { setZoomLevel(1); setPreviewIndex(previewIndex - 1); }}
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 disabled:opacity-30">
                 <ChevronLeft size={22} />
               </button>
               <span className="text-sm text-white/80">{previewIndex + 1}/{previewRows.length}</span>
-              <button disabled={previewIndex >= previewRows.length - 1} onClick={() => setPreviewIndex(previewIndex + 1)}
+              <button disabled={previewIndex >= previewRows.length - 1} onClick={() => { setZoomLevel(1); setPreviewIndex(previewIndex + 1); }}
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 disabled:opacity-30">
                 <ChevronRight size={22} />
               </button>

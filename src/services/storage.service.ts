@@ -120,6 +120,35 @@ export async function getPresignedDownloadUrl(
   return data.url
 }
 
+/**
+ * Upload thumbnail directly to Cloudflare R2 without creating a separate database record.
+ * Returns the permanent R2 object key to be stored in the image metadata's `thumbnail` field.
+ */
+export async function uploadThumbnailToR2(
+  vehicleId: string,
+  thumbBlob: Blob | File,
+  fileName: string
+): Promise<string | null> {
+  try {
+    const isUuid = vehicleId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(vehicleId)
+    const safeVehicleId = isUuid ? vehicleId : undefined
+
+    const presigned = await getPresignedUpload({
+      bucketType: 'images',
+      fileName: 'thumb_' + fileName,
+      fileSize: thumbBlob.size,
+      mimeType: 'image/jpeg',
+      vehicleId: safeVehicleId,
+    })
+
+    await putDirectToR2(presigned.url, thumbBlob, 'image/jpeg')
+    return presigned.key
+  } catch (err) {
+    console.warn('[Storage] Thumbnail upload failed, will fallback to original:', err)
+    return null
+  }
+}
+
 // ====== 1. VEHICLE IMAGES ======
 
 export async function uploadVehicleImage(

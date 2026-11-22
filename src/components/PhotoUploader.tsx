@@ -2,7 +2,7 @@ import { GripVertical, ImagePlus, Star, Trash2, Upload } from 'lucide-react'
 import { useRef, useState } from 'react'
 import clsx from 'clsx'
 import { EmptyState } from './ui'
-import { uploadVehicleImage } from '../services/storage.service'
+import { uploadVehicleImage, uploadThumbnailToR2 } from '../services/storage.service'
 import { resizeImage } from '../utils/imageResize'
 import { setThumbnailForUrl } from '../utils/thumbnailCache'
 
@@ -42,19 +42,25 @@ export default function PhotoUploader({
     const uploaded: string[] = []
     try {
       for (const file of selected) {
-        // Upload original image
-        const result = await uploadVehicleImage(vehicleId ?? 'temp', file)
-        uploaded.push(result.url)
-
-        // Create and upload thumbnail (600px, 75% quality)
+        // Create and upload thumbnail directly to R2 (600px, 75% quality) without separate DB record
+        let thumbKey: string | null = null
         try {
           const thumbBlob = await resizeImage(file, 600, 0.75)
-          const thumbFile = new File([thumbBlob], 'thumb_' + file.name, { type: 'image/jpeg' })
-          const thumbResult = await uploadVehicleImage(vehicleId ?? 'temp', thumbFile)
-          setThumbnailForUrl(result.url, thumbResult.url)
+          if (vehicleId) {
+            thumbKey = await uploadThumbnailToR2(vehicleId, thumbBlob, file.name)
+          }
         } catch (thumbErr) {
           // Thumbnail failure is non-critical — fall back to original
           console.warn('🔴 [PhotoUploader] Thumbnail creation failed:', thumbErr)
+        }
+
+        // Upload original image with thumbnail metadata — ONE record only!
+        const result = await uploadVehicleImage(vehicleId ?? 'temp', file, {
+          thumbnail: thumbKey,
+        })
+        uploaded.push(result.url)
+        if (thumbKey) {
+          setThumbnailForUrl(result.url, result.downloadUrl || result.url)
         }
       }
       onChange([...images, ...uploaded])

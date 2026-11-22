@@ -68,11 +68,34 @@ export async function getVehicleImages(req: Request, res: Response) {
           try {
             const presigned = await generatePresignedDownloadUrl('images', mapped.path);
             downloadUrl = presigned.url;
-          } catch {}
+          } catch (err: any) {
+            console.error('[VehicleMedia] Failed to sign download URL:', err.message);
+          }
         }
+
+        // Generate fresh Presigned GET URL for thumbnail if stored as R2 Object Key
+        let thumbnailUrl = mapped.thumbnail;
+        if (mapped.thumbnail && isR2Configured()) {
+          const isFullUrl = mapped.thumbnail.startsWith('http://') || mapped.thumbnail.startsWith('https://');
+          if (!isFullUrl) {
+            try {
+              const presignedThumb = await generatePresignedDownloadUrl('images', mapped.thumbnail);
+              thumbnailUrl = presignedThumb.url;
+            } catch (err: any) {
+              console.warn('[VehicleMedia] Failed to sign thumbnail URL:', err.message);
+              thumbnailUrl = null;
+            }
+          }
+        }
+
+        // Fallback thumbnail to downloadUrl if no thumbnail is set
+        const finalThumbnail = thumbnailUrl || downloadUrl;
+
         return {
           ...mapped,
           downloadUrl,
+          thumbnail: finalThumbnail,
+          thumbnailUrl: finalThumbnail,
         };
       })
     );
@@ -152,7 +175,7 @@ export async function deleteVehicleImage(req: Request, res: Response) {
   try {
     const { id } = req.params;
 
-    const imgCheck = await query(`SELECT id, path, bucket FROM vehicle_images WHERE id = $1`, [id]);
+    const imgCheck = await query(`SELECT id, path, bucket, thumbnail FROM vehicle_images WHERE id = $1`, [id]);
     if (imgCheck.rows.length === 0) {
       return res.status(404).json({
         ok: false,
@@ -172,6 +195,18 @@ export async function deleteVehicleImage(req: Request, res: Response) {
         await deleteObject('images', img.path);
       } catch (r2Err: any) {
         console.warn(`[VehicleMedia] Warning: could not delete ${img.path} from R2:`, r2Err.message);
+      }
+    }
+
+    // 3. Clean up thumbnail from Cloudflare R2 if it is a private R2 object key
+    if (isR2Configured() && img.thumbnail) {
+      const isFullUrl = img.thumbnail.startsWith('http://') || img.thumbnail.startsWith('https://');
+      if (!isFullUrl) {
+        try {
+          await deleteObject('images', img.thumbnail);
+        } catch (r2ThumbErr: any) {
+          console.warn(`[VehicleMedia] Warning: could not delete thumbnail ${img.thumbnail} from R2:`, r2ThumbErr.message);
+        }
       }
     }
 
@@ -482,9 +517,46 @@ export async function getWebsiteImages(req: Request, res: Response) {
     const result = await query(
       `SELECT * FROM vehicle_images WHERE category = 'website' ORDER BY sort_order ASC`
     );
+
+    const data = await Promise.all(
+      result.rows.map(async (row) => {
+        const mapped = mapImageRow(row);
+        let downloadUrl = mapped.url;
+        const isLegacySupabase = typeof mapped.url === 'string' && mapped.url.includes('.supabase.co');
+        if (isR2Configured() && mapped.path && !isLegacySupabase) {
+          try {
+            const presigned = await generatePresignedDownloadUrl('images', mapped.path);
+            downloadUrl = presigned.url;
+          } catch {}
+        }
+
+        let thumbnailUrl = mapped.thumbnail;
+        if (mapped.thumbnail && isR2Configured()) {
+          const isFullUrl = mapped.thumbnail.startsWith('http://') || mapped.thumbnail.startsWith('https://');
+          if (!isFullUrl) {
+            try {
+              const presignedThumb = await generatePresignedDownloadUrl('images', mapped.thumbnail);
+              thumbnailUrl = presignedThumb.url;
+            } catch {
+              thumbnailUrl = null;
+            }
+          }
+        }
+
+        const finalThumbnail = thumbnailUrl || downloadUrl;
+
+        return {
+          ...mapped,
+          downloadUrl,
+          thumbnail: finalThumbnail,
+          thumbnailUrl: finalThumbnail,
+        };
+      })
+    );
+
     return res.status(200).json({
       ok: true,
-      data: result.rows.map(mapImageRow),
+      data,
     });
   } catch (err: any) {
     console.error('[VehicleMedia Controller] getWebsiteImages error:', err);

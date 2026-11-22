@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react'
-import { ChevronLeft, ChevronRight, Expand, X, Download, Trash2, ImagePlus, Star, GripVertical } from 'lucide-react'
+import { useState, useRef, useMemo } from 'react'
+import { ChevronLeft, ChevronRight, Expand, X, Download, Trash2, ImagePlus, Star, GripVertical, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react'
 import { Modal, EmptyState } from './ui'
 import clsx from 'clsx'
 import { uploadVehicleImage } from '../services/storage.service'
@@ -35,13 +35,23 @@ export default function VehicleGallery({
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [previewIndex, setPreviewIndex] = useState<number | null>(null)
+  const [zoomLevel, setZoomLevel] = useState<number>(1)
   const [uploading, setUploading] = useState(false)
   const [dragIdx, setDragIdx] = useState<number | null>(null)
   const [overIdx, setOverIdx] = useState<number | null>(null)
   const [multiSelect, setMultiSelect] = useState<Set<number>>(new Set())
 
-  function openPreview(idx: number) { setPreviewIndex(idx) }
-  function closePreview() { setPreviewIndex(null) }
+  // Deduplicate images to guarantee every image appears only ONCE
+  const displayImages = useMemo(() => Array.from(new Set(images)), [images])
+
+  function openPreview(idx: number) {
+    setZoomLevel(1)
+    setPreviewIndex(idx)
+  }
+  function closePreview() {
+    setZoomLevel(1)
+    setPreviewIndex(null)
+  }
 
   // Upload
   async function handleFiles(files: FileList | null) {
@@ -137,7 +147,7 @@ export default function VehicleGallery({
       </div>
 
       {/* Grid */}
-      {images.length === 0 ? (
+      {displayImages.length === 0 ? (
         <div className="mt-2 rounded-xl border border-dashed py-12 text-center" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>
           <Expand size={32} className="mx-auto text-slate-300" />
           <p className="mt-2 text-sm text-slate-400">{'Chưa có ảnh'}</p>
@@ -145,7 +155,7 @@ export default function VehicleGallery({
         </div>
       ) : (
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
-          {images.map((src, idx) => (
+          {displayImages.map((src, idx) => (
             <div key={`${idx}-${src.slice(0, 24)}`}
               draggable
               onDragStart={() => setDragIdx(idx)}
@@ -208,23 +218,76 @@ export default function VehicleGallery({
       <Modal open={previewIndex !== null} onClose={closePreview} title={title} width="max-w-5xl">
         {previewIndex !== null && (
           <div className="flex flex-col gap-4">
-            <div className="relative flex items-center justify-center bg-slate-900/5 rounded-xl min-h-[300px]">
-              <img src={images[previewIndex]} className="max-h-[70vh] max-w-full rounded-lg object-contain" alt={`${title} ${previewIndex + 1}`} />
-              <button type="button" onClick={closePreview} className="absolute right-3 top-3 rounded-xl bg-white/90 p-2 text-slate-700 shadow-sm hover:bg-white">
-                <X size={18} />
-              </button>
+            <div className="relative flex items-center justify-center bg-slate-900/5 rounded-xl min-h-[300px] overflow-hidden">
+              <img
+                src={displayImages[previewIndex]}
+                className="max-h-[70vh] max-w-full rounded-lg object-contain transition-transform duration-200 select-none"
+                style={{
+                  transform: `scale(${zoomLevel})`,
+                  cursor: zoomLevel > 1 ? 'grab' : 'zoom-in',
+                }}
+                onClick={() => setZoomLevel((z) => (z > 1 ? 1 : 2))}
+                alt={`${title} ${previewIndex + 1}`}
+                draggable={false}
+              />
+              <div className="absolute right-3 top-3 flex items-center gap-1.5 bg-white/90 p-1 rounded-xl shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setZoomLevel((z) => Math.min(3, z + 0.5))}
+                  className="rounded-lg p-1.5 text-slate-700 hover:bg-slate-100"
+                  title="Phóng to"
+                >
+                  <ZoomIn size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setZoomLevel((z) => Math.max(1, z - 0.5))}
+                  className="rounded-lg p-1.5 text-slate-700 hover:bg-slate-100"
+                  title="Thu nhỏ"
+                >
+                  <ZoomOut size={16} />
+                </button>
+                {zoomLevel > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setZoomLevel(1)}
+                    className="rounded-lg p-1.5 text-slate-700 hover:bg-slate-100"
+                    title="Về cỡ chuẩn"
+                  >
+                    <RotateCcw size={14} />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={closePreview}
+                  className="rounded-lg p-1.5 text-slate-700 hover:bg-slate-100"
+                  title="Đóng"
+                >
+                  <X size={16} />
+                </button>
+              </div>
             </div>
             <div className="flex items-center justify-between">
-              <button type="button" onClick={goToPrev} className="btn-secondary" disabled={images.length <= 1}>
+              <button
+                type="button"
+                onClick={() => { setZoomLevel(1); goToPrev(); }}
+                className="btn-secondary"
+                disabled={displayImages.length <= 1}
+              >
                 <ChevronLeft size={16} /> Ảnh trước
               </button>
               <div className="flex items-center gap-3">
-                <span className="text-sm text-slate-500">{previewIndex + 1}/{images.length}</span>
-                <button type="button" onClick={() => downloadOne(images[previewIndex], previewIndex)} className="btn-secondary">
+                <span className="text-sm text-slate-500">{previewIndex + 1}/{displayImages.length}</span>
+                <button type="button" onClick={() => downloadOne(displayImages[previewIndex], previewIndex)} className="btn-secondary">
                   <Download size={14} /> Tải
                 </button>
               </div>
-              <button type="button" onClick={goToNext} className="btn-secondary" disabled={images.length <= 1}>
+              <button
+                type="button"
+                onClick={() => { setZoomLevel(1); goToNext(); }}
+                className="btn-secondary"
+                disabled={displayImages.length <= 1}
+              >
                 Ảnh sau <ChevronRight size={16} />
               </button>
             </div>
