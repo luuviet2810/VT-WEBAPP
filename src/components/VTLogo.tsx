@@ -1,7 +1,7 @@
 import React from 'react'
 import logoSrc from '../assets/logo-vtauto.png'
 
-export type VTLogoSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'custom'
+export type VTLogoSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'sidebar' | 'custom'
 export type VTLogoVariant = 'light' | 'dark' | 'auto'
 export type VTLogoAlign = 'left' | 'center' | 'right'
 
@@ -13,11 +13,12 @@ export interface VTLogoProps extends Omit<React.ImgHTMLAttributes<HTMLImageEleme
 }
 
 const SIZE_CLASSES: Record<Exclude<VTLogoSize, 'custom'>, string> = {
-  xs: 'h-6 sm:h-7',
-  sm: 'h-7 sm:h-8',
-  md: 'h-9 sm:h-10',
-  lg: 'h-11 sm:h-14',
-  xl: 'h-14 sm:h-16',
+  xs: 'h-6 sm:h-7 w-auto',
+  sm: 'h-7 sm:h-8 w-auto',
+  md: 'h-9 sm:h-10 w-auto',
+  lg: 'h-11 sm:h-14 w-auto',
+  xl: 'h-14 sm:h-16 w-auto',
+  sidebar: 'h-auto w-full max-w-[230px]',
 }
 
 const VARIANT_CLASSES: Record<VTLogoVariant, string> = {
@@ -34,7 +35,7 @@ const ALIGN_CLASSES: Record<VTLogoAlign, string> = {
 
 /**
  * VTLogo — Component hiển thị logo chính thức VT AUTO
- * - Giữ nguyên tỷ lệ chuẩn của logo (~3.4:1), không bị méo (object-contain, w-auto)
+ * - Giữ nguyên tỷ lệ chuẩn của logo (~3.4:1), không bị méo (object-contain)
  * - Nền trong suốt tự nhiên, không khung viền thừa
  * - Hỗ trợ các kích thước chuẩn và xử lý hiển thị trên nền tối qua variant="dark"
  */
@@ -59,7 +60,7 @@ export const VTLogo: React.FC<VTLogoProps> = ({
       draggable={draggable}
       loading={priority ? 'eager' : 'lazy'}
       decoding="async"
-      className={`select-none object-contain w-auto max-w-full ${sizeClass} ${variantClass} ${alignClass} ${className}`.trim()}
+      className={`select-none object-contain max-w-full ${sizeClass} ${variantClass} ${alignClass} ${className}`.trim()}
       {...rest}
     />
   )

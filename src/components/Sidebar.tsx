@@ -94,9 +94,9 @@ function DrawerContent({ onClose }: { onClose: () => void }) {
       )}
 
       {/* Logo */}
-      <div className="border-b border-slate-100 px-5 py-5">
-        <div className="flex justify-center">
-          <VTLogo size="md" priority className="max-w-[160px]" />
+      <div className="border-b border-slate-100 px-4 py-4">
+        <div className="flex items-center justify-center">
+          <VTLogo size="sidebar" priority className="max-w-[240px]" />
         </div>
       </div>
 
@@ -253,9 +253,9 @@ function DesktopSidebarContent() {
       )}
 
       {/* Logo */}
-      <div className="px-5 py-5">
-        <div className="flex justify-center">
-          <VTLogo size="md" priority className="max-w-[160px]" />
+      <div className="px-3.5 py-4">
+        <div className="flex items-center justify-center">
+          <VTLogo size="sidebar" priority className="max-w-[228px]" />
         </div>
       </div>
 
