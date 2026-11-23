@@ -5,6 +5,7 @@ import {
   deleteObject,
   isR2Configured,
 } from '../storage/r2.service.js';
+import { normalizeDateToYYYYMMDD } from '../utils/date.js';
 
 export function isThumbnailRow(r: any): boolean {
   const p = String(r.path || r.url || '');
@@ -23,8 +24,8 @@ export function mapImageRow(r: any) {
     category: r.category ?? 'vehicle',
     subtype: r.subtype ?? null,
     resolved: Boolean(r.resolved),
-    songNungExpiryDate: r.song_nung_expiry_date ?? null,
-    song_nung_expiry_date: r.song_nung_expiry_date ?? null,
+    songNungExpiryDate: normalizeDateToYYYYMMDD(r.song_nung_expiry_date),
+    song_nung_expiry_date: normalizeDateToYYYYMMDD(r.song_nung_expiry_date),
     sizeBytes: r.size_bytes ? Number(r.size_bytes) : null,
     size_bytes: r.size_bytes ? Number(r.size_bytes) : null,
     mimeType: r.mime_type ?? null,
@@ -350,9 +351,11 @@ export async function updateVehicleImageExpiry(req: Request, res: Response) {
     const { id } = req.params;
     const { expiryDate } = req.body;
 
+    const normalizedExpiry = normalizeDateToYYYYMMDD(expiryDate);
+
     const result = await query(
       `UPDATE vehicle_images SET song_nung_expiry_date = $1 WHERE id = $2 RETURNING *`,
-      [expiryDate || null, id]
+      [normalizedExpiry, id]
     );
 
     if (result.rows.length === 0) {
@@ -363,9 +366,19 @@ export async function updateVehicleImageExpiry(req: Request, res: Response) {
       });
     }
 
+    const updatedRow = result.rows[0];
+
+    // If a valid expiry date was provided and category is song_nung, auto-sync to vehicles table in Neon DB
+    if (normalizedExpiry && (updatedRow.category === 'song_nung' || !updatedRow.category)) {
+      await query(
+        `UPDATE vehicles SET song_nung_expiry_date = $1, updated_at = now() WHERE id = $2`,
+        [normalizedExpiry, updatedRow.vehicle_id]
+      );
+    }
+
     return res.status(200).json({
       ok: true,
-      data: mapImageRow(result.rows[0]),
+      data: mapImageRow(updatedRow),
     });
   } catch (err: any) {
     console.error('[VehicleMedia Controller] updateVehicleImageExpiry error:', err);

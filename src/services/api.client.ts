@@ -77,7 +77,10 @@ export async function apiClient<T = any>(endpoint: string, init?: RequestInit): 
     }
   } else {
     // Nếu chưa đăng nhập và gọi API nghiệp vụ yêu cầu quyền, từ chối sớm để tránh spam request 401 lên server
-    const isPublic = endpoint.startsWith('/api/auth/login') || endpoint.startsWith('/api/auth/verify')
+    const isPublic =
+      endpoint.startsWith('/api/public') ||
+      endpoint.startsWith('/api/auth/login') ||
+      endpoint.startsWith('/api/auth/verify')
     if (!isPublic && (
       endpoint.startsWith('/api/vehicles') ||
       endpoint.startsWith('/api/positions') ||

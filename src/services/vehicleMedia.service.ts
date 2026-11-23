@@ -1,4 +1,5 @@
 import { apiGet, apiPost, apiPatch, apiDelete } from './api.client'
+import { toInputDateFormat } from '../utils/dateUtils'
 
 // ====== TYPES ======
 
@@ -49,7 +50,7 @@ function mapImageRow(row: Record<string, any>): VehicleImageRow {
     category: (row.category as string) ?? undefined,
     subtype: (row.subtype as string) ?? null,
     resolved: Boolean(row.resolved),
-    song_nung_expiry_date: (row.song_nung_expiry_date || row.songNungExpiryDate) ?? null,
+    song_nung_expiry_date: toInputDateFormat(row.song_nung_expiry_date || row.songNungExpiryDate) || null,
     size_bytes: row.size_bytes != null ? Number(row.size_bytes) : (row.sizeBytes != null ? Number(row.sizeBytes) : null),
     mime_type: (row.mime_type || row.mimeType) ?? null,
     sort_order: Number(row.sort_order ?? row.sortOrder ?? 0),

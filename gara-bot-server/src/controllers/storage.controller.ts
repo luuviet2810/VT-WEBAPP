@@ -13,6 +13,7 @@ import {
 } from '../storage/r2.service.js';
 import { query } from '../database/index.js';
 import { mapImageRow, mapDocRow } from './vehicleMedia.controller.js';
+import { normalizeDateToYYYYMMDD } from '../utils/date.js';
 
 export const presignedUploadSchema = z.object({
   bucketType: z.enum(['images', 'documents', 'photos'] as const),
@@ -165,8 +166,8 @@ export async function confirmUpload(req: Request, res: Response) {
   const safeSortOrder = (typeof sortOrder === 'number' && !isNaN(sortOrder))
     ? sortOrder
     : 0;
-  const safeSongNungExpiry = (songNungExpiryDate && typeof songNungExpiryDate === 'string' && songNungExpiryDate.trim() !== '')
-    ? songNungExpiryDate.trim()
+  const normalizedSongNungExpiry = safeCategory === 'song_nung'
+    ? normalizeDateToYYYYMMDD(songNungExpiryDate)
     : null;
   const safeThumbnail = (thumbnail && typeof thumbnail === 'string' && thumbnail.trim() !== '')
     ? thumbnail.trim()
@@ -227,9 +228,17 @@ export async function confirmUpload(req: Request, res: Response) {
           headInfo.contentType,
           safeCategory,
           safeSortOrder,
-          safeSongNungExpiry,
+          normalizedSongNungExpiry,
         ]
       );
+
+      // Auto-sync valid Song nưng expiry date to vehicles table in Neon DB
+      if (safeCategory === 'song_nung' && normalizedSongNungExpiry) {
+        await query(
+          `UPDATE vehicles SET song_nung_expiry_date = $1, updated_at = now() WHERE id = $2`,
+          [normalizedSongNungExpiry, vehicleId]
+        );
+      }
 
       const mapped = mapImageRow(insertRes.rows[0]);
       return res.status(201).json({

@@ -1223,6 +1223,7 @@ export const useStore = create<StoreState>()(
         songNungExpiryDate: (row.song_nung_expiry_date as string) ?? undefined,
         registrationExpiryDate: (row.registration_expiry_date as string) ?? undefined,
         isPublic: Boolean(row.is_public),
+        isComingSoon: Boolean(row.is_coming_soon),
         publicSortOrder: (row.public_sort_order as number) ?? null,
         options: (row.options as string[]) ?? undefined,
         optionsChecked: (row.options_checked as boolean | null) ?? null,

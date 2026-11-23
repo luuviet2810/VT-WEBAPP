@@ -17,6 +17,7 @@ import * as vehicleOptionService from '../services/vehicleOption.service'
 import type { VehicleImageRow, VehicleDocumentRow } from '../services/vehicleMedia.service'
 import type { Vehicle, VehicleOptionDef } from '../types'
 import { DISPLACEMENT_OPTIONS } from '../utils/vehicleDisplacement'
+import { toInputDateFormat, formatDisplayDate, extractDateFromString } from '../utils/dateUtils'
 
 interface Props {
   vehicle: Vehicle
@@ -90,7 +91,8 @@ export default function VehicleDetailTabs({ vehicle, tab, onTabChange }: Props) 
       displacement: v.displacement ?? '', mileage: v.mileage ?? '',
       color: v.color ?? '', sellPrice: v.sellPrice?.toString() ?? '',
       positionId: v.positionId ?? '', status: v.status,
-      songNung: v.songNungExpiryDate ?? '', dangKiem: v.registrationExpiryDate ?? '',
+      songNung: toInputDateFormat(v.songNungExpiryDate),
+      dangKiem: toInputDateFormat(v.registrationExpiryDate),
     }
   }
   const [info, setInfo] = useState<InfoForm>(() => pickInfo(vehicle))
@@ -101,8 +103,7 @@ export default function VehicleDetailTabs({ vehicle, tab, onTabChange }: Props) 
     setInfo(pickInfo(vehicle))
     setNoteDraft(vehicle.note ?? '')
     setInfoMsg(null)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vehicle.id])
+  }, [vehicle.id, vehicle.songNungExpiryDate, vehicle.registrationExpiryDate, vehicle.updatedAt])
   function setInfoField<K extends keyof InfoForm>(k: K, val: InfoForm[K]) {
     setInfo((f) => ({ ...f, [k]: val }))
   }
@@ -127,8 +128,8 @@ export default function VehicleDetailTabs({ vehicle, tab, onTabChange }: Props) 
       sellPrice: info.sellPrice ? Number(info.sellPrice) : undefined,
       positionId: info.positionId || '00000000-0000-0000-0000-000000000001',
       status: info.status,
-      songNungExpiryDate: info.songNung || null,
-      registrationExpiryDate: info.dangKiem || null,
+      songNungExpiryDate: toInputDateFormat(info.songNung) || null,
+      registrationExpiryDate: toInputDateFormat(info.dangKiem) || null,
       note: noteDraft || undefined,
     }
     setInfoSaving(true)
@@ -1078,10 +1079,18 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
                 className="hidden"
                 onChange={(e) => {
                   if (cat.key === 'song_nung' && e.target.files?.length) {
-                    // Store files as array (FileList is live — resets on value='')
-                    setExpiryModal({ files: Array.from(e.target.files), category: cat.key })
-                    setExpiryDate('')
-                    setRegExpiryDate('')
+                    const files = Array.from(e.target.files)
+                    let detectedDate = ''
+                    for (const f of files) {
+                      const detected = extractDateFromString(f.name)
+                      if (detected) {
+                        detectedDate = detected
+                        break
+                      }
+                    }
+                    setExpiryModal({ files, category: cat.key })
+                    setExpiryDate(detectedDate || toInputDateFormat(vehicle.songNungExpiryDate))
+                    setRegExpiryDate(toInputDateFormat(vehicle.registrationExpiryDate))
                     e.target.value = ''
                   } else {
                     handleUpload(e.target.files, cat.key)
@@ -1173,8 +1182,8 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
                         </span>
                       )}
                       {cat.key === 'song_nung' && row.song_nung_expiry_date && (
-                        <span className={`flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[9px] font-semibold text-white ${new Date(row.song_nung_expiry_date) < new Date() ? 'bg-red-600' : 'bg-green-600'}`}>
-                          {new Date(row.song_nung_expiry_date) < new Date() ? 'HẾT HẠN' : 'Còn hạn'}
+                        <span className={`flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[9px] font-semibold text-white ${new Date(toInputDateFormat(row.song_nung_expiry_date)) < new Date() ? 'bg-red-600' : 'bg-green-600'}`}>
+                          {new Date(toInputDateFormat(row.song_nung_expiry_date)) < new Date() ? 'HẾT HẠN' : 'Còn hạn'}
                         </span>
                       )}
                     </div>
@@ -1194,7 +1203,7 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
                         </button>
                       )}
                       {cat.key === 'song_nung' && (
-                        <button onClick={() => { setEditingExpiry(row); setEditExpiryDate(row.song_nung_expiry_date || ''); }}
+                        <button onClick={() => { setEditingExpiry(row); setEditExpiryDate(toInputDateFormat(row.song_nung_expiry_date)); }}
                           className="rounded-md bg-white/95 px-1.5 py-0.5 text-[9px] font-medium text-amber-700 shadow-sm">
                           Hạn
                         </button>
@@ -1212,7 +1221,7 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
                     {cat.key === 'song_nung' && row.song_nung_expiry_date && (
                       <div className="absolute bottom-8 left-1 right-1 text-center">
                         <span className="text-[9px] font-medium text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                          Hạn: {new Date(row.song_nung_expiry_date).toLocaleDateString('vi-VN')}
+                          Hạn: {formatDisplayDate(row.song_nung_expiry_date)}
                         </span>
                       </div>
                     )}
@@ -1328,14 +1337,16 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
               <button
                 onClick={async () => {
                   if (expiryModal) {
-                    await handleUpload(expiryModal.files, expiryModal.category, expiryDate || null)
+                    const normalizedExpiry = toInputDateFormat(expiryDate) || null
+                    const normalizedReg = toInputDateFormat(regExpiryDate) || null
+                    await handleUpload(expiryModal.files, expiryModal.category, normalizedExpiry)
                     // Update vehicle-level expiry dates
                     if (vehicle?.id) {
                       const patch: Partial<Vehicle> = {}
-                      if (expiryDate) patch.songNungExpiryDate = expiryDate
-                      if (regExpiryDate) patch.registrationExpiryDate = regExpiryDate
+                      if (normalizedExpiry) patch.songNungExpiryDate = normalizedExpiry
+                      if (normalizedReg) patch.registrationExpiryDate = normalizedReg
                       if (Object.keys(patch).length > 0) {
-                        useStore.getState().updateVehicle(vehicle.id, patch)
+                        await useStore.getState().updateVehicle(vehicle.id, patch)
                       }
                     }
                     setExpiryModal(null)
@@ -1371,7 +1382,11 @@ function CategorizedPhotoViewer({ vehicle }: { vehicle: Vehicle }) {
               <button
                 onClick={async () => {
                   if (editingExpiry) {
-                    await vehicleMediaService.updateVehicleImageExpiry(editingExpiry.id, editExpiryDate || null)
+                    const normalizedExpiry = toInputDateFormat(editExpiryDate) || null
+                    await vehicleMediaService.updateVehicleImageExpiry(editingExpiry.id, normalizedExpiry)
+                    if (normalizedExpiry && vehicle?.id) {
+                      await useStore.getState().updateVehicle(vehicle.id, { songNungExpiryDate: normalizedExpiry })
+                    }
                     setEditingExpiry(null)
                     await loadImages()
                   }

@@ -5,10 +5,10 @@ import logo from '../../assets/logo-vtauto.png'
 import {
   getPublicVehicle,
   getPublicVehicleImages,
+  getPublicOptionDefs,
   type PublicVehicle,
   type PublicVehicleImage,
 } from '../publicApi'
-import { getVehicleOptionDefs } from '../../services/vehicleOption.service'
 import type { VehicleOptionDef } from '../../types'
 import { SITE_CONFIG } from '../contactConfig'
 import { formatKRW, fuelLabel, mileageLabel } from '../format'
@@ -55,7 +55,7 @@ export default function VehicleDetailPage() {
         // Chỉ tải catalog option khi xe có option được tick
         if (v.options && v.options.length > 0) {
           try {
-            const rows = await getVehicleOptionDefs()
+            const rows = await getPublicOptionDefs()
             if (!cancelled) setDefs(rows)
           } catch (err) {
             console.error('[PublicWeb] Failed to load option defs:', err)
@@ -171,9 +171,29 @@ export default function VehicleDetailPage() {
           {/* ===== THÔNG TIN XE ===== */}
           <section className="px-4 py-5">
             <div className="flex items-start justify-between gap-3">
-              <h1 className="text-2xl font-extrabold leading-tight text-slate-900">{vehicle.model}</h1>
-              <div className="shrink-0 text-right text-xl font-extrabold text-brand-600">{formatKRW(vehicle.sellPrice)}</div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-2xl font-extrabold leading-tight text-slate-900">{vehicle.model}</h1>
+                  {vehicle.isComingSoon && (
+                    <span className="rounded-lg border border-amber-200 bg-amber-100 px-2 py-0.5 text-xs font-extrabold uppercase tracking-wide text-amber-700">
+                      Sắp về
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className={`shrink-0 text-right text-xl font-extrabold ${vehicle.isComingSoon ? 'text-amber-600' : 'text-brand-600'}`}>
+                {vehicle.isComingSoon ? 'Liên hệ' : formatKRW(vehicle.sellPrice)}
+              </div>
             </div>
+
+            {vehicle.isComingSoon && (
+              <div className="mt-3.5 rounded-xl border border-amber-200 bg-amber-50/80 p-3.5 text-amber-900">
+                <div className="text-xs font-bold uppercase tracking-wide text-amber-800">Xe đang chuẩn bị về</div>
+                <div className="mt-0.5 text-xs text-amber-700">
+                  Mẫu xe này đang trên đường về VT AUTO. Quý khách vui lòng liên hệ trực tiếp với chúng tôi để được tư vấn và cập nhật lịch xe về sớm nhất.
+                </div>
+              </div>
+            )}
 
             <dl className="mt-4 divide-y divide-slate-100 rounded-2xl border border-slate-200">
               {[

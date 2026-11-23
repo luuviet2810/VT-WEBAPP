@@ -10,6 +10,7 @@ import { formatCurrency } from '../utils/format'
 import { VehicleStatus, FuelLevel, CheckSheet, Vehicle } from '../types'
 import { classifyStatus, statusLabel } from '../utils/statusClassification'
 import * as vehicleMediaService from '../services/vehicleMedia.service'
+import { formatDisplayDate, toInputDateFormat } from '../utils/dateUtils'
 
 const STATUS_LABEL: Record<VehicleStatus, string> = {
   available: 'Chưa bán',
@@ -686,17 +687,18 @@ function CheckSheetPreview({ sheet, mode, employees, vehicleId }: { sheet: Check
   // Expiry info helpers
   function expiryStatus(dateStr: string | null | undefined): { label: string; color: string; dot: string } {
     if (!dateStr) return { label: 'Chưa cập nhật', color: '#94a3b8', dot: '#94a3b8' }
+    const normalized = toInputDateFormat(dateStr)
+    if (!normalized) return { label: 'Chưa cập nhật', color: '#94a3b8', dot: '#94a3b8' }
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-    const expiry = new Date(dateStr)
+    const expiry = new Date(normalized)
     expiry.setHours(0, 0, 0, 0)
     if (expiry < today) return { label: 'Đã hết hạn', color: '#dc2626', dot: '#dc2626' }
     return { label: 'Còn hạn', color: '#16a34a', dot: '#16a34a' }
   }
 
   function formatDate(dateStr: string | null | undefined): string {
-    if (!dateStr) return '—'
-    return new Date(dateStr).toLocaleDateString('vi-VN')
+    return formatDisplayDate(dateStr)
   }
 
   // UI grouping (presentation only — no data change)

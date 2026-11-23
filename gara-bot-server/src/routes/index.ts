@@ -12,6 +12,7 @@ import attendanceRoutes from './attendance.routes.js';
 import vehicleOptionsRoutes from './vehicleOptions.routes.js';
 import websiteSettingsRoutes from './websiteSettings.routes.js';
 import telegramRoutes from '../api/telegram.routes.js';
+import publicRoutes from './public.routes.js';
 
 const router = Router();
 
@@ -19,6 +20,7 @@ const router = Router();
 router.use('/health', healthRoutes);
 
 // API routes
+router.use('/api/public', publicRoutes);
 router.use('/api/auth', authRoutes);
 router.use('/api/storage', storageRoutes);
 router.use('/api/positions', positionsRoutes);

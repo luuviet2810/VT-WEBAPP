@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { getWebsiteSettings } from '../services/websiteSettings.service'
+import { apiGet } from '../services/api.client'
 import { DEFAULT_SITE_SETTINGS, type SiteSettings } from './contactConfig'
 
 /**
@@ -14,20 +14,24 @@ export function SiteSettingsProvider({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     let cancelled = false
-    getWebsiteSettings().then((row) => {
-      if (!row || cancelled) return
-      setSettings({
-        address1: row.office_address_1,
-        address2: row.office_address_2,
-        phoneDisplay: row.phone_display,
-        phoneRaw: row.phone_raw,
-        kakaoUrl: row.kakao_url,
-        tiktokUrl: row.tiktok_url,
-        tiktokDisplay: row.tiktok_display,
-        facebookUrl: row.facebook_url,
-        messengerUrl: row.messenger_url,
+    apiGet<any>('/api/public/settings')
+      .then((row) => {
+        if (!row || cancelled) return
+        setSettings({
+          address1: row.office_address_1 || row.address1,
+          address2: row.office_address_2 || row.address2,
+          phoneDisplay: row.phone_display || row.phoneDisplay,
+          phoneRaw: row.phone_raw || row.phoneRaw,
+          kakaoUrl: row.kakao_url || row.kakaoUrl,
+          tiktokUrl: row.tiktok_url || row.tiktokUrl,
+          tiktokDisplay: row.tiktok_display || row.tiktokDisplay,
+          facebookUrl: row.facebook_url || row.facebookUrl,
+          messengerUrl: row.messenger_url || row.messengerUrl,
+        })
       })
-    })
+      .catch(() => {
+        // Fallback to default site settings
+      })
     return () => { cancelled = true }
   }, [])
 

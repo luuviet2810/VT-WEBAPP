@@ -30,6 +30,8 @@ export interface Vehicle {
   /** "Hiển thị trên website" — Admin toggle for the future Public Web.
    *  OFF only hides the vehicle publicly; Admin data is untouched. */
   isPublic?: boolean
+  /** "Xe sắp về" — Xe chuẩn bị về Hàn Quốc, hiển thị trong section XE SẮP VỀ */
+  isComingSoon?: boolean
   /** Thứ tự hiển thị riêng trên Public Web (NULL = cuối danh sách).
    *  Độc lập với created_at/updated_at/vị trí bãi. */
   publicSortOrder?: number | null

@@ -24,6 +24,7 @@ function mapImageRow(r: Row): VehicleImageRow {
     bucket: r.bucket as string,
     url: r.url as string,
     thumbnail: (r.thumbnail as string) ?? null,
+    downloadUrl: (r.downloadUrl || (r as any).download_url || r.url) as string,
     category: (r.category as string) ?? undefined,
     subtype: (r.subtype as string) ?? null,
     resolved: (r.resolved as boolean) ?? undefined,

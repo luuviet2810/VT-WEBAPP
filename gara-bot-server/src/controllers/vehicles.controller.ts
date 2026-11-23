@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { query } from '../database/index.js';
+import { normalizeDateToYYYYMMDD } from '../utils/date.js';
 
 export function fuelTypeFromDb(value: unknown): string | undefined {
   if (typeof value !== 'string' || !value.trim()) return undefined;
@@ -52,9 +53,11 @@ export function mapVehicleRow(
     yardPosition: v.yard_position ?? undefined,
     yard_position: v.yard_position ?? undefined,
     imagesDeletedAt: v.images_deleted_at ?? undefined,
-    songNungExpiryDate: v.song_nung_expiry_date ?? null,
-    registrationExpiryDate: v.registration_expiry_date ?? null,
+    songNungExpiryDate: normalizeDateToYYYYMMDD(v.song_nung_expiry_date),
+    registrationExpiryDate: normalizeDateToYYYYMMDD(v.registration_expiry_date),
     isPublic: v.is_public ?? false,
+    isComingSoon: v.is_coming_soon ?? false,
+    is_coming_soon: v.is_coming_soon ?? false,
     publicSortOrder: v.public_sort_order ?? null,
     options: v.options ?? undefined,
     optionsChecked: v.options_checked ?? null,
@@ -319,8 +322,8 @@ export async function createVehicle(req: Request, res: Response) {
       targetAssigneeId,
       note ?? '',
       targetYard,
-      songNungExpiryDate ?? null,
-      registrationExpiryDate ?? null,
+      normalizeDateToYYYYMMDD(songNungExpiryDate),
+      normalizeDateToYYYYMMDD(registrationExpiryDate),
       targetOptions,
       targetOptionsChecked,
     ];
@@ -392,6 +395,8 @@ export async function updateVehicle(req: Request, res: Response) {
       registration_expiry_date: 'registration_expiry_date',
       isPublic: 'is_public',
       is_public: 'is_public',
+      isComingSoon: 'is_coming_soon',
+      is_coming_soon: 'is_coming_soon',
       publicSortOrder: 'public_sort_order',
       public_sort_order: 'public_sort_order',
       optionsChecked: 'options_checked',
@@ -406,6 +411,9 @@ export async function updateVehicle(req: Request, res: Response) {
           let val = patch[key];
           if (col === 'year' && val !== null) val = Number(val);
           if ((col === 'cost_price' || col === 'sell_price') && val !== null) val = Number(val);
+          if ((col === 'song_nung_expiry_date' || col === 'registration_expiry_date') && val !== null) {
+            val = normalizeDateToYYYYMMDD(val);
+          }
           values.push(val);
           fields.push(`${col} = $${values.length}`);
         }

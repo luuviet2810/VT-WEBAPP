@@ -19,10 +19,12 @@ import type { Vehicle } from '../types'
  * (qua store.updateVehicle) và vehicle_images.sort_order (publicWeb.service).
  */
 const PUBLIC_WEB_URL =
-  import.meta.env.VITE_PUBLIC_WEB_URL || 'https://vtautocustomer.vercel.app'
+  import.meta.env.VITE_PUBLIC_WEB_URL ||
+  (import.meta.env.DEV ? `${window.location.origin}/?mode=public` : 'https://vtautocustomer.vercel.app')
 
 type Device = 'mobile' | 'desktop'
-type ListTab = 'visible' | 'hidden'
+type ListTab = 'visible' | 'coming_soon' | 'hidden'
+type WebStatus = 'visible' | 'coming_soon' | 'hidden'
 
 const ORDER_TAIL = Number.MAX_SAFE_INTEGER
 
@@ -40,37 +42,39 @@ function useToast() {
 
 // ====== Ảnh đại diện website (ảnh đầu nhóm 'website') ======
 function WebsiteCover({ images, size = 'md' }: { images?: VehicleImageRow[]; size?: 'md' | 'lg' }) {
+  const [imgError, setImgError] = useState(false)
   const cover = images?.[0]
   const cls = size === 'md' ? 'h-14 w-20' : 'h-20 w-28'
-  if (!cover) {
+  if (!cover || imgError) {
     return (
       <div className={`${cls} flex shrink-0 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-slate-300 bg-slate-50 text-slate-400`}>
         <ImageIcon size={16} />
-        <span className="px-1 text-center text-[9px] leading-tight">Chưa có ảnh website</span>
+        <span className="px-1 text-center text-[9px] leading-tight">Chưa có ảnh</span>
       </div>
     )
   }
   return (
     <img
-      src={cover.thumbnail || cover.url}
+      src={cover.thumbnail || cover.downloadUrl || cover.url}
       alt=""
       className={`${cls} shrink-0 rounded-lg object-cover`}
       loading="lazy"
       decoding="async"
+      onError={() => setImgError(true)}
     />
   )
 }
 
-// ====== Row kéo-thả được (chỉ tab "Đang hiển thị") ======
+// ====== Row kéo-thả được (cho tab "Đang hiển thị" & "Sắp về") ======
 function SortableVehicleRow({
   vehicle: v,
   images,
-  onToggle,
+  onStatusChange,
   onOpenCover,
 }: {
   vehicle: Vehicle
   images?: VehicleImageRow[]
-  onToggle: (id: string) => void
+  onStatusChange: (id: string, status: WebStatus) => void
   onOpenCover: (id: string) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: v.id })
@@ -78,7 +82,7 @@ function SortableVehicleRow({
     <VehicleRowInner
       vehicle={v}
       images={images}
-      onToggle={onToggle}
+      onStatusChange={onStatusChange}
       onOpenCover={onOpenCover}
       dragProps={{ attributes, listeners, setNodeRef, transform, transition, isDragging }}
     />
@@ -88,13 +92,13 @@ function SortableVehicleRow({
 function VehicleRowInner({
   vehicle: v,
   images,
-  onToggle,
+  onStatusChange,
   onOpenCover,
   dragProps,
 }: {
   vehicle: Vehicle
   images?: VehicleImageRow[]
-  onToggle: (id: string) => void
+  onStatusChange: (id: string, status: WebStatus) => void
   onOpenCover: (id: string) => void
   dragProps?: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -110,6 +114,13 @@ function VehicleRowInner({
   const style = dragProps?.transform
     ? { transform: CSS.Translate.toString(dragProps.transform), transition: dragProps.transition }
     : undefined
+
+  const currentWebStatus: WebStatus = !v.isPublic
+    ? 'hidden'
+    : v.isComingSoon
+    ? 'coming_soon'
+    : 'visible'
+
   return (
     <div
       ref={dragProps?.setNodeRef}
@@ -136,28 +147,41 @@ function VehicleRowInner({
         <div className="flex items-baseline gap-2">
           <span className="truncate text-sm font-bold text-slate-900">{v.model}</span>
           {v.year != null && <span className="shrink-0 text-xs font-medium text-slate-500">{v.year}</span>}
+          {v.isComingSoon && v.isPublic && (
+            <span className="shrink-0 rounded-full bg-amber-100 px-1.5 py-0.2 text-[10px] font-bold text-amber-700">
+              SẮP VỀ
+            </span>
+          )}
         </div>
         <div className="truncate text-xs font-semibold text-brand-600">{v.plate || 'Chưa có biển số'}</div>
         {v.brand && <div className="truncate text-xs text-slate-500">{v.brand}</div>}
         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-slate-600">
           {mileageLabel(v.mileage) && <span>{mileageLabel(v.mileage)}</span>}
-          <span className="font-semibold text-brand-600">{formatKRW(v.sellPrice)}</span>
+          <span className="font-semibold text-brand-600">
+            {v.isComingSoon ? `${formatKRW(v.sellPrice)} (Web: Liên hệ)` : formatKRW(v.sellPrice)}
+          </span>
         </div>
       </div>
 
       <div className="flex shrink-0 flex-col items-end gap-1.5">
-        {/* Switch is_public */}
-        <button
-          type="button"
-          role="switch"
-          aria-checked={!!v.isPublic}
-          aria-label="Hiển thị trên website"
-          title={v.isPublic ? 'Đang hiển thị trên website' : 'Ẩn khỏi website'}
-          onClick={() => onToggle(v.id)}
-          className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${v.isPublic ? 'bg-green-500' : 'bg-slate-300'}`}
+        {/* Dropdown 3 trạng thái: Đang hiển thị / Sắp về / Đang ẩn */}
+        <select
+          value={currentWebStatus}
+          onChange={(e) => onStatusChange(v.id, e.target.value as WebStatus)}
+          aria-label="Trạng thái hiển thị trên website"
+          className={`rounded-lg border px-2 py-1 text-xs font-semibold shadow-xs transition-colors focus:outline-none ${
+            currentWebStatus === 'hidden'
+              ? 'border-slate-300 bg-slate-50 text-slate-600'
+              : currentWebStatus === 'coming_soon'
+              ? 'border-amber-300 bg-amber-50 text-amber-800'
+              : 'border-green-300 bg-green-50 text-green-800'
+          }`}
         >
-          <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${v.isPublic ? 'left-[22px]' : 'left-0.5'}`} />
-        </button>
+          <option value="visible">Đang hiển thị</option>
+          <option value="coming_soon">Sắp về</option>
+          <option value="hidden">Đang ẩn</option>
+        </select>
+
         <div className="flex items-center gap-1">
           <button
             type="button"
@@ -232,7 +256,7 @@ function CoverPickerModal({
               }`}
               title={idx === 0 ? 'Ảnh đại diện hiện tại' : 'Chọn làm ảnh đại diện'}
             >
-              <img src={img.thumbnail || img.url} alt="" className="h-full w-full object-cover" loading="lazy" />
+              <img src={img.thumbnail || img.downloadUrl || img.url} alt="" className="h-full w-full object-cover" loading="lazy" />
               {idx === 0 && (
                 <span className="absolute left-1 top-1 rounded bg-brand-600 px-1.5 py-0.5 text-[9px] font-semibold text-white">Hiện tại</span>
               )}
@@ -267,12 +291,19 @@ export default function PreWeb() {
   }, [])
 
   // Chỉ xe CÒN HÀNG (status 'available') được quản lý ở Pre-Web.
-  // Xe sold / deposited KHÔNG xuất hiện ở cả hai tab (dữ liệu giữ nguyên).
+  // Xe sold / deposited KHÔNG xuất hiện ở các tab này (dữ liệu giữ nguyên).
   const inStock = useMemo(() => vehicles.filter((v) => v.status === 'available'), [vehicles])
   const visible = useMemo(
     () =>
       inStock
-        .filter((v) => v.isPublic)
+        .filter((v) => v.isPublic && !v.isComingSoon)
+        .sort((a, b) => (a.publicSortOrder ?? ORDER_TAIL) - (b.publicSortOrder ?? ORDER_TAIL)),
+    [inStock]
+  )
+  const comingSoon = useMemo(
+    () =>
+      inStock
+        .filter((v) => v.isPublic && v.isComingSoon)
         .sort((a, b) => (a.publicSortOrder ?? ORDER_TAIL) - (b.publicSortOrder ?? ORDER_TAIL)),
     [inStock]
   )
@@ -285,8 +316,7 @@ export default function PreWeb() {
 
   // ====== Mutations ======
 
-  // Re-number public_sort_order liên tục 1..N cho xe còn hàng + đang public
-  // (loại trừ excludeId). Không để khoảng số sau OFF / drag.
+  // Re-number public_sort_order liên tục 1..N cho xe public (loại trừ excludeId)
   const renumberVisible = useCallback(async (excludeId?: string) => {
     const list = useStore
       .getState()
@@ -299,25 +329,32 @@ export default function PreWeb() {
     await Promise.all(updates.map((x) => updateVehicle(x.id, { publicSortOrder: x.order })))
   }, [updateVehicle])
 
-  const handleToggle = useCallback(async (id: string) => {
+  const handleStatusChange = useCallback(async (id: string, targetStatus: WebStatus) => {
     const v = useStore.getState().vehicles.find((x) => x.id === id)
     if (!v) return
-    const next = !v.isPublic
+
+    let patch: { isPublic: boolean; isComingSoon: boolean }
+    if (targetStatus === 'visible') {
+      patch = { isPublic: true, isComingSoon: false }
+    } else if (targetStatus === 'coming_soon') {
+      patch = { isPublic: true, isComingSoon: true }
+    } else {
+      patch = { isPublic: false, isComingSoon: false }
+    }
+
     try {
-      await updateVehicle(id, { isPublic: next })
+      await updateVehicle(id, patch)
       const after = useStore.getState().vehicles.find((x) => x.id === id)
-      if (after?.isPublic === next) {
-        if (!next) {
-          // OFF: các xe còn lại được re-number liên tục 1..N
+      if (after?.isPublic === patch.isPublic && Boolean(after?.isComingSoon) === patch.isComingSoon) {
+        if (targetStatus === 'hidden') {
           await renumberVisible(id)
         }
-        // ON: giữ public_sort_order cũ; NULL → tự xuống cuối (view NULLS LAST)
         showToast('success', 'Đã cập nhật website')
       } else {
         showToast('error', 'Không thể cập nhật — dữ liệu chưa thay đổi')
       }
     } catch (err) {
-      console.error('[PreWeb] toggle is_public failed:', err)
+      console.error('[PreWeb] handleStatusChange failed:', err)
       showToast('error', 'Không thể cập nhật — dữ liệu chưa thay đổi')
     }
   }, [updateVehicle, renumberVisible, showToast])
@@ -325,15 +362,18 @@ export default function PreWeb() {
   function handleDragEnd(e: DragEndEvent) {
     const { active, over } = e
     if (!over || active.id === over.id) return
-    const oldIndex = visible.findIndex((v) => v.id === active.id)
-    const newIndex = visible.findIndex((v) => v.id === over.id)
+
+    const activeList = tab === 'visible' ? visible : comingSoon
+    const oldIndex = activeList.findIndex((v) => v.id === active.id)
+    const newIndex = activeList.findIndex((v) => v.id === over.id)
     if (oldIndex < 0 || newIndex < 0) return
-    const next = arrayMove(visible, oldIndex, newIndex)
-    // Re-number TOÀN BỘ danh sách đang public: index + 1, không khoảng số
+
+    const next = arrayMove(activeList, oldIndex, newIndex)
     const updates = next
       .map((v, i) => ({ id: v.id, order: i + 1, current: v.publicSortOrder ?? null }))
       .filter((x) => x.current !== x.order)
     if (updates.length === 0) return
+
     Promise.all(updates.map((x) => updateVehicle(x.id, { publicSortOrder: x.order })))
       .then(() => showToast('success', 'Đã cập nhật website'))
       .catch((err) => {
@@ -377,30 +417,56 @@ export default function PreWeb() {
               </button>
               <button
                 type="button"
+                onClick={() => setTab('coming_soon')}
+                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${tab === 'coming_soon' ? 'bg-amber-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+              >
+                Sắp về ({comingSoon.length})
+              </button>
+              <button
+                type="button"
                 onClick={() => setTab('hidden')}
-                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${tab === 'hidden' ? 'bg-brand-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${tab === 'hidden' ? 'bg-slate-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
               >
                 Đang ẩn ({hiddenList.length})
               </button>
             </div>
           </div>
 
-          {tab === 'visible' ? (
+          {tab === 'visible' && (
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
               <SortableContext items={visible.map((v) => v.id)} strategy={verticalListSortingStrategy}>
                 <div className="space-y-2">
                   {visible.length === 0 && (
                     <div className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-400">
-                      Chưa có xe nào hiển thị trên website.
+                      Chưa có xe nào trong danh mục Đang hiển thị.
                     </div>
                   )}
                   {visible.map((v) => (
-                    <SortableVehicleRow key={v.id} vehicle={v} images={covers[v.id]} onToggle={handleToggle} onOpenCover={setCoverVehicleId} />
+                    <SortableVehicleRow key={v.id} vehicle={v} images={covers[v.id]} onStatusChange={handleStatusChange} onOpenCover={setCoverVehicleId} />
                   ))}
                 </div>
               </SortableContext>
             </DndContext>
-          ) : (
+          )}
+
+          {tab === 'coming_soon' && (
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={comingSoon.map((v) => v.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-2">
+                  {comingSoon.length === 0 && (
+                    <div className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-400">
+                      Chưa có xe nào trong danh mục Xe sắp về.
+                    </div>
+                  )}
+                  {comingSoon.map((v) => (
+                    <SortableVehicleRow key={v.id} vehicle={v} images={covers[v.id]} onStatusChange={handleStatusChange} onOpenCover={setCoverVehicleId} />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          )}
+
+          {tab === 'hidden' && (
             <div className="space-y-2">
               {hiddenList.length === 0 && (
                 <div className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-400">
@@ -408,13 +474,13 @@ export default function PreWeb() {
                 </div>
               )}
               {hiddenList.map((v) => (
-                <VehicleRowInner key={v.id} vehicle={v} images={covers[v.id]} onToggle={handleToggle} onOpenCover={setCoverVehicleId} />
+                <VehicleRowInner key={v.id} vehicle={v} images={covers[v.id]} onStatusChange={handleStatusChange} onOpenCover={setCoverVehicleId} />
               ))}
             </div>
           )}
 
           <p className="mt-3 text-xs text-slate-400">
-            Kéo-thả để đổi thứ tự hiển thị trên website · Bật/tắt ẩn xe khỏi website mà không xoá dữ liệu.
+            Kéo-thả để đổi thứ tự hiển thị trên website · Chọn trạng thái Đang hiển thị / Sắp về / Đang ẩn mà không xoá dữ liệu xe.
           </p>
         </section>
 

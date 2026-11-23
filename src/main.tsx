@@ -16,7 +16,9 @@ import './index.css'
  * VITE_APP_MODE=public (hoặc build command `npm run build:public`).
  */
 async function bootstrap() {
-  const isPublicMode = import.meta.env.VITE_APP_MODE === 'public'
+  const isPublicMode =
+    import.meta.env.VITE_APP_MODE === 'public' ||
+    new URLSearchParams(window.location.search).get('mode') === 'public'
   const Root = isPublicMode
     ? (await import('./public/PublicApp')).default
     : (await import('./App')).default

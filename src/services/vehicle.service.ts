@@ -1,6 +1,7 @@
 import { apiGet, apiPost, apiPut, apiDelete } from './api.client'
 import { useAuthStore } from '../store/useAuthStore'
 import type { Vehicle } from '../types'
+import { toInputDateFormat } from '../utils/dateUtils'
 
 // ====== HELPERS ======
 
@@ -49,9 +50,10 @@ function mapVehicleRow(
     soldDate: (v.sold_date as string) ?? (v.soldDate as string) ?? undefined,
     yardPosition: (v.yard_position as string) ?? (v.yardPosition as string) ?? undefined,
     imagesDeletedAt: (v.images_deleted_at as string) ?? (v.imagesDeletedAt as string) ?? undefined,
-    songNungExpiryDate: (v.song_nung_expiry_date as string) ?? (v.songNungExpiryDate as string) ?? null,
-    registrationExpiryDate: (v.registration_expiry_date as string) ?? (v.registrationExpiryDate as string) ?? null,
+    songNungExpiryDate: toInputDateFormat(v.song_nung_expiry_date ?? v.songNungExpiryDate) || null,
+    registrationExpiryDate: toInputDateFormat(v.registration_expiry_date ?? v.registrationExpiryDate) || null,
     isPublic: Boolean(v.is_public ?? v.isPublic ?? false),
+    isComingSoon: Boolean(v.is_coming_soon ?? v.isComingSoon ?? false),
     publicSortOrder: (v.public_sort_order as number) ?? (v.publicSortOrder as number) ?? null,
     options: (v.options as string[]) ?? undefined,
     optionsChecked: (v.options_checked as boolean | null) ?? (v.optionsChecked as boolean | null) ?? null,

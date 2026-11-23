@@ -3,6 +3,10 @@ import { config } from '../config/index.js';
 
 const { Pool } = pg;
 
+// Parse PostgreSQL DATE columns (OID 1082) directly as 'YYYY-MM-DD' strings,
+// preventing node-pg from converting them to JavaScript Date objects which serialize to UTC ISO timestamps (T...Z).
+pg.types.setTypeParser(1082, (val: string) => val);
+
 export interface DatabaseHealthResult {
   ok: boolean;
   version?: string;
