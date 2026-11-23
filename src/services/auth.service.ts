@@ -227,16 +227,86 @@ export async function getCurrentSession(): Promise<{ user: { id: string; email: 
 }
 
 /**
- * Đăng ký tài khoản mới (Tạm giữ placeholder để không làm hỏng Register.tsx)
+ * Đăng ký tài khoản người dùng mới qua Express Backend API
+ * Sử dụng POST /api/auth/register
  */
 export async function signUpWithEmail(
   fullName: string,
   email: string,
-  password: string
+  password: string,
+  confirmPassword?: string
 ): Promise<AuthResult> {
-  return {
-    ok: false,
-    error: 'Tính năng tự đăng ký đang tạm khóa. Vui lòng liên hệ Quản trị viên để được cấp tài khoản.',
+  const normalizedEmail = (email || '').trim().toLowerCase()
+  const trimmedName = (fullName || '').trim()
+
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/api/auth/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        fullName: trimmedName,
+        email: normalizedEmail,
+        password,
+        confirmPassword: confirmPassword || password,
+      }),
+    })
+
+    const data = await response.json().catch(() => ({}))
+
+    if (!response.ok || !data.ok) {
+      const errorMessage = data.message || 'Đăng ký không thành công.'
+      return {
+        ok: false,
+        error: errorMessage,
+        statusCode: response.status,
+      }
+    }
+
+    const user = data.data?.user
+    if (!user) {
+      return {
+        ok: false,
+        error: 'Phản hồi từ máy chủ không hợp lệ.',
+        statusCode: 500,
+      }
+    }
+
+    const profile: AuthProfile = {
+      id: user.id,
+      name: user.name,
+      fullName: user.name,
+      email: user.email,
+      role: (user.role as UserRole) || 'staff',
+      status: (user.status as UserStatus) || 'pending',
+      disabled: false,
+      passkeyEnabled: false,
+      phone: null,
+      avatar: null,
+      createdAt: user.createdAt || new Date().toISOString(),
+      updatedAt: user.createdAt || new Date().toISOString(),
+    }
+
+    return {
+      ok: true,
+      user: profile,
+      token: '', // Tài khoản pending không cấp JWT
+    }
+  } catch (err: any) {
+    const msg = err instanceof Error ? err.message : String(err)
+    if (msg.includes('fetch') || msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+      return {
+        ok: false,
+        error: 'Không thể kết nối đến máy chủ xác thực. Vui lòng kiểm tra kết nối mạng.',
+        statusCode: 0,
+      }
+    }
+    return {
+      ok: false,
+      error: 'Đã xảy ra lỗi trong quá trình đăng ký. Vui lòng thử lại.',
+      statusCode: 500,
+    }
   }
 }
 

@@ -1,15 +1,51 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { login, verifyAuthToken } from '../services/auth.service.js';
+import { login, register, verifyAuthToken } from '../services/auth.service.js';
 
 export const loginSchema = z.object({
   email: z.string().trim().email('Định dạng email không hợp lệ'),
   password: z.string().min(1, 'Vui lòng nhập mật khẩu'),
 });
 
+export const registerSchema = z.object({
+  fullName: z.string().trim().min(2, 'Họ và tên phải có ít nhất 2 ký tự').max(100, 'Họ và tên tối đa 100 ký tự'),
+  email: z.string().trim().email('Định dạng email không hợp lệ'),
+  password: z.string().min(6, 'Mật khẩu phải có tối thiểu 6 ký tự'),
+  confirmPassword: z.string().min(1, 'Vui lòng xác nhận mật khẩu'),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: 'Mật khẩu xác nhận không khớp',
+  path: ['confirmPassword'],
+});
+
 export const tokenVerifySchema = z.object({
   token: z.string().min(10, 'Token không hợp lệ'),
 });
+
+export async function registerController(req: Request, res: Response) {
+  const { fullName, email, password } = req.body;
+
+  const forwarded = req.headers['x-forwarded-for'];
+  const clientIp = typeof forwarded === 'string'
+    ? forwarded.split(',')[0].trim()
+    : req.socket.remoteAddress || '127.0.0.1';
+  const userAgent = req.headers['user-agent'] || undefined;
+
+  const result = await register(fullName, email, password, clientIp, userAgent);
+
+  if (!result.ok) {
+    return res.status(result.statusCode).json({
+      ok: false,
+      error: result.error,
+      message: result.message,
+    });
+  }
+
+  return res.status(result.statusCode).json({
+    ok: true,
+    message: result.message,
+    data: result.data,
+  });
+}
 
 export async function loginController(req: Request, res: Response) {
   const { email, password } = req.body;

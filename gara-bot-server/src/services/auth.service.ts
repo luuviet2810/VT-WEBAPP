@@ -8,6 +8,7 @@ import {
   recordFailedLogin,
   clearFailedLogin,
 } from './rate-limit.service.js';
+import { logActivity } from './activity-log.service.js';
 
 export interface LoginResult {
   ok: boolean;
@@ -106,7 +107,7 @@ export async function login(
       ok: false,
       statusCode: 403,
       error: 'account_rejected',
-      message: 'Tài khoản chưa được phê duyệt hoặc đã bị từ chối.',
+      message: 'Tài khoản của bạn đã bị từ chối phê duyệt. Vui lòng liên hệ Quản trị viên.',
     };
   }
 
@@ -116,7 +117,7 @@ export async function login(
       ok: false,
       statusCode: 403,
       error: 'account_pending',
-      message: 'Tài khoản đang chờ Quản trị viên phê duyệt.',
+      message: 'Tài khoản của bạn đang chờ Admin phê duyệt. Bạn sẽ có thể đăng nhập sau khi được duyệt.',
     };
   }
 
@@ -199,5 +200,157 @@ export async function getUserById(userId: string): Promise<AuthUser | null> {
     disabled: Boolean(row.disabled),
     phone: row.phone || null,
     avatar: row.avatar || null,
+  };
+}
+
+export interface RegisterResult {
+  ok: boolean;
+  statusCode: number;
+  error?: string;
+  message?: string;
+  data?: {
+    user: {
+      id: string;
+      name: string;
+      email: string;
+      role: string;
+      status: string;
+      createdAt: string;
+    };
+  };
+}
+
+/**
+ * Đăng ký tài khoản người dùng mới (Public Self-Registration)
+ * - Mặc định vai trò là 'staff', trạng thái 'pending', is_admin = false
+ * - Mật khẩu được mã hóa bằng bcrypt với salt rounds = 10
+ * - Tuyệt đối không trả về password hay password_hash trong response
+ * - Ghi nhận lịch sử hoạt động vào bảng activity_logs
+ */
+export async function register(
+  fullName: string,
+  rawEmail: string,
+  rawPassword: string,
+  clientIp?: string,
+  userAgent?: string
+): Promise<RegisterResult> {
+  const normalizedEmail = (rawEmail || '').trim().toLowerCase();
+  const trimmedName = (fullName || '').trim();
+
+  // 1. Kiểm tra họ và tên
+  if (!trimmedName || trimmedName.length < 2) {
+    return {
+      ok: false,
+      statusCode: 400,
+      error: 'invalid_name',
+      message: 'Họ và tên phải có ít nhất 2 ký tự.',
+    };
+  }
+
+  // 2. Kiểm tra định dạng email
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!normalizedEmail || !emailRegex.test(normalizedEmail)) {
+    return {
+      ok: false,
+      statusCode: 400,
+      error: 'invalid_email',
+      message: 'Định dạng email không hợp lệ.',
+    };
+  }
+
+  // 3. Kiểm tra độ dài mật khẩu (tối thiểu 6 ký tự)
+  if (!rawPassword || rawPassword.length < 6) {
+    return {
+      ok: false,
+      statusCode: 400,
+      error: 'weak_password',
+      message: 'Mật khẩu phải có độ dài tối thiểu 6 ký tự.',
+    };
+  }
+
+  // 4. Kiểm tra email đã tồn tại hay chưa
+  try {
+    const existing = await query<any>(
+      `SELECT id FROM users WHERE LOWER(TRIM(email)) = $1 LIMIT 1;`,
+      [normalizedEmail]
+    );
+    if (existing.rows.length > 0) {
+      return {
+        ok: false,
+        statusCode: 409,
+        error: 'email_exists',
+        message: 'Email này đã được sử dụng. Vui lòng đăng nhập hoặc sử dụng email khác.',
+      };
+    }
+  } catch (err: any) {
+    console.error('[AuthService] Lỗi kiểm tra email tồn tại:', err.message);
+    return {
+      ok: false,
+      statusCode: 500,
+      error: 'database_error',
+      message: 'Lỗi truy vấn cơ sở dữ liệu khi kiểm tra email.',
+    };
+  }
+
+  // 5. Băm mật khẩu an toàn bằng bcryptjs
+  let passwordHash: string;
+  try {
+    passwordHash = await bcrypt.hash(rawPassword, 10);
+  } catch (bcryptErr: any) {
+    console.error('[AuthService] Lỗi băm mật khẩu:', bcryptErr.message);
+    return {
+      ok: false,
+      statusCode: 500,
+      error: 'encryption_error',
+      message: 'Lỗi hệ thống khi mã hóa mật khẩu.',
+    };
+  }
+
+  // 6. Lưu tài khoản mới vào cơ sở dữ liệu Neon PostgreSQL
+  // Luôn bắt buộc role = 'staff', is_admin = false, status = 'pending', disabled = false
+  let newUser: any;
+  try {
+    const result = await query<any>(
+      `INSERT INTO users (name, email, password_hash, role, is_admin, status, disabled, created_at, updated_at)
+       VALUES ($1, $2, $3, 'staff'::user_role, false, 'pending'::user_status, false, now(), now())
+       RETURNING id, name, email, role, status, created_at;`,
+      [trimmedName, normalizedEmail, passwordHash]
+    );
+    newUser = result.rows[0];
+  } catch (dbErr: any) {
+    console.error('[AuthService] Lỗi tạo tài khoản mới:', dbErr.message);
+    return {
+      ok: false,
+      statusCode: 500,
+      error: 'database_error',
+      message: 'Lỗi cơ sở dữ liệu khi tạo tài khoản.',
+    };
+  }
+
+  // 7. Ghi nhận activity log
+  await logActivity({
+    userId: newUser.id,
+    action: 'register',
+    entityType: 'user',
+    entityId: newUser.id,
+    description: `Người dùng ${trimmedName} (${normalizedEmail}) đăng ký tài khoản mới (chờ duyệt)`,
+    ipAddress: clientIp || null,
+    userAgent: userAgent || null,
+  });
+
+  return {
+    ok: true,
+    statusCode: 201,
+    message: 'Đăng ký thành công! Tài khoản của bạn đang chờ Admin phê duyệt. Bạn sẽ có thể đăng nhập sau khi được duyệt.',
+    data: {
+      user: {
+        id: newUser.id,
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role,
+        status: newUser.status,
+        createdAt: newUser.created_at,
+      },
+    },
   };
 }

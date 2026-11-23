@@ -16,7 +16,7 @@ import { useAuthStore } from '../store/useAuthStore'
 import { useStore } from '../store/useStore'
 import { isWebAuthnSupported } from '../utils/webauthn'
 import type { AuthProfile } from '../services/auth.service'
-import { getUsers, updateUser, deleteUser } from '../services/users.service'
+import { getUsers, updateUser, deleteUser, approveUser, rejectUser } from '../services/users.service'
 import { UserStatus } from '../types'
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
@@ -41,7 +41,7 @@ export default function Employees() {
   const [fullName, setFullName] = useState(currentUser?.name || '')
 
   const pendingUsers = users.filter((u) => u.status === 'pending')
-  const approvedUsers = users.filter((u) => u.status === 'approved')
+  const nonPendingUsers = users.filter((u) => u.status !== 'pending')
 
   const loadUsers = useCallback(async () => {
     try {
@@ -71,29 +71,34 @@ export default function Employees() {
 
   const handleApprove = async (user: AuthProfile) => {
     try {
-      await updateUser(user.id, { status: 'approved' })
+      await approveUser(user.id)
       await loadUsers()
       addNotification({
         type: 'user_approved',
         title: 'Phê duyệt tài khoản',
-        body: `Tài khoản "${user.name}" đã được phê duyệt`,
+        body: `Tài khoản "${user.name}" (${user.email}) đã được phê duyệt`,
       })
-    } catch (err) {
+    } catch (err: any) {
       console.error('[Employees] handleApprove error:', err)
+      alert(err.message || 'Lỗi khi phê duyệt tài khoản')
     }
   }
 
   const handleReject = async (user: AuthProfile) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn từ chối tài khoản "${user.name}" (${user.email})?`)) {
+      return
+    }
     try {
-      await updateUser(user.id, { status: 'rejected' })
+      await rejectUser(user.id)
       await loadUsers()
       addNotification({
         type: 'user_rejected',
         title: 'Từ chối tài khoản',
-        body: `Tài khoản "${user.name}" đã bị từ chối`,
+        body: `Tài khoản "${user.name}" (${user.email}) đã bị từ chối`,
       })
-    } catch (err) {
+    } catch (err: any) {
       console.error('[Employees] handleReject error:', err)
+      alert(err.message || 'Lỗi khi từ chối tài khoản')
     }
   }
 
@@ -200,47 +205,67 @@ export default function Employees() {
       </div>
 
       {/* Pending Registrations - Admin only */}
-      {isAdminUser && pendingUsers.length > 0 && (
-        <div className="mb-6 rounded-2xl border-2 border-amber-200 bg-amber-50 p-5">
-          <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-amber-700">
-            <Clock size={18} />
-            Yêu cầu đăng ký ({pendingUsers.length})
+      {isAdminUser && (
+        <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+              <Clock size={18} className="text-amber-500" />
+              Tài khoản chờ phê duyệt ({pendingUsers.length})
+            </div>
+            {pendingUsers.length > 0 && (
+              <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+                {pendingUsers.length} yêu cầu mới
+              </span>
+            )}
           </div>
-          <div className="space-y-3">
-            {pendingUsers.map((user) => (
-              <div
-                key={user.id}
-                className="flex flex-wrap items-center gap-3 rounded-xl bg-white p-4 shadow-sm"
-              >
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-sm font-semibold text-amber-700">
-                  {getInitials(user.name)}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="font-medium text-slate-800">{user.name}</div>
-                  <div className="text-xs text-slate-500">{user.email}</div>
-                  <div className="mt-1 text-xs text-slate-400">
-                    Đăng ký: {formatDate(user.createdAt)}
+
+          {pendingUsers.length === 0 ? (
+            <div className="py-6 text-center text-sm text-slate-500">
+              Hiện không có yêu cầu đăng ký nào đang chờ phê duyệt.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {pendingUsers.map((user) => (
+                <div
+                  key={user.id}
+                  className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-amber-200 bg-amber-50/60 p-4 shadow-sm"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-200 text-sm font-bold text-amber-800">
+                      {getInitials(user.name)}
+                    </div>
+                    <div>
+                      <div className="font-semibold text-slate-900">{user.name}</div>
+                      <div className="text-xs text-slate-500">{user.email}</div>
+                      <div className="mt-1 flex items-center gap-2 text-xs text-slate-400">
+                        <span>Đăng ký: {formatDate(user.createdAt)}</span>
+                        <span>•</span>
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-700">
+                          Chờ duyệt
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleApprove(user)}
+                      className="flex items-center gap-1 rounded-lg bg-green-600 px-3.5 py-1.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-green-700"
+                    >
+                      <CheckCircle2 size={16} />
+                      Duyệt
+                    </button>
+                    <button
+                      onClick={() => handleReject(user)}
+                      className="flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3.5 py-1.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-100"
+                    >
+                      <XCircle size={16} />
+                      Từ chối
+                    </button>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleApprove(user)}
-                    className="flex items-center gap-1 rounded-lg bg-green-100 px-3 py-1.5 text-sm font-medium text-green-700 transition-colors hover:bg-green-200"
-                  >
-                    <CheckCircle2 size={16} />
-                    Duyệt
-                  </button>
-                  <button
-                    onClick={() => handleReject(user)}
-                    className="flex items-center gap-1 rounded-lg bg-red-100 px-3 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-200"
-                  >
-                    <XCircle size={16} />
-                    Từ chối
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -248,7 +273,7 @@ export default function Employees() {
       {isAdminUser && (
         <div className="card p-5">
           <div className="mb-4 text-sm font-semibold text-slate-700">
-            Tất cả tài khoản ({approvedUsers.length})
+            Tất cả tài khoản ({nonPendingUsers.length})
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -262,7 +287,7 @@ export default function Employees() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {approvedUsers.map((user) => {
+                {nonPendingUsers.map((user) => {
                   const statusConfig = STATUS_CONFIG[user.status] ?? STATUS_CONFIG.pending
                   const isMe = user.id === currentUser?.id
 
@@ -312,6 +337,17 @@ export default function Employees() {
                       </td>
                       <td className="py-3">
                         <div className="flex items-center gap-2">
+                          {user.status === 'rejected' && (
+                            <button
+                              onClick={() => handleApprove(user)}
+                              className="flex items-center gap-1 rounded-lg bg-green-50 px-2 py-1 text-xs font-medium text-green-700 transition-colors hover:bg-green-100"
+                              title="Phê duyệt lại tài khoản này"
+                            >
+                              <CheckCircle2 size={13} />
+                              Duyệt
+                            </button>
+                          )}
+
                           <button
                             onClick={() => handleToggleStatus(user)}
                             disabled={isMe}

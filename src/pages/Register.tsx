@@ -35,6 +35,25 @@ export default function RegisterPage() {
     e.preventDefault()
     setError('')
 
+    const trimmedName = fullName.trim()
+    const trimmedEmail = email.trim()
+
+    if (!trimmedName || trimmedName.length < 2) {
+      setError('Họ và tên phải có ít nhất 2 ký tự')
+      return
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
+      setError('Định dạng email không hợp lệ')
+      return
+    }
+
+    if (!password || password.length < 6) {
+      setError('Mật khẩu phải có độ dài tối thiểu 6 ký tự')
+      return
+    }
+
     if (password !== confirmPassword) {
       setError('Mật khẩu xác nhận không khớp')
       return
@@ -42,14 +61,10 @@ export default function RegisterPage() {
 
     setIsLoading(true)
 
-    const result = await signUpWithEmail(fullName, email, password)
+    const result = await signUpWithEmail(trimmedName, trimmedEmail, password, confirmPassword)
 
     if (result.ok) {
-      if (result.user.status === 'pending') {
-        setPending(true)
-      } else {
-        navigate('/')
-      }
+      setPending(true)
     } else {
       setError(result.error || 'Đăng ký thất bại')
     }
@@ -61,24 +76,24 @@ export default function RegisterPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-50 to-slate-100 p-4">
         <div className="w-full max-w-md text-center">
-          <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-full bg-amber-100">
-            <Clock className="h-8 w-8 text-amber-600" />
-          </div>
-          <h2 className="text-2xl font-bold text-slate-900">Đăng ký thành công!</h2>
-          <p className="mt-2 text-slate-600">
-            Tài khoản của bạn đang chờ Admin phê duyệt.
-          </p>
-          <p className="mt-1 text-sm text-slate-500">
-            Bạn sẽ có thể đăng nhập sau khi được duyệt.
-          </p>
-          <div className="mt-8">
-            <Link
-              to="/login"
-              className="btn-primary inline-flex items-center gap-2"
-            >
-              <ArrowLeft size={18} />
-              Quay lại đăng nhập
-            </Link>
+          <VTLogo size="lg" priority alt="VT AUTO" className="mb-6 max-w-[220px]" />
+          <div className="rounded-2xl bg-white p-8 shadow-xl">
+            <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+              <Clock className="h-8 w-8" />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900">Đăng ký thành công!</h2>
+            <p className="mt-3 text-sm text-slate-600">
+              Tài khoản của bạn đang chờ Admin phê duyệt. Bạn sẽ có thể đăng nhập sau khi được duyệt.
+            </p>
+            <div className="mt-6">
+              <Link
+                to="/login"
+                className="btn-primary inline-flex w-full items-center justify-center gap-2"
+              >
+                <ArrowLeft size={18} />
+                Quay lại đăng nhập
+              </Link>
+            </div>
           </div>
         </div>
       </div>

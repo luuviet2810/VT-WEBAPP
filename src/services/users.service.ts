@@ -1,4 +1,4 @@
-import { apiGet, apiPut, apiDelete } from './api.client'
+import { apiGet, apiPost, apiPut, apiDelete } from './api.client'
 import type { Employee, UserRole, UserStatus } from '../types'
 import type { AuthProfile } from './auth.service'
 
@@ -65,6 +65,16 @@ export async function updateUser(id: string, patch: Partial<AuthProfile | { name
 
 export async function deleteUser(id: string): Promise<void> {
   await apiDelete(`/api/employees/${id}`)
+}
+
+export async function approveUser(id: string): Promise<AuthProfile> {
+  const data = await apiPost<UserRow>(`/api/employees/${id}/approve`)
+  return mapRowToAuthProfile(data)
+}
+
+export async function rejectUser(id: string): Promise<AuthProfile> {
+  const data = await apiPost<UserRow>(`/api/employees/${id}/reject`)
+  return mapRowToAuthProfile(data)
 }
 
 export async function getEmployees(): Promise<Employee[]> {

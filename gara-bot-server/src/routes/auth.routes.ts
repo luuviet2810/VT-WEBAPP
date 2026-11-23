@@ -1,10 +1,12 @@
 import { Router } from 'express';
 import {
   loginController,
+  registerController,
   getCurrentUser,
   logoutController,
   verifyTokenEndpoint,
   loginSchema,
+  registerSchema,
   tokenVerifySchema,
 } from '../controllers/auth.controller.js';
 import { authenticateJwt } from '../middleware/auth.middleware.js';
@@ -12,6 +14,9 @@ import { requireAdmin } from '../middleware/rbac.middleware.js';
 import { validateBody } from '../middleware/validate.middleware.js';
 
 const router = Router();
+
+// Đăng ký tài khoản mới (Public Self-Registration)
+router.post('/register', validateBody(registerSchema), registerController);
 
 // Đăng nhập hệ thống (kiểm tra mật khẩu bcrypt, rate limit 5 lần / 15 phút)
 router.post('/login', validateBody(loginSchema), loginController);
