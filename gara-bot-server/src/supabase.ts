@@ -1,14 +1,13 @@
-import { createClient } from '@supabase/supabase-js'
+/**
+ * Supabase Decoupled Stub (Backend)
+ *
+ * Backend runs 100% on Neon PostgreSQL and Cloudflare R2.
+ * Supabase is permanently disconnected from runtime operations.
+ */
 
-export const SUPABASE_URL = process.env.SUPABASE_URL || ''
-export const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-
-export const isSupabaseConfigured = Boolean(
-  SUPABASE_URL &&
-  SUPABASE_SERVICE_ROLE_KEY &&
-  SUPABASE_URL.trim() !== '' &&
-  SUPABASE_SERVICE_ROLE_KEY.trim() !== ''
-)
+export const SUPABASE_URL = ''
+export const SUPABASE_SERVICE_ROLE_KEY = ''
+export const isSupabaseConfigured = false
 
 function createSafeStub(): any {
   const chainable: any = () => new Proxy(() => Promise.resolve({ data: null, error: null }), {
@@ -47,15 +46,4 @@ function createSafeStub(): any {
   }
 }
 
-if (!isSupabaseConfigured) {
-  console.info('[Backend Supabase] SUPABASE_URL/KEY not configured. Running in standalone Neon mode without Supabase connection.');
-}
-
-export const supabaseAdmin: any = isSupabaseConfigured
-  ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    })
-  : createSafeStub()
+export const supabaseAdmin: any = createSafeStub()

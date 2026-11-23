@@ -4,7 +4,7 @@ import { Route, Routes, Navigate } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import NotificationCenter from './components/NotificationCenter'
 import { useEffect } from 'react'
-import { useStore, initializeFromSupabase } from './store/useStore'
+import { useStore, initializeStore } from './store/useStore'
 import { useRealtimeSync } from './hooks/useRealtimeSync'
 
 import VehicleList from './pages/VehicleList'
@@ -64,7 +64,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (isAuthenticated && currentUser && !isInitialized && !isLoading) {
-      initializeFromSupabase()
+      initializeStore()
     }
   }, [isAuthenticated, currentUser, isInitialized, isLoading])
 
@@ -90,7 +90,7 @@ function RoleGuard({ allowedRoles, children }: { allowedRoles: UserRole[]; child
 
   useEffect(() => {
     if (isAuthenticated && currentUser && !isInitialized && !isLoading) {
-      initializeFromSupabase()
+      initializeStore()
     }
   }, [isAuthenticated, currentUser, isInitialized, isLoading])
 

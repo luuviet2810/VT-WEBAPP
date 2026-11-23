@@ -6,7 +6,7 @@ import {
   getAuthToken,
 } from '../services/auth.service'
 import type { AuthProfile } from '../services/auth.service'
-import { useStore, initializeFromSupabase } from './useStore'
+import { useStore, initializeStore } from './useStore'
 import { useViewModeStore } from './viewModeStore'
 
 interface AuthState {
@@ -57,7 +57,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
 
         // Tải dữ liệu nghiệp vụ sau khi khôi phục phiên thành công
         try {
-          await initializeFromSupabase()
+          await initializeStore()
         } catch (dataErr) {
           console.error('[AuthStore] Lỗi khi nạp dữ liệu phiên làm việc:', dataErr)
         }
@@ -92,7 +92,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
 
       // Tải dữ liệu nghiệp vụ ngay khi đăng nhập thành công
       try {
-        await initializeFromSupabase()
+        await initializeStore()
       } catch (dataErr) {
         console.error('[AuthStore] Lỗi khi nạp dữ liệu sau đăng nhập:', dataErr)
       }

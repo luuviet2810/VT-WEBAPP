@@ -18,7 +18,7 @@ const SIZE_CLASSES: Record<Exclude<VTLogoSize, 'custom'>, string> = {
   md: 'h-9 sm:h-10 w-auto',
   lg: 'h-11 sm:h-14 w-auto',
   xl: 'h-14 sm:h-16 w-auto',
-  sidebar: 'h-auto w-full max-w-[230px]',
+  sidebar: 'h-auto w-full',
 }
 
 const VARIANT_CLASSES: Record<VTLogoVariant, string> = {

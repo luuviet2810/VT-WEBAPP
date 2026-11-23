@@ -67,10 +67,12 @@ const defaultSettings: Settings = {
   companyPhone: '',
 }
 
-export async function initializeFromSupabase(): Promise<void> {
+export const initializeFromSupabase = () => initializeStore()
+
+export async function initializeStore(): Promise<void> {
   const token = getAuthToken()
   if (!token) {
-    console.log('[STORE] initializeFromSupabase: Chưa có token xác thực, bỏ qua nạp dữ liệu ban đầu.')
+    console.log('[STORE] initializeStore: Chưa có token xác thực, bỏ qua nạp dữ liệu ban đầu.')
     useStore.setState({ isLoading: false, isInitialized: false })
     return
   }
@@ -426,7 +428,7 @@ export const useStore = create<StoreState>()(
           return true
         } catch (err) {
           if (before) set((s) => ({ vehicles: s.vehicles.map((v) => (v.id === id ? before : v)) }))
-          console.error('\uD83D\uDD34 [STORE] Failed to update vehicle in Supabase:', err)
+          console.error('\uD83D\uDD34 [STORE] Failed to update vehicle:', err)
           const e = err as { code?: string; message?: string }
           const dupPlate = e?.code === '23505' || /duplicate key|already exists/i.test(e?.message ?? '')
           get().addNotification({
@@ -539,7 +541,7 @@ export const useStore = create<StoreState>()(
         }))
       } catch (err) {
         if (before) set((s) => ({ vehicles: [...s.vehicles, before] }))
-        console.error('\uD83D\uDD34 [STORE] Failed to delete vehicle in Supabase:', err)
+        console.error('\uD83D\uDD34 [STORE] Failed to delete vehicle:', err)
         get().addNotification({ type: 'error', title: 'Lỗi', body: 'Không thể xóa xe. Vui lòng thử lại.' })
       }
     },
@@ -571,7 +573,7 @@ export const useStore = create<StoreState>()(
           vehicles: s.vehicles.map((v) => (v.id === id ? vehicle : v)),
           moveLogs: s.moveLogs.filter((l) => l.id !== log.id),
         }))
-        console.error('\uD83D\uDD34 [STORE] Failed to move vehicle in Supabase:', err)
+        console.error('\uD83D\uDD34 [STORE] Failed to move vehicle:', err)
         get().addNotification({ type: 'error', title: 'Lỗi', body: 'Không thể di chuyển xe. Vui lòng thử lại.' })
       }
     },
@@ -613,7 +615,7 @@ export const useStore = create<StoreState>()(
           tasks: s.tasks.map((t) => (t.id === task.id ? created : t)),
         }))
       } catch (err) {
-        console.error('\uD83D\uDD34 [STORE] Failed to create task in Supabase:', err)
+        console.error('\uD83D\uDD34 [STORE] Failed to create task:', err)
         get().addNotification({ type: 'error', title: 'Lỗi', body: 'Không thể tạo nhiệm vụ. Vui lòng thử lại.' })
       }
 
@@ -648,7 +650,7 @@ export const useStore = create<StoreState>()(
       } catch (err) {
         // Roll back the optimistic task change; callers can safely retry.
         set((s) => ({ tasks: s.tasks.map((t) => (t.id === id ? taskBefore! : t)) }))
-        console.error('\uD83D\uDD34 [STORE] Failed to update task in Supabase:', err)
+        console.error('\uD83D\uDD34 [STORE] Failed to update task:', err)
         return false
       }
 
@@ -773,7 +775,7 @@ export const useStore = create<StoreState>()(
       try {
         await taskService.deleteTask(id)
       } catch (err) {
-        console.error('\uD83D\uDD34 [STORE] Failed to delete task in Supabase:', err)
+        console.error('\uD83D\uDD34 [STORE] Failed to delete task:', err)
       }
     },
 
@@ -793,7 +795,7 @@ export const useStore = create<StoreState>()(
         try {
           await taskService.updateTask(taskId, { checklist: updated.checklist })
         } catch (err) {
-          console.error('\uD83D\uDD34 [STORE] Failed to update checklist in Supabase:', err)
+          console.error('\uD83D\uDD34 [STORE] Failed to update checklist:', err)
         }
       }
 
@@ -816,7 +818,7 @@ export const useStore = create<StoreState>()(
       try {
         await taskService.addTaskActivity(taskId, action, employeeId)
       } catch (err) {
-        console.error('\uD83D\uDD34 [STORE] Failed to add task activity in Supabase:', err)
+        console.error('\uD83D\uDD34 [STORE] Failed to add task activity:', err)
       }
     },
 
@@ -955,7 +957,7 @@ export const useStore = create<StoreState>()(
       try {
         await usersService.updateEmployee(id, patch)
       } catch (err) {
-        console.error('\uD83D\uDD34 [STORE] Failed to update employee in Supabase:', err)
+        console.error('\uD83D\uDD34 [STORE] Failed to update employee:', err)
       }
       if (patch.isAdmin !== undefined) {
         const emp = get().employees.find((e) => e.id === id)
@@ -974,7 +976,7 @@ export const useStore = create<StoreState>()(
           positions: s.positions.map((p) => (p.id === pos.id ? { ...p, id: created.id } : p)),
         }))
       } catch (err) {
-        console.error('\uD83D\uDD34 [STORE] Failed to create position in Supabase:', err)
+        console.error('\uD83D\uDD34 [STORE] Failed to create position:', err)
       }
     },
 
@@ -983,7 +985,7 @@ export const useStore = create<StoreState>()(
       try {
         await positionService.updatePosition(id, patch)
       } catch (err) {
-        console.error('\uD83D\uDD34 [STORE] Failed to update position in Supabase:', err)
+        console.error('\uD83D\uDD34 [STORE] Failed to update position:', err)
       }
     },
 
@@ -997,7 +999,7 @@ export const useStore = create<StoreState>()(
       try {
         await positionService.deletePosition(id)
       } catch (err) {
-        console.error('\uD83D\uDD34 [STORE] Failed to delete position in Supabase:', err)
+        console.error('\uD83D\uDD34 [STORE] Failed to delete position:', err)
       }
     },
 
@@ -1016,7 +1018,7 @@ export const useStore = create<StoreState>()(
       try {
         await positionService.reorderPositions(reordered.map((p) => ({ id: p.id, sort_order: p.order })))
       } catch (err) {
-        console.error('\uD83D\uDD34 [STORE] Failed to reorder positions in Supabase:', err)
+        console.error('\uD83D\uDD34 [STORE] Failed to reorder positions:', err)
       }
     },
 
@@ -1063,7 +1065,7 @@ export const useStore = create<StoreState>()(
           }
         }
       } catch (err) {
-        console.error('\uD83D\uDD34 [STORE] Failed to create checkSheet in Supabase:', err)
+        console.error('\uD83D\uDD34 [STORE] Failed to create checkSheet:', err)
       }
     },
 
@@ -1088,7 +1090,7 @@ export const useStore = create<StoreState>()(
       } catch (err) {
         // Revert optimistic update
         if (prev) set((s) => ({ checkSheets: s.checkSheets.map((c) => (c.id === id ? prev : c)) }))
-        console.error('\uD83D\uDD34 [STORE] Failed to update checkSheet in Supabase:', JSON.stringify({ message: (err as any)?.message, details: (err as any)?.details, hint: (err as any)?.hint, code: (err as any)?.code, status: (err as any)?.status }, null, 2))
+        console.error('\uD83D\uDD34 [STORE] Failed to update checkSheet:', JSON.stringify({ message: (err as any)?.message, details: (err as any)?.details, hint: (err as any)?.hint, code: (err as any)?.code, status: (err as any)?.status }, null, 2))
         throw err
       }
     },
@@ -1114,7 +1116,7 @@ export const useStore = create<StoreState>()(
       try {
         await attendanceService.checkIn(employeeId)
       } catch (err) {
-        console.error('\uD83D\uDD34 [STORE] Failed to check in in Supabase:', err)
+        console.error('\uD83D\uDD34 [STORE] Failed to check in:', err)
       }
     },
 
@@ -1139,7 +1141,7 @@ export const useStore = create<StoreState>()(
       try {
         await attendanceService.checkOut(employeeId)
       } catch (err) {
-        console.error('\uD83D\uDD34 [STORE] Failed to check out in Supabase:', err)
+        console.error('\uD83D\uDD34 [STORE] Failed to check out:', err)
       }
     },
 
@@ -1151,7 +1153,7 @@ export const useStore = create<StoreState>()(
         try {
           await attendanceService.updateAttendanceEntry(id, patch)
         } catch (err) {
-          console.error('\uD83D\uDD34 [STORE] Failed to update attendance in Supabase:', err)
+          console.error('\uD83D\uDD34 [STORE] Failed to update attendance:', err)
         }
         const emp = get().employees.find((e) => e.id === entry.employeeId)
         get().addNotification({ type: 'attendance_edited', title: 'Ch\u1ea5m c\u00f4ng \u0111\u01b0\u1ee3c ch\u1ec9nh s\u1eeda', body: `Admin v\u1eeba s\u1eeda gi\u1edd c\u1ee7a ${emp?.name} ng\u00e0y ${entry.date}` })

@@ -1,4 +1,10 @@
-import { supabase } from '../lib/supabase'
+/**
+ * Notification Service (Decoupled Mode)
+ *
+ * Tính năng thông báo hiện tại đang tạm tắt trên giao diện (NotificationCenter).
+ * File service này hoạt động ở chế độ decoupled an toàn không kết nối Supabase.
+ */
+
 import type { Notification, NotificationType } from '../types'
 
 // ====== TYPES ======
@@ -41,8 +47,6 @@ const EVENT_TYPE_MAP: Record<EventType, NotificationType> = {
   VEHICLE_SOLD: 'vehicle_status',
 }
 
-// ====== EVENT → FORMATTED TEXT ======
-
 function formatEvent(event: EventType, data: EventPayload): { title: string; body: string } {
   const prefix = `[${data.vehicleModel || ''} ${data.plateNumber || ''}]`.trim()
   const employee = data.employeeName || 'Hệ thống'
@@ -59,128 +63,51 @@ function formatEvent(event: EventType, data: EventPayload): { title: string; bod
       action = data.locationName ? `Đã chuyển sang ${data.locationName}` : 'Đã chuyển vị trí'
       break
     case 'TASK_CREATED':
-      action = `Cần "${data.taskName || ''}"`
+      action = `Tạo nhiệm vụ: ${data.taskName || ''}`
       break
     case 'TASK_UPDATED':
-      action = `Đã cập nhật "${data.taskName || ''}"`
+      action = `Cập nhật nhiệm vụ: ${data.taskName || ''}`
       break
     case 'TASK_COMPLETED':
-      action = `Đã hoàn thành "${data.taskName || ''}"`
+      action = `Hoàn thành nhiệm vụ: ${data.taskName || ''}`
       break
     case 'TASK_ASSIGNED':
-      action = `Đã giao "${data.taskName || ''}" cho ${data.employeeName || ''}`
+      action = `Giao việc: ${data.taskName || ''}`
       break
     case 'PHOTO_ADDED':
-      action = data.count ? `Đã thêm ${data.count} ảnh` : 'Đã thêm ảnh'
+      action = `Thêm ${data.count || 1} ảnh xe`
       break
     case 'DOCUMENT_ADDED':
-      action = 'Đã thêm giấy tờ'
+      action = `Thêm ${data.count || 1} tài liệu xe`
       break
     case 'VEHICLE_SOLD':
-      action = 'Đã chuyển sang trạng thái Đã bán'
+      action = 'Đã xuất bán xe'
       break
   }
 
-  return {
-    title: `${prefix} ${action}`.trim(),
-    body: `${employee} • ${new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`,
-  }
+  const title = prefix ? `${prefix} ${action}` : action
+  const body = `${employee} • ${new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`
+
+  return { title, body }
 }
 
-// ====== VALIDATION ======
-
-function validate(event: EventType, data: EventPayload): boolean {
-  if (!data.vehicleModel || !data.plateNumber) {
-    console.warn(`[notif] Drop ${event}: missing vehicle info`, data)
-    return false
-  }
-  if (['TASK_CREATED', 'TASK_UPDATED', 'TASK_COMPLETED', 'TASK_ASSIGNED'].includes(event) && !data.taskName) {
-    console.warn(`[notif] Drop ${event}: missing taskName`, data)
-    return false
-  }
-  return true
-}
-
-// ====== MAIN API ======
-
-/**
- * Create a notification from an event + payload.
- * This is the SINGLE entry point for all notifications.
- * No other module may create notifications directly.
- */
-export async function createEvent(event: EventType, data: EventPayload): Promise<Notification | null> {
-  if (!validate(event, data)) return null
-
-  const { title, body } = formatEvent(event, data)
-  const notifType = EVENT_TYPE_MAP[event]
-
-  const { data: result, error } = await (supabase as any)
-    .from('notifications')
-    .insert({
-      type: notifType,
-      title,
-      body,
-      data: { ...data, event },
-      read: false,
-    })
-    .select()
-    .single()
-
-  if (error) {
-    console.error('[notif] Insert failed:', error)
-    return null
-  }
-
-  return mapRow(result as Record<string, unknown>)
-}
-
-// ====== READ / MARK ======
-
-function mapRow(row: Record<string, unknown>): Notification {
-  return {
-    id: row.id as string,
-    type: row.type as NotificationType,
-    title: row.title as string,
-    body: row.body as string,
-    read: row.read as boolean,
-    createdAt: row.created_at as string,
-    data: (row as any).data ?? undefined,
-  }
+export async function createEvent(_event: EventType, _data: EventPayload): Promise<Notification | null> {
+  // Notifications currently decoupled from Supabase
+  return null
 }
 
 export async function getNotifications(): Promise<Notification[]> {
-  const { data, error } = await (supabase as any)
-    .from('notifications')
-    .select('*')
-    .order('created_at', { ascending: false })
-
-  if (error) throw error
-  return (data as Record<string, unknown>[]).map(mapRow)
+  return []
 }
 
-export async function markNotificationRead(id: string): Promise<void> {
-  const { error } = await (supabase as any)
-    .from('notifications')
-    .update({ read: true })
-    .eq('id', id)
-
-  if (error) throw error
+export async function markNotificationRead(_id: string): Promise<void> {
+  return
 }
 
 export async function markAllNotificationsRead(): Promise<void> {
-  const { error } = await (supabase as any)
-    .from('notifications')
-    .update({ read: true })
-    .eq('read', false)
-
-  if (error) throw error
+  return
 }
 
-export async function deleteNotification(id: string): Promise<void> {
-  const { error } = await (supabase as any)
-    .from('notifications')
-    .delete()
-    .eq('id', id)
-
-  if (error) throw error
+export async function deleteNotification(_id: string): Promise<void> {
+  return
 }

@@ -1,4 +1,16 @@
-import { supabase } from '../lib/supabase'
+/**
+ * Location Service (Legacy compatibility layer delegating to position.service)
+ * Decoupled from Supabase.
+ */
+
+import {
+  getPositions,
+  createPosition,
+  updatePosition as updatePos,
+  deletePosition,
+  reorderPositions as reorderPos,
+} from './position.service'
+import type { Position } from '../types'
 
 export interface Location {
   id: string
@@ -14,67 +26,36 @@ export interface ReorderItem {
 }
 
 export async function getLocations(): Promise<Location[]> {
-  const { data, error } = await (supabase as any)
-    .from('locations')
-    .select('*')
-    .order('sort_order', { ascending: true })
-
-  if (error) throw error
-  return data as Location[]
+  const positions: Position[] = await getPositions()
+  return positions.map((p) => ({
+    id: p.id,
+    name: p.name,
+    sort_order: p.order,
+  }))
 }
 
 export async function createLocation(name: string): Promise<Location> {
-  const { data: existing, error: selectError } = await (supabase as any)
-    .from('locations')
-    .select('sort_order')
-    .order('sort_order', { ascending: false })
-    .limit(1)
-
-  if (selectError) throw selectError
-
-  const maxSortOrder = existing && existing.length > 0 ? (existing[0] as { sort_order: number }).sort_order : 0
-  const newSortOrder = maxSortOrder + 1
-
-  const { data, error } = await (supabase as any)
-    .from('locations')
-    .insert({ name, sort_order: newSortOrder })
-    .select()
-    .single()
-
-  if (error) throw error
-  return data as Location
+  const p: Position = await createPosition(name)
+  return {
+    id: p.id,
+    name: p.name,
+    sort_order: p.order,
+  }
 }
 
 export async function updateLocation(id: string, name: string): Promise<Location> {
-  const { data, error } = await (supabase as any)
-    .from('locations')
-    .update({ name, updated_at: new Date().toISOString() })
-    .eq('id', id)
-    .select()
-    .single()
-
-  if (error) throw error
-  return data as Location
+  const p: Position = await updatePos(id, { name })
+  return {
+    id: p.id,
+    name: p.name,
+    sort_order: p.order,
+  }
 }
 
 export async function deleteLocation(id: string): Promise<void> {
-  const { error } = await (supabase as any)
-    .from('locations')
-    .delete()
-    .eq('id', id)
-
-  if (error) throw error
+  await deletePosition(id)
 }
 
 export async function reorderLocations(items: ReorderItem[]): Promise<void> {
-  const updates = items.map((item) => ({
-    id: item.id,
-    sort_order: item.sort_order,
-  }))
-
-  const { error } = await (supabase as any)
-    .from('locations')
-    .upsert(updates, { onConflict: 'id' })
-
-  if (error) throw error
+  await reorderPos(items.map((i) => ({ id: i.id, sort_order: i.sort_order })))
 }

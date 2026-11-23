@@ -96,7 +96,7 @@ function DrawerContent({ onClose }: { onClose: () => void }) {
       {/* Logo */}
       <div className="border-b border-slate-100 px-4 py-4">
         <div className="flex items-center justify-center">
-          <VTLogo size="sidebar" priority className="max-w-[240px]" />
+          <VTLogo size="sidebar" priority className="max-w-[248px]" />
         </div>
       </div>
 

@@ -1,8 +1,11 @@
 /**
- * Supabase Realtime type definitions
+ * Realtime type definitions (Decoupled from Supabase)
  */
 
-import type { RealtimeChannel } from '@supabase/supabase-js'
+export interface RealtimeChannel {
+  unsubscribe?: () => void
+  [key: string]: unknown
+}
 
 // ---- Channel refs ----
 export interface RealtimeChannels {

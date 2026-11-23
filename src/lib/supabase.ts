@@ -1,33 +1,40 @@
 /**
- * Supabase Client (Legacy Data Source & Backup Link)
+ * VT AUTO — Supabase Decoupled Stub
  *
- * QUY TẮC AN TOÀN:
- * - Admin Web hoạt động độc lập trên Neon PostgreSQL + Express Backend.
- * - Không yêu cầu VITE_SUPABASE_URL hoặc VITE_SUPABASE_ANON_KEY để khởi chạy.
- * - Nếu không có biến môi trường Supabase (như trên Vercel Production),
- *   client này KHÔNG ném lỗi "supabaseUrl is required", mà trả về Safe Proxy
- *   để bảo vệ ứng dụng khỏi hiện tượng sập trang trắng.
- * - Dự án Supabase cũ được bảo toàn 100% làm nguồn backup lịch sử.
+ * TOÀN BỘ HỆ THỐNG ĐÃ CHUYỂN SANG:
+ * - Neon PostgreSQL (Lakebase)
+ * - Cloudflare R2 Object Storage
+ * - Express JWT Backend
+ *
+ * Supabase đã hoàn toàn ngắt kết nối khỏi luồng chạy của ứng dụng.
+ * File này chỉ đóng vai trò stub an toàn để giữ kiểu dữ liệu tương thích,
+ * KHÔNG nhập thư viện @supabase/supabase-js và KHÔNG tạo kết nối mạng nào.
  */
 
-import { createClient, type Session } from '@supabase/supabase-js'
+export const isSupabaseConfigured = false
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
+export interface Session {
+  access_token?: string
+  token_type?: string
+  expires_in?: number
+  refresh_token?: string
+  user?: {
+    id: string
+    email?: string
+    role?: string
+    [key: string]: unknown
+  } | null
+  [key: string]: unknown
+}
 
-export const isSupabaseConfigured = Boolean(
-  supabaseUrl &&
-  supabaseAnonKey &&
-  supabaseUrl.trim() !== '' &&
-  supabaseAnonKey.trim() !== ''
-)
+// Safe no-op proxy that never initiates any network requests
+function createDecoupledStub(): any {
+  const errorObj = { data: null, error: new Error('[Supabase Decoupled] Supabase is disabled. All data routes through Express/Neon.') }
+  const noopPromise = () => Promise.resolve(errorObj)
 
-// Safe no-op proxy for disconnected mode
-function createSafeProxy(): any {
-  const noopPromise = () => Promise.resolve({ data: null, error: null })
   const chainable: any = () => new Proxy(noopPromise, {
     get: () => chainable,
-    apply: () => chainable,
+    apply: () => chainable(),
   })
 
   return new Proxy({} as any, {
@@ -59,10 +66,4 @@ function createSafeProxy(): any {
   })
 }
 
-export const supabase: ReturnType<typeof createClient> = (
-  isSupabaseConfigured
-    ? createClient(supabaseUrl!, supabaseAnonKey!)
-    : createSafeProxy()
-) as ReturnType<typeof createClient>
-
-export type { Session }
+export const supabase: any = createDecoupledStub()
