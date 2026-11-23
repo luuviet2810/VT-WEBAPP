@@ -1,4 +1,4 @@
-import logo from '../../assets/logo-vtauto.png'
+import { VTLogo } from '../../components/VTLogo'
 import { Facebook, MessageCircle, MessageSquare, Music2, Phone } from 'lucide-react'
 import { SITE_CONFIG } from '../contactConfig'
 import { useSiteSettings } from '../SiteSettingsContext'
@@ -24,11 +24,9 @@ export default function PublicFooter() {
     <footer className="mt-auto border-t border-slate-200 bg-white pb-24 pt-8">
       <div className="mx-auto max-w-3xl space-y-4 px-4 text-center">
         {/* Logo — cùng asset với Header (ảnh đã chứa tagline) */}
-        <img
-          src={logo}
+        <VTLogo
+          size="lg"
           alt={`${SITE_CONFIG.name} — ${SITE_CONFIG.tagline}`}
-          className="mx-auto h-12 w-auto max-w-full object-contain"
-          draggable={false}
         />
 
         {/* Địa chỉ văn phòng */}

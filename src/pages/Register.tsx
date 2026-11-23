@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { UserPlus, Eye, EyeOff, AlertCircle, ArrowLeft, Clock } from 'lucide-react'
 import { useAuthStore } from '../store/useAuthStore'
 import { signUpWithEmail } from '../services/auth.service'
+import { VTLogo } from '../components/VTLogo'
 
 export default function RegisterPage() {
   const navigate = useNavigate()
@@ -96,9 +97,7 @@ export default function RegisterPage() {
         </Link>
 
         <div className="mb-8 text-center">
-          <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-600 shadow-lg">
-            <span className="text-2xl font-bold text-white">GM</span>
-          </div>
+          <VTLogo size="lg" priority alt="VT AUTO" className="mb-3 max-w-[220px]" />
           <h1 className="text-2xl font-bold text-slate-900">Tạo tài khoản mới</h1>
           <p className="mt-1 text-sm text-slate-500">Điền thông tin bên dưới để đăng ký</p>
         </div>

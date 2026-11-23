@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft, Image as ImageIcon } from 'lucide-react'
-import logo from '../../assets/logo-vtauto.png'
+import { VTLogo } from '../../components/VTLogo'
 import {
   getPublicVehicle,
   getPublicVehicleImages,
@@ -108,9 +108,8 @@ export default function VehicleDetailPage() {
           >
             <ChevronLeft size={18} /> Danh sách
           </button>
-          <Link to="/" className="flex items-center gap-2">
-            <img src={logo} alt={SITE_CONFIG.name} className="h-8 w-8 object-contain" />
-            <span className="text-sm font-extrabold tracking-wide text-slate-900">{SITE_CONFIG.name}</span>
+          <Link to="/" className="flex items-center">
+            <VTLogo size="sm" priority alt={SITE_CONFIG.name} />
           </Link>
         </div>
       </header>

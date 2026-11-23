@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Save } from 'lucide-react'
-import logo from '../assets/logo-vtauto.png'
+import { VTLogo } from './VTLogo'
 import { getWebsiteSettings, updateWebsiteSettings } from '../services/websiteSettings.service'
 import { DEFAULT_SITE_SETTINGS, SITE_CONFIG } from '../public/contactConfig'
 
@@ -137,7 +137,7 @@ export default function WebsiteSettingsEditor() {
 
       {/* Logo hiện tại — chỉ preview, chưa cho upload */}
       <div className="mt-4 flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2.5">
-        <img src={logo} alt={`${SITE_CONFIG.name} logo`} className="h-9 w-auto object-contain" draggable={false} />
+        <VTLogo size="md" alt={`${SITE_CONFIG.name} logo`} />
         <div className="text-xs text-slate-500">Logo website hiện tại (đổi logo sẽ thêm ở Website Editor sau này)</div>
       </div>
 

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { LogIn, Eye, EyeOff, AlertCircle, UserPlus } from 'lucide-react'
 import { useAuthStore } from '../store/useAuthStore'
+import { VTLogo } from '../components/VTLogo'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -55,10 +56,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-50 to-slate-100 p-4">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-600 shadow-lg">
-            <span className="text-2xl font-bold text-white">VT</span>
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900">VT AUTO</h1>
+          <VTLogo size="xl" priority alt="VT AUTO" className="mb-3 max-w-[240px]" />
           <p className="mt-1 text-sm text-slate-500">Đăng nhập để tiếp tục</p>
         </div>
 
