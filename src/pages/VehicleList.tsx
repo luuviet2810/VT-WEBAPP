@@ -1,7 +1,7 @@
 // ====== VEHICLE LIST PAGE ======
 
 import { memo, useMemo, useState, useRef, useEffect, useCallback } from 'react'
-import { Link, useLocation, useNavigate, useNavigationType } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Car, LogIn, LogOut, Fuel, Monitor, Camera, AlertCircle, Wrench, CheckCircle2, XCircle, Minus, StickyNote, ExternalLink, X, ChevronLeft, ChevronRight, Download, ListChecks, Globe, EyeOff, Loader2 } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import { Badge, EmptyState, Modal } from '../components/ui'
@@ -56,7 +56,6 @@ const VehicleCard = memo(function VehicleCard({
   onPreviewOut,
   onNoteClick,
   onTogglePublic,
-  onNavigateToDetail,
 }: {
   vehicle: Vehicle
   positionName: string | null
@@ -70,7 +69,6 @@ const VehicleCard = memo(function VehicleCard({
   onPreviewOut: (id: string) => void
   onNoteClick?: (id: string) => void
   onTogglePublic: (id: string) => void
-  onNavigateToDetail: () => void
 }) {
   // [PERF] card render counter
   if (DEV_DISABLE_IMAGES) {
@@ -82,7 +80,7 @@ const VehicleCard = memo(function VehicleCard({
   }
 
   return (
-    <Link key={v.id} to={`/xe/${v.id}`} onClick={onNavigateToDetail} className="card group overflow-hidden transition-transform hover:-translate-y-0.5 text-sm">
+    <Link key={v.id} to={`/xe/${v.id}`} className="card group overflow-hidden transition-transform hover:-translate-y-0.5 text-sm">
       {/* Vehicle Image — click navigates to Vehicle Detail */}
       <div className="relative aspect-[4/2.2] w-full overflow-hidden bg-slate-100">
         {!DEV_DISABLE_IMAGES && v.images[0] ? (
@@ -197,68 +195,49 @@ const VehicleCard = memo(function VehicleCard({
 
 // ===== END VEHICLE CARD =====
 
+const DEFAULT_VEHICLE_FILTERS = {
+  query: '',
+  status: 'all',
+  positionId: 'all',
+  assigneeId: 'all',
+  sortBy: 'default' as 'default' | 'price_asc' | 'price_desc',
+  priceMin: 0,
+  priceMax: 110000000,
+}
+
 export default function VehicleList() {
   const vehicles = useStore((s) => s.vehicles)
   const positions = useStore((s) => s.positions)
-  const location = useLocation()
-  const navigationType = useNavigationType()
   const employees = useStore((s) => s.employees)
   const tasks = useStore((s) => s.tasks)
-  const defaultFilters = {
-    query: '', status: 'all', positionId: 'all', assigneeId: 'all',
-    sortBy: 'default' as 'default' | 'price_asc' | 'price_desc',
-    priceMin: 0, priceMax: 110000000,
-  }
-  const [filters, setFilters] = useState(() => {
-    try {
-      const raw = sessionStorage.getItem('vehicle-list-filters')
-      return raw ? { ...defaultFilters, ...JSON.parse(raw) } : defaultFilters
-    } catch {
-      return defaultFilters
-    }
-  })
 
-  const saveListStateBeforeDetail = useCallback(() => {
+  // Khởi tạo bộ lọc luôn ở trạng thái mặc định, KHÔNG lưu giữ state cũ khi chuyển tab
+  const [filters, setFilters] = useState(DEFAULT_VEHICLE_FILTERS)
+
+  // Tự động reset và cuộn lên đầu khi vào/rời trang Danh sách xe
+  useEffect(() => {
+    // 1. Dọn dẹp sạch sẽ bất kỳ filter/scroll lưu trữ tạm nào trong sessionStorage
+    try {
+      sessionStorage.removeItem('vehicle-list-filters')
+      sessionStorage.removeItem('vehicle-list-scroll')
+    } catch {}
+
+    // 2. Luôn đặt vị trí cuộn về đầu trang (cả container <main> và window)
     const main = document.querySelector('main')
-    if (!main) return
-    try {
-      sessionStorage.setItem('vehicle-list-filters', JSON.stringify(filters))
-      sessionStorage.setItem('vehicle-list-scroll', JSON.stringify({
-        locationKey: location.key,
-        top: main.scrollTop,
-        left: main.scrollLeft,
-      }))
-    } catch {
-      // Storage can be unavailable in private/browser-restricted contexts.
+    if (main) {
+      main.scrollTop = 0
+      main.scrollLeft = 0
     }
-  }, [filters, location.key])
+    window.scrollTo(0, 0)
 
-  useEffect(() => {
-    try {
-      sessionStorage.setItem('vehicle-list-filters', JSON.stringify(filters))
-    } catch {}
-  }, [filters])
-
-  useEffect(() => {
-    if (navigationType !== 'POP') return
-    let saved: { locationKey?: string; top?: number; left?: number } | null = null
-    try {
-      const raw = sessionStorage.getItem('vehicle-list-scroll')
-      saved = raw ? JSON.parse(raw) : null
-    } catch {}
-    if (!saved || saved.locationKey !== location.key) return
-
-    // The main container must be restored after this list render. Use two
-    // frames so filtering/content layout has settled before assigning scroll.
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      const main = document.querySelector('main')
-      if (main) {
-        main.scrollTop = saved?.top ?? 0
-        main.scrollLeft = saved?.left ?? 0
-      }
-      try { sessionStorage.removeItem('vehicle-list-scroll') } catch {}
-    }))
-  }, [location.key, navigationType, vehicles.length])
+    // 3. Tự động reset và dọn dẹp sạch sẽ khi rời khỏi trang Danh sách xe (unmount)
+    return () => {
+      try {
+        sessionStorage.removeItem('vehicle-list-filters')
+        sessionStorage.removeItem('vehicle-list-scroll')
+      } catch {}
+    }
+  }, [])
   const [previewSheet, setPreviewSheet] = useState<CheckSheet | null>(null)
   const [previewType, setPreviewType] = useState<'in' | 'out'>('in')
 
@@ -338,6 +317,45 @@ export default function VehicleList() {
         return a.plate.localeCompare(b.plate)
       })
   }, [vehicles, filters])
+
+  // Tối ưu hóa lookups O(1) tránh duyệt toàn bộ mảng tasks/checksheets lặp đi lặp lại trong mỗi card
+  const checkSheets = useStore((s) => s.checkSheets)
+  const positionMap = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const p of positions) map.set(p.id, p.name)
+    return map
+  }, [positions])
+
+  const taskStatsByVehicle = useMemo(() => {
+    const map = new Map<string, { pendingCount: number; highPriorityPending: boolean }>()
+    for (const t of tasks) {
+      if (!t.vehicleId) continue
+      const current = map.get(t.vehicleId) || { pendingCount: 0, highPriorityPending: false }
+      if (t.status !== 'done') {
+        current.pendingCount++
+        if (t.priority === 'high' || t.priority === 'urgent') {
+          current.highPriorityPending = true
+        }
+      }
+      map.set(t.vehicleId, current)
+    }
+    return map
+  }, [tasks])
+
+  const checkSheetsByVehicle = useMemo(() => {
+    const inMap = new Map<string, CheckSheet>()
+    const outMap = new Map<string, CheckSheet>()
+    for (const s of checkSheets) {
+      if (s.type === 'in') {
+        const existing = inMap.get(s.vehicleId)
+        if (!existing || s.createdAt > existing.createdAt) inMap.set(s.vehicleId, s)
+      } else if (s.type === 'out') {
+        const existing = outMap.get(s.vehicleId)
+        if (!existing || s.createdAt > existing.createdAt) outMap.set(s.vehicleId, s)
+      }
+    }
+    return { inMap, outMap }
+  }, [checkSheets])
 
   // Get latest check sheets for a vehicle (reads Zustand directly, avoids stale closure)
   const getLatestCheckSheets = (vehicleId: string) => {
@@ -421,7 +439,7 @@ export default function VehicleList() {
         </p>
       </div>
 
-      <VehicleFilterBar onFilterChange={setFilters} />
+      <VehicleFilterBar filters={filters} onFilterChange={setFilters} />
 
       {/* Vehicle Grid */}
       {filtered.length === 0 ? (
@@ -438,28 +456,26 @@ export default function VehicleList() {
               console.log(`[PERF] Card render ${v.plate} #${cardSeq} (list render #${gVlRender})`)
             }
 
-            const positionName = positions.find((p) => p.id === v.positionId)?.name ?? null
-            const vehicleTasks = tasks.filter((t) => t.vehicleId === v.id)
-            const pendingCount = vehicleTasks.filter((t) => t.status !== 'done').length
-            const highPriorityPending = vehicleTasks.some((t) => t.status !== 'done' && (t.priority === 'high' || t.priority === 'urgent'))
-            const { latestIn, latestOut } = getLatestCheckSheets(v.id)
+            const positionName = v.positionId ? positionMap.get(v.positionId) ?? null : null
+            const taskStat = taskStatsByVehicle.get(v.id) || { pendingCount: 0, highPriorityPending: false }
+            const hasIn = checkSheetsByVehicle.inMap.has(v.id)
+            const hasOut = checkSheetsByVehicle.outMap.has(v.id)
 
             return (
               <VehicleCard
                 key={v.id}
                 vehicle={v}
                 positionName={positionName}
-                hasIn={!!latestIn}
-                hasOut={!!latestOut}
-                pendingCount={pendingCount}
-                highPriorityPending={highPriorityPending}
+                hasIn={hasIn}
+                hasOut={hasOut}
+                pendingCount={taskStat.pendingCount}
+                highPriorityPending={taskStat.highPriorityPending}
                 publicPending={pendingPublicId === v.id}
                 onTaskClick={handleTaskClick}
                 onPreviewIn={handlePreviewIn}
                 onPreviewOut={handlePreviewOut}
                 onNoteClick={handleNoteClick}
                 onTogglePublic={handleTogglePublic}
-                onNavigateToDetail={saveListStateBeforeDetail}
               />
             )
           })}

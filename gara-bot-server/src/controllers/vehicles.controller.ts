@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
-import { query } from '../database/index.js';
+import { query, getDatabasePool } from '../database/index.js';
+import { deleteObject, isR2Configured, R2BucketType } from '../storage/r2.service.js';
 import { normalizeDateToYYYYMMDD } from '../utils/date.js';
 
 export function fuelTypeFromDb(value: unknown): string | undefined {
@@ -535,49 +536,323 @@ export async function moveVehicle(req: Request, res: Response) {
   }
 }
 
+interface R2CleanupTarget {
+  bucketType: R2BucketType;
+  key: string;
+}
+
+function extractR2KeyFromUrlOrPath(val: unknown, prefix?: string): string | null {
+  if (!val || typeof val !== 'string') return null;
+  const str = val.trim();
+  if (!str) return null;
+  if (str.startsWith('http://') || str.startsWith('https://')) {
+    if (prefix) {
+      const idx = str.indexOf(prefix);
+      if (idx !== -1) {
+        return str.substring(idx).split('?')[0].split('#')[0];
+      }
+    }
+    const match = str.match(/(?:vehicles|documents|checksheets)\/[^?#]+/);
+    if (match) return match[0];
+    return null;
+  }
+  return str.split('?')[0].split('#')[0];
+}
+
+function collectCheckSheetPhotoKeys(rawPhotos: any): string[] {
+  const keys: string[] = [];
+  if (!rawPhotos) return keys;
+
+  let parsed = rawPhotos;
+  if (typeof rawPhotos === 'string') {
+    try {
+      parsed = JSON.parse(rawPhotos);
+    } catch {
+      const k = extractR2KeyFromUrlOrPath(rawPhotos, 'checksheets/');
+      if (k) keys.push(k);
+      return keys;
+    }
+  }
+
+  function traverse(obj: any) {
+    if (!obj) return;
+    if (typeof obj === 'string') {
+      const k = extractR2KeyFromUrlOrPath(obj, 'checksheets/');
+      if (k) keys.push(k);
+    } else if (Array.isArray(obj)) {
+      for (const item of obj) {
+        traverse(item);
+      }
+    } else if (typeof obj === 'object') {
+      for (const val of Object.values(obj)) {
+        traverse(val);
+      }
+    }
+  }
+
+  traverse(parsed);
+  return keys;
+}
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function deleteVehicle(req: Request, res: Response) {
   try {
     const { id } = req.params;
 
-    // Kiểm tra xe có tồn tại không
-    const vehicleRes = await query('SELECT id, plate FROM vehicles WHERE id = $1', [id]);
+    // 1. Phân quyền: Chỉ Quản trị viên (Admin) mới có quyền xóa xe
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({
+        ok: false,
+        error: 'forbidden',
+        message: 'Chỉ Quản trị viên (Admin) mới có quyền xóa vĩnh viễn xe và dữ liệu liên quan.',
+      });
+    }
+
+    if (!id || !UUID_REGEX.test(id)) {
+      return res.status(400).json({
+        ok: false,
+        error: 'invalid_id',
+        message: 'ID xe không hợp lệ (yêu cầu định dạng UUID).',
+      });
+    }
+
+    // 2. Kiểm tra xe có tồn tại không
+    const vehicleRes = await query(
+      'SELECT id, plate, model FROM vehicles WHERE id = $1',
+      [id]
+    );
     if (vehicleRes.rows.length === 0) {
       return res.status(404).json({
         ok: false,
         error: 'not_found',
-        message: 'Không tìm thấy xe để xóa',
+        message: 'Không tìm thấy xe để xóa trong hệ thống.',
       });
     }
 
-    // Kiểm tra các bảng nghiệp vụ có liên kết (bảo vệ lịch sử dữ liệu, không xóa cascade nhầm)
-    const [checkSheetsRes, tasksRes] = await Promise.all([
-      query('SELECT count(*) FROM check_sheets WHERE vehicle_id = $1', [id]),
-      query('SELECT count(*) FROM tasks WHERE vehicle_id = $1', [id]),
+    const vehicle = vehicleRes.rows[0];
+
+    // 3. Thu thập danh sách file lưu trữ R2 (ảnh, tài liệu, checksheet photos) TRƯỚC KHI xóa trong DB
+    const [imagesRes, docsRes, checkSheetsRes] = await Promise.all([
+      query('SELECT path, thumbnail FROM vehicle_images WHERE vehicle_id = $1', [id]),
+      query('SELECT path FROM vehicle_documents WHERE vehicle_id = $1', [id]),
+      query('SELECT exterior_photos FROM check_sheets WHERE vehicle_id = $1', [id]),
     ]);
 
-    const checkSheetCount = parseInt(checkSheetsRes.rows[0]?.count || '0', 10);
-    const taskCount = parseInt(tasksRes.rows[0]?.count || '0', 10);
+    const r2Targets: R2CleanupTarget[] = [];
 
-    if (checkSheetCount > 0 || taskCount > 0) {
-      return res.status(400).json({
-        ok: false,
-        error: 'has_dependencies',
-        message: `Không thể xóa xe biển số ${vehicleRes.rows[0].plate} vì đang có ${checkSheetCount} phiếu kiểm tra và ${taskCount} nhiệm vụ liên kết để bảo toàn lịch sử.`,
-      });
+    // Keys ảnh xe
+    for (const img of imagesRes.rows) {
+      const origKey = extractR2KeyFromUrlOrPath(img.path, 'vehicles/');
+      if (origKey) r2Targets.push({ bucketType: 'images', key: origKey });
+
+      const thumbKey = extractR2KeyFromUrlOrPath(img.thumbnail, 'vehicles/');
+      if (thumbKey) r2Targets.push({ bucketType: 'images', key: thumbKey });
     }
 
-    await query('DELETE FROM vehicles WHERE id = $1', [id]);
+    // Keys tài liệu xe
+    for (const doc of docsRes.rows) {
+      const docKey = extractR2KeyFromUrlOrPath(doc.path, 'documents/');
+      if (docKey) r2Targets.push({ bucketType: 'documents', key: docKey });
+    }
+
+    // Keys ảnh trong các phiếu kiểm tra (check_sheets)
+    for (const cs of checkSheetsRes.rows) {
+      const photoKeys = collectCheckSheetPhotoKeys(cs.exterior_photos);
+      for (const pk of photoKeys) {
+        r2Targets.push({ bucketType: 'photos', key: pk });
+      }
+    }
+
+    // 4. Thực hiện xóa toàn bộ dữ liệu phụ thuộc trong 1 Database Transaction duy nhất
+    const pool = getDatabasePool();
+    const client = await pool.connect();
+
+    const deletedCounts = {
+      taskActivityLogs: 0,
+      tasks: 0,
+      checksheetLogs: 0,
+      checkSheets: 0,
+      vehicleImages: 0,
+      vehicleDocuments: 0,
+      moveLogs: 0,
+      vehicleWorkflowLogs: 0,
+      activityLogs: 0,
+      notifications: 0,
+    };
+
+    try {
+      await client.query('BEGIN');
+
+      // 4.1. Xóa logs của các tasks thuộc xe
+      const taskLogsRes = await client.query(
+        `DELETE FROM task_activity_logs WHERE task_id IN (SELECT id FROM tasks WHERE vehicle_id = $1)`,
+        [id]
+      );
+      deletedCounts.taskActivityLogs = taskLogsRes.rowCount ?? 0;
+
+      // 4.2. Xóa toàn bộ tasks thuộc xe
+      const tasksRes = await client.query(
+        `DELETE FROM tasks WHERE vehicle_id = $1`,
+        [id]
+      );
+      deletedCounts.tasks = tasksRes.rowCount ?? 0;
+
+      // 4.3. Xóa logs của các check_sheets thuộc xe
+      const csLogsRes = await client.query(
+        `DELETE FROM checksheet_logs WHERE checksheet_id IN (SELECT id FROM check_sheets WHERE vehicle_id = $1)`,
+        [id]
+      );
+      deletedCounts.checksheetLogs = csLogsRes.rowCount ?? 0;
+
+      // 4.4. Xóa toàn bộ check_sheets thuộc xe
+      const csRes = await client.query(
+        `DELETE FROM check_sheets WHERE vehicle_id = $1`,
+        [id]
+      );
+      deletedCounts.checkSheets = csRes.rowCount ?? 0;
+
+      // 4.5. Xóa vehicle_images thuộc xe
+      const imgRes = await client.query(
+        `DELETE FROM vehicle_images WHERE vehicle_id = $1`,
+        [id]
+      );
+      deletedCounts.vehicleImages = imgRes.rowCount ?? 0;
+
+      // 4.6. Xóa vehicle_documents thuộc xe
+      const docRes = await client.query(
+        `DELETE FROM vehicle_documents WHERE vehicle_id = $1`,
+        [id]
+      );
+      deletedCounts.vehicleDocuments = docRes.rowCount ?? 0;
+
+      // 4.7. Xóa move_logs thuộc xe
+      const moveRes = await client.query(
+        `DELETE FROM move_logs WHERE vehicle_id = $1`,
+        [id]
+      );
+      deletedCounts.moveLogs = moveRes.rowCount ?? 0;
+
+      // 4.8. Xóa vehicle_workflow_logs thuộc xe
+      const wfRes = await client.query(
+        `DELETE FROM vehicle_workflow_logs WHERE vehicle_id = $1`,
+        [id]
+      );
+      deletedCounts.vehicleWorkflowLogs = wfRes.rowCount ?? 0;
+
+      // 4.9. Dọn dẹp activity_logs liên quan đến xe này
+      const actRes = await client.query(
+        `DELETE FROM activity_logs 
+         WHERE (entity_type = 'vehicle' AND entity_id = $1)
+            OR (metadata->>'vehicle_id' = $1::text)
+            OR (metadata->>'vehicleId' = $1::text)`,
+        [id]
+      );
+      deletedCounts.activityLogs = actRes.rowCount ?? 0;
+
+      // 4.10. Dọn dẹp notifications liên quan đến xe này
+      const notifRes = await client.query(
+        `DELETE FROM notifications 
+         WHERE (data->>'vehicle_id' = $1::text)
+            OR (data->>'vehicleId' = $1::text)`,
+        [id]
+      );
+      deletedCounts.notifications = notifRes.rowCount ?? 0;
+
+      // 4.11. Xóa chính bản ghi xe
+      await client.query(`DELETE FROM vehicles WHERE id = $1`, [id]);
+
+      // 4.12. Ghi bản ghi audit vào activity_logs ghi nhận hành động xóa của Admin
+      const adminId = req.user?.id || null;
+      const auditSummary = {
+        vehicleId: id,
+        plate: vehicle.plate,
+        model: vehicle.model,
+        deletedCounts,
+        deletedBy: {
+          id: adminId,
+          name: req.user?.name || 'Admin',
+          email: req.user?.email || null,
+        },
+        timestamp: new Date().toISOString(),
+      };
+
+      await client.query(
+        `INSERT INTO activity_logs (
+          user_id, action, entity_type, entity_id, description, metadata, ip_address, user_agent, created_at
+        ) VALUES ($1, 'delete', 'vehicle', $2, $3, $4, $5, $6, NOW())`,
+        [
+          adminId,
+          id,
+          `Quản trị viên đã xóa vĩnh viễn xe ${vehicle.plate} (${vehicle.model || 'Không rõ'}) cùng toàn bộ dữ liệu lịch sử và media.`,
+          JSON.stringify(auditSummary),
+          req.ip || null,
+          req.get('user-agent') || null,
+        ]
+      );
+
+      await client.query('COMMIT');
+    } catch (txErr) {
+      await client.query('ROLLBACK');
+      throw txErr;
+    } finally {
+      client.release();
+    }
+
+    // 5. Dọn dẹp các tệp tin trên Cloudflare R2 sau khi DB Transaction thành công
+    let r2DeletedCount = 0;
+    let r2ErrorsCount = 0;
+    const r2Errors: Array<{ key: string; error: string }> = [];
+
+    if (isR2Configured() && r2Targets.length > 0) {
+      // Deduplicate targets theo bucketType và key
+      const uniqueTargetsMap = new Map<string, R2CleanupTarget>();
+      for (const target of r2Targets) {
+        if (target.key) {
+          uniqueTargetsMap.set(`${target.bucketType}:${target.key}`, target);
+        }
+      }
+      const uniqueTargets = Array.from(uniqueTargetsMap.values());
+
+      for (const item of uniqueTargets) {
+        try {
+          await deleteObject(item.bucketType, item.key);
+          r2DeletedCount++;
+        } catch (err: any) {
+          r2ErrorsCount++;
+          r2Errors.push({ key: item.key, error: err.message || 'Lỗi xóa file R2' });
+          console.warn(`[VehicleCascadeDelete] Warning: Không thể xóa ${item.bucketType}/${item.key} từ R2:`, err.message);
+        }
+      }
+    }
+
+    console.log(`[VehicleCascadeDelete] Successfully deleted vehicle ${vehicle.plate} (${id}):`, {
+      deletedCounts,
+      r2Cleaned: r2DeletedCount,
+      r2Errors: r2ErrorsCount,
+    });
 
     return res.status(200).json({
       ok: true,
-      message: `Đã xóa xe biển số ${vehicleRes.rows[0].plate} thành công`,
+      message: `Đã xóa vĩnh viễn xe biển số ${vehicle.plate} cùng toàn bộ ${deletedCounts.checkSheets} phiếu kiểm tra, ${deletedCounts.tasks} công việc và các file liên quan thành công.`,
+      data: {
+        vehicleId: id,
+        plate: vehicle.plate,
+        deletedCounts,
+        storageCleanup: {
+          totalKeys: r2Targets.length,
+          deletedKeys: r2DeletedCount,
+          errors: r2ErrorsCount,
+          errorDetails: r2Errors.length > 0 ? r2Errors : undefined,
+        },
+      },
     });
   } catch (err: any) {
     console.error('[Vehicles Controller] deleteVehicle error:', err);
     return res.status(500).json({
       ok: false,
       error: 'internal_error',
-      message: 'Lỗi khi xóa xe',
+      message: err.message || 'Lỗi khi xóa xe và dữ liệu liên quan.',
     });
   }
 }

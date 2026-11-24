@@ -26,6 +26,7 @@ import OverviewDashboard from './pages/dashboards/OverviewDashboard'
 import StatisticsDashboard from './pages/dashboards/StatisticsDashboard'
 import StaffDashboard from './pages/dashboards/StaffDashboard'
 
+import AppSkeleton from './components/AppSkeleton'
 import { useAuthStore } from './store/useAuthStore'
 import { useViewModeStore } from './store/viewModeStore'
 import { useState } from 'react'
@@ -68,9 +69,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     }
   }, [isAuthenticated, currentUser, isInitialized, isLoading])
 
-  if (authLoading || (isAuthenticated && !isInitialized && isLoading)) {
+  if (authLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-screen items-center justify-center bg-[#f5f8fc]">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-600 border-t-transparent" />
       </div>
     )
@@ -78,6 +79,15 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!isAuthenticated || !currentUser) {
     return <Navigate to="/login" replace />
+  }
+
+  // Thay thế vòng xoay loading chặn toàn màn hình bằng App Skeleton chuyên nghiệp
+  if (!isInitialized && isLoading) {
+    return (
+      <MainLayout>
+        <AppSkeleton />
+      </MainLayout>
+    )
   }
 
   return <>{children}</>
@@ -94,9 +104,9 @@ function RoleGuard({ allowedRoles, children }: { allowedRoles: UserRole[]; child
     }
   }, [isAuthenticated, currentUser, isInitialized, isLoading])
 
-  if (authLoading || (isAuthenticated && !isInitialized && isLoading)) {
+  if (authLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-screen items-center justify-center bg-[#f5f8fc]">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-600 border-t-transparent" />
       </div>
     )
@@ -111,6 +121,15 @@ function RoleGuard({ allowedRoles, children }: { allowedRoles: UserRole[]; child
 
   if (!hasAccess) {
     return <ForbiddenPage />
+  }
+
+  // Thay thế vòng xoay loading chặn toàn màn hình bằng App Skeleton chuyên nghiệp
+  if (!isInitialized && isLoading) {
+    return (
+      <MainLayout>
+        <AppSkeleton />
+      </MainLayout>
+    )
   }
 
   return <>{children}</>

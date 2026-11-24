@@ -111,16 +111,42 @@ export async function updateVehicle(id: string, patch: Partial<Vehicle>): Promis
 
 // ====== DELETE ======
 
-export async function assertCanDeleteVehicle(): Promise<void> {
-  const currentUser = useAuthStore.getState().currentUser
-  if (!currentUser || currentUser.role !== 'admin') {
-    throw new Error('Chỉ Admin được phép xóa xe.')
+export interface DeleteVehicleResponse {
+  ok: boolean
+  message: string
+  data?: {
+    vehicleId: string
+    plate: string
+    deletedCounts: {
+      taskActivityLogs: number
+      tasks: number
+      checksheetLogs: number
+      checkSheets: number
+      vehicleImages: number
+      vehicleDocuments: number
+      moveLogs: number
+      vehicleWorkflowLogs: number
+      activityLogs: number
+      notifications: number
+    }
+    storageCleanup: {
+      totalKeys: number
+      deletedKeys: number
+      errors: number
+    }
   }
 }
 
-export async function deleteVehicle(id: string): Promise<void> {
+export async function assertCanDeleteVehicle(): Promise<void> {
+  const currentUser = useAuthStore.getState().currentUser
+  if (!currentUser || currentUser.role !== 'admin') {
+    throw new Error('Chỉ Quản trị viên (Admin) mới có quyền xóa vĩnh viễn xe.')
+  }
+}
+
+export async function deleteVehicle(id: string): Promise<DeleteVehicleResponse> {
   await assertCanDeleteVehicle()
-  await apiDelete(`/api/vehicles/${id}`)
+  return await apiDelete<DeleteVehicleResponse>(`/api/vehicles/${id}`)
 }
 
 // Move vehicle to a position (wrapper)

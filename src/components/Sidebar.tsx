@@ -51,7 +51,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       </div>
 
       {/* Desktop Sidebar - always visible */}
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
+      <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-200 bg-white md:flex relative z-40">
         <DesktopSidebarContent />
       </aside>
     </>

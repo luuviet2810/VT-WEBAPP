@@ -2,9 +2,10 @@ import { useMemo, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Trash2 } from 'lucide-react'
 import { useStore } from '../store/useStore'
-import { Badge, EmptyState, ConfirmDialog } from '../components/ui'
+import { Badge, EmptyState } from '../components/ui'
 import VehicleDetailTabs, { VEHICLE_DETAIL_TABS } from '../components/VehicleDetailTabs'
 import MoveVehicleDialog from '../components/MoveVehicleDialog'
+import { DeleteVehicleModal } from '../components/DeleteVehicleModal'
 import { useCanDeleteVehicle, useVehiclePermissions } from '../rbac/usePermissions'
 import { getVehicleWorkflowStatus, WORKFLOW_STATUS_TONE, WORKFLOW_STATUS_LABEL } from '../utils/vehicleWorkflow'
 
@@ -52,12 +53,6 @@ export default function VehicleDetail() {
   const sheets = checkSheets.filter((c) => c.vehicleId === vehicle.id)
   const workflowStatus = getVehicleWorkflowStatus(vehicle, vehicleTasks, sheets)
   const v = vehicle!
-
-  function confirmDelete() {
-    if (!canDelete) return
-    deleteVehicle(v.id)
-    navigate('/')
-  }
 
   return (
     <div>
@@ -113,14 +108,13 @@ export default function VehicleDetail() {
       {/* Unified tabs */}
       <VehicleDetailTabs vehicle={v} tab={tab} onTabChange={setTab} />
 
-      <ConfirmDialog
+      <DeleteVehicleModal
         open={showDeleteConfirm}
-        title="Xóa xe?"
-        message={`Bạn có chắc muốn xóa xe "${v.plate}" khỏi hệ thống? Hành động này không thể hoàn tác.`}
-        confirmLabel="Xóa"
-        variant="danger"
-        onConfirm={confirmDelete}
-        onCancel={() => setShowDeleteConfirm(false)}
+        vehicle={v}
+        onClose={() => setShowDeleteConfirm(false)}
+        onSuccess={() => {
+          navigate('/xe')
+        }}
       />
 
       <MoveVehicleDialog open={moveDialogOpen} vehicle={v} onClose={() => setMoveDialogOpen(false)} />

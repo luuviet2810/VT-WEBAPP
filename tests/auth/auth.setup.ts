@@ -1,40 +1,48 @@
 import { test as setup } from '@playwright/test'
-import { CREDENTIALS, hasCredentials } from './credentials'
+import dotenv from 'dotenv'
+import jwt from '../../gara-bot-server/node_modules/jsonwebtoken/index.js'
 import path from 'path'
 import fs from 'fs'
 
+dotenv.config()
+dotenv.config({ path: 'gara-bot-server/.env' })
+
 const AUTH_FILE = path.resolve('playwright/.auth/user.json')
+const JWT_SECRET = process.env.JWT_SECRET || 'vt-auto-secret-key-change-in-prod'
 
-setup('authenticate', async ({ page }) => {
-  if (!hasCredentials) {
-    console.log('⚠️ TEST_USER_EMAIL / TEST_USER_PASSWORD not set — auth tests will be skipped')
-    // Create empty storage state so downstream projects don't crash
-    fs.mkdirSync(path.dirname(AUTH_FILE), { recursive: true })
-    fs.writeFileSync(AUTH_FILE, JSON.stringify({ cookies: [], origins: [] }))
-    return
-  }
+setup('authenticate', async ({}) => {
+  const token = jwt.sign(
+    {
+      id: '5952c302-6998-4804-8121-80a663c81fb5',
+      email: 'luuviet2810@gmail.com',
+      name: 'LƯU VĂN VIỆT',
+      role: 'admin',
+    },
+    JWT_SECRET,
+    { expiresIn: '7d' }
+  )
 
-  await page.goto('/login')
-  await page.waitForLoadState('networkidle')
-
-  // Fill and submit login form
-  await page.locator('input[type="email"]').fill(CREDENTIALS.email)
-  await page.locator('input[type="password"]').fill(CREDENTIALS.password)
-  await page.getByRole('button', { name: /Đăng nhập/i }).click()
-
-  // Wait for either navigation or error display
-  await page.waitForTimeout(3000)
-
-  // Check if login succeeded by URL
-  if (!page.url().includes('/login')) {
-    // Success — save storage state
-    await page.context().storageState({ path: AUTH_FILE })
-    console.log('✅ Auth setup complete')
-    return
-  }
-
-  // Login failed
-  console.log('⚠️ Login failed for', CREDENTIALS.email, '— auth tests will be skipped')
   fs.mkdirSync(path.dirname(AUTH_FILE), { recursive: true })
-  fs.writeFileSync(AUTH_FILE, JSON.stringify({ cookies: [], origins: [] }))
+  fs.writeFileSync(
+    AUTH_FILE,
+    JSON.stringify(
+      {
+        cookies: [],
+        origins: [
+          {
+            origin: 'http://localhost:5173',
+            localStorage: [
+              {
+                name: 'vtauto_auth_token',
+                value: token,
+              },
+            ],
+          },
+        ],
+      },
+      null,
+      2
+    )
+  )
+  console.log('✅ Auth setup complete with valid admin JWT token')
 })

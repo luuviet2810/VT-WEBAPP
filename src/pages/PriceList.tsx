@@ -4,6 +4,7 @@ import { ArrowUpDown, Car, Plus } from 'lucide-react'
 import { useStore } from '../store/useStore'
 import { formatCurrency, todayISO } from '../utils/format'
 import { Badge, EmptyState, ConfirmDialog } from '../components/ui'
+import { DeleteVehicleModal } from '../components/DeleteVehicleModal'
 import VehicleFilterBar from '../components/VehicleFilterBar'
 import VehicleFormModal from './VehicleFormModal'
 import { useIsAdminMode, useIsStaffMode } from '../hooks/useAuthRole'
@@ -99,10 +100,12 @@ export default function PriceList() {
     setEditVehicleId(id)
     setModalOpen(true)
   }, [])
+  const [deleteTarget, setDeleteTarget] = useState<Vehicle | null>(null)
   const handleDeleteRow = useCallback((id: string) => {
     if (!canDelete) return
-    if (confirm('Xoá xe này khỏi hệ thống?')) deleteVehicle(id)
-  }, [canDelete, deleteVehicle])
+    const target = vehicles.find((v) => v.id === id)
+    if (target) setDeleteTarget(target)
+  }, [canDelete, vehicles])
   const handleStatusChangeRow = useCallback((id: string, status: VehicleStatus) => {
     if (status === 'sold') {
       setConfirmSoldId(id)
@@ -211,6 +214,12 @@ export default function PriceList() {
           setConfirmSoldId(null)
           setPendingStatus(null)
         }}
+      />
+
+      <DeleteVehicleModal
+        open={Boolean(deleteTarget)}
+        vehicle={deleteTarget}
+        onClose={() => setDeleteTarget(null)}
       />
     </div>
   )

@@ -99,10 +99,30 @@ export async function apiClient<T = any>(endpoint: string, init?: RequestInit): 
     headers.set('Content-Type', 'application/json')
   }
 
-  const response = await fetch(url, {
-    ...init,
-    headers,
-  })
+  // Bổ sung timeout 45s (đủ thời gian cho Render Free wake up từ cold-start, tránh treo loading vô hạn)
+  const controller = new AbortController()
+  const timeoutMs = 45000
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
+  let response: Response
+  try {
+    response = await fetch(url, {
+      ...init,
+      signal: init?.signal || controller.signal,
+      headers,
+    })
+  } catch (err: any) {
+    if (err?.name === 'AbortError') {
+      throw new ApiError(
+        'Kết nối máy chủ bị quá thời gian (Timeout 45s). Máy chủ có thể đang thức dậy, vui lòng thử lại.',
+        408,
+        'timeout'
+      )
+    }
+    throw err
+  } finally {
+    clearTimeout(timeoutId)
+  }
 
   let body: any = null
   const contentType = response.headers.get('content-type')

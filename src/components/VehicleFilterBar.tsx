@@ -1,8 +1,8 @@
-import { useMemo, useRef, useState, useCallback } from 'react'
+import { useMemo, useRef, useState, useCallback, useEffect } from 'react'
 import { Search, RotateCcw, Filter, X } from 'lucide-react'
 import { useStore } from '../store/useStore'
 
-type Filters = {
+export type Filters = {
   query: string
   status: string
   positionId: string
@@ -12,7 +12,8 @@ type Filters = {
   priceMax: number
 }
 
-type VehicleFilterBarProps = {
+export type VehicleFilterBarProps = {
+  filters?: Filters
   onFilterChange?: (filters: Filters) => void
 }
 
@@ -35,7 +36,7 @@ const SORT_OPTIONS: { value: Filters['sortBy']; label: string }[] = [
   { value: 'price_desc', label: 'Giá: Cao đến thấp' },
 ]
 
-export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarProps) {
+export default function VehicleFilterBar({ filters: externalFilters, onFilterChange }: VehicleFilterBarProps) {
   const positions = useStore((s) => s.positions)
   const employees = useStore((s) => s.employees)
   const [filterOpen, setFilterOpen] = useState(false)
@@ -55,7 +56,7 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
     return closest
   }
 
-  const [filters, setFilters] = useState<Filters>({
+  const [filters, setFilters] = useState<Filters>(() => externalFilters ?? {
     query: '',
     status: 'all',
     positionId: 'all',
@@ -64,6 +65,32 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
     priceMin: 0,
     priceMax: 110000000, // show all vehicles by default; slider clamps to nearest step
   })
+
+  // Đồng bộ với externalFilters từ component cha (VehicleList hoặc PriceList)
+  useEffect(() => {
+    if (externalFilters) {
+      setFilters(externalFilters)
+      const isDefault =
+        !externalFilters.query &&
+        externalFilters.status === 'all' &&
+        externalFilters.positionId === 'all' &&
+        externalFilters.assigneeId === 'all' &&
+        externalFilters.sortBy === 'default' &&
+        externalFilters.priceMin === 0 &&
+        externalFilters.priceMax >= 110000000
+      if (isDefault) {
+        setFilterOpen(false)
+        setExtendedRange(false)
+      }
+    }
+  }, [externalFilters])
+
+  // Đảm bảo đóng popup khi rời component
+  useEffect(() => {
+    return () => {
+      setFilterOpen(false)
+    }
+  }, [])
 
   const positionOptions = useMemo(() => {
     return [{ value: 'all', label: 'Tất cả vị trí' }, ...positions.map((p) => ({ value: p.id, label: p.name }))]
@@ -101,6 +128,8 @@ export default function VehicleFilterBar({ onFilterChange }: VehicleFilterBarPro
   const resetFilters = useCallback(() => {
     const next: Filters = { query: '', status: 'all', positionId: 'all', assigneeId: 'all', sortBy: 'default', priceMin: 0, priceMax: 110000000 }
     setFilters(next)
+    setFilterOpen(false)
+    setExtendedRange(false)
     onFilterChange?.(next)
   }, [onFilterChange])
 

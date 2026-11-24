@@ -6,7 +6,7 @@ import {
   getAuthToken,
 } from '../services/auth.service'
 import type { AuthProfile } from '../services/auth.service'
-import { useStore, initializeStore } from './useStore'
+import { useStore, initializeStore, clearStoreCache } from './useStore'
 import { useViewModeStore } from './viewModeStore'
 
 interface AuthState {
@@ -124,7 +124,8 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       templates: [],
     })
 
-    // Xóa persisted view mode trong localStorage
+    // Xóa persisted view mode và cache dữ liệu store trong localStorage
+    clearStoreCache()
     try {
       localStorage.removeItem('gara-view-mode')
     } catch {}

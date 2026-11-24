@@ -67,75 +67,121 @@ const defaultSettings: Settings = {
   companyPhone: '',
 }
 
-export const initializeFromSupabase = () => initializeStore()
+export const STORE_CACHE_KEY = 'vtauto_store_cache_v2';
+
+export interface CachedStoreData {
+  vehicles: Vehicle[];
+  positions: Position[];
+  employees: Employee[];
+  tasks: Task[];
+  checkSheets: CheckSheet[];
+  timestamp: number;
+}
+
+export function getStoredCache(): CachedStoreData | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(STORE_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && Array.isArray(parsed.vehicles) && parsed.vehicles.length > 0) {
+      return parsed;
+    }
+  } catch {}
+  return null;
+}
+
+export function persistStoreCache(data: {
+  vehicles: Vehicle[];
+  positions: Position[];
+  employees: Employee[];
+  tasks: Task[];
+  checkSheets: CheckSheet[];
+}) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(
+      STORE_CACHE_KEY,
+      JSON.stringify({
+        ...data,
+        timestamp: Date.now(),
+      })
+    );
+  } catch {}
+}
+
+export function clearStoreCache() {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(STORE_CACHE_KEY);
+  } catch {}
+}
+
+export const initializeFromSupabase = () => initializeStore();
 
 export async function initializeStore(): Promise<void> {
-  const token = getAuthToken()
+  const token = getAuthToken();
   if (!token) {
-    console.log('[STORE] initializeStore: Chưa có token xác thực, bỏ qua nạp dữ liệu ban đầu.')
-    useStore.setState({ isLoading: false, isInitialized: false })
-    return
+    console.log('[STORE] initializeStore: Chưa có token xác thực, bỏ qua nạp dữ liệu ban đầu.');
+    useStore.setState({ isLoading: false, isInitialized: false });
+    return;
   }
 
-  useStore.setState({ isLoading: true, initError: null, errorModules: [] })
+  const hasCache = useStore.getState().isInitialized && useStore.getState().vehicles.length > 0;
+  if (!hasCache) {
+    useStore.setState({ isLoading: true, initError: null, errorModules: [] });
+  }
 
-  const modules = [
+  // 1. Tải các Module Cốt lõi trước (Core Modules) — ưu tiên hiển thị ngay danh sách xe
+  const coreModules = [
     { name: 'vehicles', promise: vehicleService.getVehicles() },
     { name: 'positions', promise: positionService.getPositions() },
     { name: 'employees', promise: usersService.getEmployees() },
     { name: 'tasks', promise: taskService.getTasks() },
     { name: 'checkSheets', promise: checksheetService.getCheckSheets() },
-    { name: 'attendance', promise: attendanceService.getAttendanceEntries() },
-    { name: 'moveLogs', promise: moveLogService.getMoveLogs() },
-  ]
+  ];
 
-  const results = await Promise.allSettled(modules.map((m) => m.promise))
+  const coreResults = await Promise.allSettled(coreModules.map((m) => m.promise));
 
-  const failedModules: string[] = []
-  const values: Record<string, any> = {}
+  const failedModules: string[] = [];
+  const values: Record<string, any> = {};
 
-  results.forEach((res, index) => {
-    const mod = modules[index].name
+  coreResults.forEach((res, index) => {
+    const mod = coreModules[index].name;
     if (res.status === 'fulfilled') {
-      values[mod] = res.value
+      values[mod] = res.value;
     } else {
-      failedModules.push(mod)
-      console.error(`[STORE] Lỗi khi tải module ${mod}:`, res.reason)
+      failedModules.push(mod);
+      console.error(`[STORE] Lỗi khi tải module ${mod}:`, res.reason);
     }
-  })
+  });
 
-  // Nếu bất kỳ module cốt lõi nào bị lỗi, không đánh dấu initialized thành công!
-  const coreModules = ['vehicles', 'positions', 'tasks', 'checkSheets', 'employees']
-  const failedCore = failedModules.filter((m) => coreModules.includes(m))
-
-  if (failedCore.length > 0) {
-    const errorMsg = `Không thể tải dữ liệu cốt lõi từ máy chủ: ${failedCore.join(', ')}`
-    console.error(`[STORE] ${errorMsg}`)
+  if (failedModules.length > 0 && !hasCache) {
+    const errorMsg = `Không thể tải dữ liệu cốt lõi từ máy chủ: ${failedModules.join(', ')}`;
+    console.error(`[STORE] ${errorMsg}`);
     useStore.setState({
       isLoading: false,
       isInitialized: false,
       initError: errorMsg,
       errorModules: failedModules,
-    })
-    return
+    });
+    return;
   }
 
-  const vehicles = (values.vehicles as Vehicle[]) || []
-  const positions = (values.positions as Position[]) || []
-  const employees = (values.employees as Employee[]) || []
-  const tasks = (values.tasks as Task[]) || []
-  const checkSheets = (values.checkSheets as CheckSheet[]) || []
-  const attendance = (values.attendance as AttendanceEntry[]) || []
-  const moveLogs = (values.moveLogs as MoveLog[]) || []
+  const vehicles = (values.vehicles as Vehicle[]) || useStore.getState().vehicles || [];
+  const positions = (values.positions as Position[]) || useStore.getState().positions || [];
+  const employees = (values.employees as Employee[]) || useStore.getState().employees || [];
+  const tasks = (values.tasks as Task[]) || useStore.getState().tasks || [];
+  const checkSheets = (values.checkSheets as CheckSheet[]) || useStore.getState().checkSheets || [];
 
   const mappedVehicles = vehicles.map((v) => {
-    const record = v as unknown as Record<string, unknown>
+    const record = v as unknown as Record<string, unknown>;
     return {
       ...v,
       createdAt: v.createdAt ?? (record.created_at as string) ?? todayISO(),
       updatedAt: v.updatedAt ?? (record.updated_at as string) ?? todayISO(),
-    }
-  })
+    };
+  });
 
   const mappedEmployees: Employee[] = employees.map((u) => ({
     id: u.id,
@@ -143,7 +189,7 @@ export async function initializeStore(): Promise<void> {
     phone: u.phone ?? undefined,
     isAdmin: u.isAdmin,
     disabled: u.disabled ?? false,
-  }))
+  }));
 
   useStore.setState({
     vehicles: mappedVehicles,
@@ -151,17 +197,39 @@ export async function initializeStore(): Promise<void> {
     employees: mappedEmployees,
     tasks,
     checkSheets,
-    attendance,
-    notifications: [],
-    moveLogs,
     isInitialized: true,
     isLoading: false,
     initError: null,
     errorModules: failedModules,
-  })
-  useStore.getState().loadTemplates()
-  console.log(`[STORE] Đã nạp thành công: ${mappedVehicles.length} xe, ${positions.length} vị trí, ${tasks.length} nhiệm vụ, ${checkSheets.length} phiếu checksheet, ${mappedEmployees.length} nhân viên.`)
-  return
+  });
+
+  persistStoreCache({
+    vehicles: mappedVehicles,
+    positions,
+    employees: mappedEmployees,
+    tasks,
+    checkSheets,
+  });
+
+  console.log(`[STORE] Đã nạp thành công Core: ${mappedVehicles.length} xe, ${positions.length} vị trí, ${tasks.length} nhiệm vụ, ${checkSheets.length} phiếu checksheet, ${mappedEmployees.length} nhân viên.`);
+
+  // 2. Tải các Module Phụ (Secondary Modules) ngầm ở nền — KHÔNG khóa giao diện
+  Promise.allSettled([
+    attendanceService.getAttendanceEntries(),
+    moveLogService.getMoveLogs(),
+  ]).then(([attRes, moveRes]) => {
+    const attendance = attRes.status === 'fulfilled' ? (attRes.value as AttendanceEntry[]) : [];
+    const moveLogs = moveRes.status === 'fulfilled' ? (moveRes.value as MoveLog[]) : [];
+    useStore.setState((s) => ({
+      attendance: attendance.length > 0 ? attendance : s.attendance,
+      moveLogs: moveLogs.length > 0 ? moveLogs : s.moveLogs,
+    }));
+  }).catch((err) => {
+    console.warn('[STORE] Module phụ tải ngầm gặp lỗi (không ảnh hưởng vận hành):', err);
+  });
+
+  useStore.getState().loadTemplates();
+  return;
 }
 
 interface StoreState {
@@ -237,20 +305,22 @@ interface StoreState {
 }
 
 export const useStore = create<StoreState>()(
-  (set, get) => ({
-    vehicles: [],
-    positions: [],
-    tasks: [],
-    employees: [],
+  (set, get) => {
+    const initialCache = getStoredCache();
+    return {
+    vehicles: initialCache?.vehicles ?? [],
+    positions: initialCache?.positions ?? [],
+    tasks: initialCache?.tasks ?? [],
+    employees: initialCache?.employees ?? [],
     moveLogs: [],
-    checkSheets: [],
+    checkSheets: initialCache?.checkSheets ?? [],
     attendance: [],
     notifications: [],
     settings: defaultSettings,
     taskActivityLogs: [],
     vehicleTimelines: {},
     currentEmployeeId: '',
-    isInitialized: false,
+    isInitialized: initialCache ? true : false,
     isLoading: false,
     initError: null,
     errorModules: [],
@@ -486,63 +556,60 @@ export const useStore = create<StoreState>()(
     },
 
     deleteVehicle: async (id) => {
-      // Check the authenticated database role before optimistic state changes,
-      // media cleanup, or task snapshot updates. Never use viewMode here.
-      try {
-        await vehicleService.assertCanDeleteVehicle()
-      } catch (err) {
-        console.error('[STORE] Vehicle delete denied:', err)
-        get().addNotification({ type: 'error', title: 'Không có quyền', body: 'Chỉ Admin được phép xóa xe.' })
-        return
-      }
+      // 1. Kiểm tra quyền Admin
+      await vehicleService.assertCanDeleteVehicle()
 
       const before = get().vehicles.find((v) => v.id === id)
-      const imagesToDelete = before?.images ?? []
-      const docsToDelete = before?.documents ?? []
-
-      set((s) => ({ vehicles: s.vehicles.filter((v) => v.id !== id) }))
+      if (!before) {
+        throw new Error('Không tìm thấy xe để xóa.')
+      }
 
       try {
-        // Preserve task display identity before FK ON DELETE SET NULL runs.
-        // No status/activity is changed by this snapshot-only update.
-        const linkedTasks = get().tasks.filter((t) => t.vehicleId === id)
-        await Promise.all(linkedTasks.map((task) =>
-          taskService.updateTask(task.id, {
-            vehicleModelSnapshot: task.vehicleModelSnapshot ?? before?.model ?? null,
-            vehiclePlateSnapshot: task.vehiclePlateSnapshot ?? before?.plate ?? null,
+        // 2. Gọi Backend API CASCADE DELETE (xóa triệt để Neon DB + Cloudflare R2)
+        const response = await vehicleService.deleteVehicle(id)
+
+        // 3. Cập nhật state Zustand: Xóa xe cùng toàn bộ tasks, checksheets, moveLogs thuộc xe
+        set((s) => {
+          const nextVehicles = s.vehicles.filter((v) => v.id !== id)
+          const nextTasks = s.tasks.filter((t) => t.vehicleId !== id)
+          const nextCheckSheets = s.checkSheets.filter((c) => c.vehicleId !== id)
+          const nextMoveLogs = s.moveLogs.filter((m) => m.vehicleId !== id)
+
+          const nextTimelines = { ...s.vehicleTimelines }
+          delete nextTimelines[id]
+
+          // 4. Đồng bộ hóa tức thì LocalStorage cache vtauto_store_cache_v2
+          persistStoreCache({
+            vehicles: nextVehicles,
+            positions: s.positions,
+            employees: s.employees,
+            tasks: nextTasks,
+            checkSheets: nextCheckSheets,
           })
-        ))
 
-        for (const url of imagesToDelete) {
-          try {
-            await storageService.deleteVehicleImage(url)
-          } catch (err) {
-            console.error('\uD83D\uDD34 [STORE] Failed to delete image from storage:', err)
+          return {
+            vehicles: nextVehicles,
+            tasks: nextTasks,
+            checkSheets: nextCheckSheets,
+            moveLogs: nextMoveLogs,
+            vehicleTimelines: nextTimelines,
           }
-        }
-        for (const url of docsToDelete) {
-          try {
-            await storageService.deleteVehicleDocument(url)
-          } catch (err) {
-            console.error('\uD83D\uDD34 [STORE] Failed to delete document from storage:', err)
-          }
-        }
+        })
 
-        await vehicleMediaService.deleteAllVehicleMedia(id)
-        await vehicleService.deleteVehicle(id)
-        // Database FK sets task.vehicle_id NULL; mirror that locally while
-        // retaining the snapshots for the "Xe đã xóa" display.
-        set((s) => ({
-          tasks: s.tasks.map((task) =>
-            task.vehicleId === id
-              ? { ...task, vehicleId: null, vehicleModelSnapshot: task.vehicleModelSnapshot ?? before?.model, vehiclePlateSnapshot: task.vehiclePlateSnapshot ?? before?.plate }
-              : task
-          ),
-        }))
-      } catch (err) {
-        if (before) set((s) => ({ vehicles: [...s.vehicles, before] }))
-        console.error('\uD83D\uDD34 [STORE] Failed to delete vehicle:', err)
-        get().addNotification({ type: 'error', title: 'Lỗi', body: 'Không thể xóa xe. Vui lòng thử lại.' })
+        // 5. Thông báo Toast thành công
+        get().addNotification({
+          type: 'success',
+          title: 'Đã xóa xe thành công',
+          body: response?.message || `Đã xóa vĩnh viễn xe ${before.plate} cùng toàn bộ dữ liệu lịch sử và media liên quan.`,
+        })
+      } catch (err: any) {
+        console.error('🔴 [STORE] Failed to cascade delete vehicle:', err)
+        get().addNotification({
+          type: 'error',
+          title: 'Lỗi xóa xe',
+          body: err?.message || 'Không thể xóa xe. Vui lòng kiểm tra lại.',
+        })
+        throw err
       }
     },
 
@@ -1431,8 +1498,8 @@ export const useStore = create<StoreState>()(
         body: `Đã áp dụng "${template.name}" cho xe ${vehicle?.plate || ''}`,
       })
     },
-  })
-)
+  }
+})
 
 export function emptyExteriorCheck() {
   return emptyExterior()
