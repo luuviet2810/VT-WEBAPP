@@ -6,7 +6,7 @@
       "localStorage": [
         {
           "name": "vtauto_auth_token",
-          "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjU5NTJjMzAyLTY5OTgtNDgwNC04MTIxLTgwYTY2M2M4MWZiNSIsImVtYWlsIjoibHV1dmlldDI4MTBAZ21haWwuY29tIiwibmFtZSI6IkzGr1UgVsSCTiBWSeG7hlQiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3OTU0OTYxMjgsImV4cCI6MTc5NjEwMDkyOH0.TNGHseo6vJ2fY9lrfxhqKoUMZ61bKb10CXXHU3puiX8"
+          "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjU5NTJjMzAyLTY5OTgtNDgwNC04MTIxLTgwYTY2M2M4MWZiNSIsImVtYWlsIjoibHV1dmlldDI4MTBAZ21haWwuY29tIiwibmFtZSI6IkzGr1UgVsSCTiBWSeG7hlQiLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3OTU1MTA4MDksImV4cCI6MTc5NjExNTYwOX0.KAr89OBpbNvQdbAfnrsO1Fne5KAryKIrVrMuStxrkNk"
         }
       ]
     }

@@ -23,7 +23,7 @@ const PUBLIC_WEB_URL =
   (import.meta.env.DEV ? `${window.location.origin}/?mode=public` : 'https://vtautocustomer.vercel.app')
 
 type Device = 'mobile' | 'desktop'
-type ListTab = 'visible' | 'coming_soon' | 'hidden'
+type ListTab = 'visible' | 'coming_soon'
 type WebStatus = 'visible' | 'coming_soon' | 'hidden'
 
 const ORDER_TAIL = Number.MAX_SAFE_INTEGER
@@ -115,11 +115,7 @@ function VehicleRowInner({
     ? { transform: CSS.Translate.toString(dragProps.transform), transition: dragProps.transition }
     : undefined
 
-  const currentWebStatus: WebStatus = !v.isPublic
-    ? 'hidden'
-    : v.isComingSoon
-    ? 'coming_soon'
-    : 'visible'
+  const currentWebStatus: WebStatus = v.isComingSoon ? 'coming_soon' : 'visible'
 
   return (
     <div
@@ -164,22 +160,19 @@ function VehicleRowInner({
       </div>
 
       <div className="flex shrink-0 flex-col items-end gap-1.5">
-        {/* Dropdown 3 trạng thái: Đang hiển thị / Sắp về / Đang ẩn */}
+        {/* Dropdown 2 trạng thái: Đang hiển thị / Sắp về */}
         <select
           value={currentWebStatus}
           onChange={(e) => onStatusChange(v.id, e.target.value as WebStatus)}
           aria-label="Trạng thái hiển thị trên website"
           className={`rounded-lg border px-2 py-1 text-xs font-semibold shadow-xs transition-colors focus:outline-none ${
-            currentWebStatus === 'hidden'
-              ? 'border-slate-300 bg-slate-50 text-slate-600'
-              : currentWebStatus === 'coming_soon'
+            currentWebStatus === 'coming_soon'
               ? 'border-amber-300 bg-amber-50 text-amber-800'
               : 'border-green-300 bg-green-50 text-green-800'
           }`}
         >
           <option value="visible">Đang hiển thị</option>
           <option value="coming_soon">Sắp về</option>
-          <option value="hidden">Đang ẩn</option>
         </select>
 
         <div className="flex items-center gap-1">
@@ -307,10 +300,6 @@ export default function PreWeb() {
         .sort((a, b) => (a.publicSortOrder ?? ORDER_TAIL) - (b.publicSortOrder ?? ORDER_TAIL)),
     [inStock]
   )
-  const hiddenList = useMemo(
-    () => inStock.filter((v) => !v.isPublic).sort((a, b) => (a.model || '').localeCompare(b.model || '')),
-    [inStock]
-  )
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
@@ -422,13 +411,6 @@ export default function PreWeb() {
               >
                 Sắp về ({comingSoon.length})
               </button>
-              <button
-                type="button"
-                onClick={() => setTab('hidden')}
-                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${tab === 'hidden' ? 'bg-slate-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
-              >
-                Đang ẩn ({hiddenList.length})
-              </button>
             </div>
           </div>
 
@@ -466,21 +448,8 @@ export default function PreWeb() {
             </DndContext>
           )}
 
-          {tab === 'hidden' && (
-            <div className="space-y-2">
-              {hiddenList.length === 0 && (
-                <div className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-400">
-                  Không có xe nào đang ẩn.
-                </div>
-              )}
-              {hiddenList.map((v) => (
-                <VehicleRowInner key={v.id} vehicle={v} images={covers[v.id]} onStatusChange={handleStatusChange} onOpenCover={setCoverVehicleId} />
-              ))}
-            </div>
-          )}
-
           <p className="mt-3 text-xs text-slate-400">
-            Kéo-thả để đổi thứ tự hiển thị trên website · Chọn trạng thái Đang hiển thị / Sắp về / Đang ẩn mà không xoá dữ liệu xe.
+            Kéo-thả để đổi thứ tự hiển thị trên website · Chuyển xe giữa Đang hiển thị và Sắp về mà không xoá dữ liệu xe.
           </p>
         </section>
 
